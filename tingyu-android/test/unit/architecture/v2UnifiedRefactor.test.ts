@@ -21,7 +21,7 @@ describe('V2 统一重构与核心修复回归门禁', () => {
         const collection = read('src/library/suites/mobile/native/useNativeCollectionPage.ts');
         expect(actions).toContain('allowEmpty = false');
         expect(home).toContain('多听一些音乐，时光雷达将为你找回曾经的旋律。');
-        expect(home).toContain('controls.openSongs(radarNames[kind], list, desc, true)');
+        expect(home).toContain('controls.openSongs(radarNames[kind], list, desc, true, radarCoverMap[kind])');
         expect(collection).toContain("props.collection.type==='discovery'&&props.collection.description");
     });
 
@@ -41,7 +41,7 @@ describe('V2 统一重构与核心修复回归门禁', () => {
         expect(settingsPage).not.toContain("title:t('ui.options')");
     });
 
-    it('Kotlin 四个一级页面共享 UnifiedCollapsingHeader 且包含正式视觉色板', () => {
+    it('Kotlin 四个一级页面共享 UnifiedCollapsingHeader 且接入正式 WebP 素材与规范配色', () => {
         const header = read('android/app/src/main/java/io/github/huleixin/tingyu/chrome/UnifiedCollapsingHeader.kt');
         const homeKt = read('android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeHomePage.kt');
         const dirKt = read('android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt');
@@ -51,16 +51,23 @@ describe('V2 统一重构与核心修复回归门禁', () => {
 
         expect(header).toContain('UnifiedCollapsingHeader');
         expect(header).toContain('UnifiedPlatformFilterBar');
+        expect(header).toContain('0xFFCEDDE9');
+        expect(header).toContain('0xFF385B73');
         expect(homeKt).toContain('UnifiedCollapsingHeader(');
+        expect(homeKt).toContain('0xFF6289B4');
+        expect(homeKt).toContain('0xFFDDE8F5');
         expect(dirKt).toContain('UnifiedCollapsingHeader(');
         expect(searchKt).toContain('rememberCollapsingProgress(');
         expect(settingsKt).toContain('UnifiedCollapsingHeader(');
 
-        // 专属视觉色板与防重复图标
-        expect(artKt).toContain('0xFF1C3F5A');
-        expect(artKt).toContain('0xFF3B4272');
-        expect(artKt).toContain('0xFF514E4B');
-        expect(artKt).toContain('0xFF215157');
+        // 正式 WebP 资源与漫游/雷达规范配色
+        expect(artKt).toContain('roaming.webp');
+        expect(artKt).toContain('radar-style.webp');
+        expect(artKt).toContain('radar-time.webp');
+        expect(artKt).toContain('radar-explore.webp');
+        expect(artKt).toContain('0xFF203747');
+        expect(artKt).toContain('0xFF49677D');
+        expect(artKt).toContain('0xFF203F59');
         expect(settingsKt).toContain('"discovery-settings" to "compass"');
         expect(settingsKt).toContain('"search-settings" to "search"');
         expect(settingsKt).toContain('"desktop-lyrics" to "monitor"');

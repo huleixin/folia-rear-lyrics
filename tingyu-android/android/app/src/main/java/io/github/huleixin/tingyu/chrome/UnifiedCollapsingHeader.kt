@@ -145,32 +145,45 @@ internal fun CompactPlatformDropdown(
 ) {
     if (alpha <= 0.02f || section.items.isEmpty()) return
     val palette = LocalInterfacePalette.current
+    val isGlacierLight = palette.light && palette.style == "glacier"
+    val pillBg = if (isGlacierLight) Color(0xFFCEDDE9) else palette.selected
+    val pillFg = if (isGlacierLight) Color(0xFF385B73) else palette.ink
     var open by remember { mutableStateOf(false) }
     val selected = section.items.firstOrNull { it.selected } ?: section.items.first()
     val interactive = alpha >= 0.5f
     Box(Modifier.graphicsLayer { this.alpha = alpha }) {
-        Row(
+        Box(
             Modifier
-                .heightIn(min = 34.dp)
-                .clip(RoundedCornerShape(17.dp))
-                .background(palette.directorySelected.copy(alpha = 0.88f))
+                .heightIn(min = 48.dp)
                 .then(
-                    if (interactive) Modifier.clickable(role = Role.Button) { open = true }
+                    if (interactive) Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        role = Role.Button
+                    ) { open = true }
                     else Modifier
-                )
-                .padding(horizontal = 10.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                selected.title,
-                color = palette.accent,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            PageIcon("chevron-down", palette.accent, Modifier.size(14.dp))
+            Row(
+                Modifier
+                    .height(32.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(pillBg)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    selected.title,
+                    color = pillFg,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                PageIcon("chevron-down", pillFg, Modifier.size(14.dp))
+            }
         }
         LiquidDropdown(expanded = open && interactive, onDismissRequest = { open = false }) {
             val menuInk = palette.menuInk
@@ -208,6 +221,8 @@ internal fun UnifiedPlatformFilterBar(
     section: NativePageSection,
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = UnifiedHeaderTokens.HorizontalPadding,
+    alpha: Float = 1f,
+    interactive: Boolean = true,
     action: PageAction,
 ) {
     val palette = LocalInterfacePalette.current
@@ -220,37 +235,54 @@ internal fun UnifiedPlatformFilterBar(
     }
     LazyRow(
         state = rowState,
+        userScrollEnabled = interactive && alpha > 0.05f,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = UnifiedHeaderTokens.PlatformBarHeight),
+            .heightIn(min = UnifiedHeaderTokens.PlatformBarHeight)
+            .graphicsLayer { this.alpha = alpha },
         contentPadding = PaddingValues(horizontal = horizontalPadding),
         horizontalArrangement = Arrangement.spacedBy(UnifiedHeaderTokens.PlatformPillGap),
         verticalAlignment = Alignment.CenterVertically
     ) {
         itemsIndexed(section.items, key = { _, item -> item.id }) { _, item ->
             val selected = item.selected
+            val isGlacierLight = palette.light && palette.style == "glacier"
+            val pillBg = when {
+                !selected -> Color.Transparent
+                isGlacierLight -> Color(0xFFCEDDE9)
+                else -> palette.directorySelected
+            }
+            val pillFg = when {
+                !selected -> PageMuted
+                isGlacierLight -> Color(0xFF385B73)
+                else -> palette.accent
+            }
             Box(
                 Modifier
                     .height(UnifiedHeaderTokens.PlatformBarHeight)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        enabled = !item.disabled,
-                        role = Role.Tab
-                    ) { action(item.action, "", 0.0) },
+                    .then(
+                        if (interactive && alpha > 0.05f) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                enabled = !item.disabled,
+                                role = Role.Tab
+                            ) { action(item.action, "", 0.0) }
+                        } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     Modifier
                         .height(UnifiedHeaderTokens.PlatformPillHeight)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(if (selected) palette.directorySelected else Color.Transparent)
+                        .background(pillBg)
                         .padding(horizontal = UnifiedHeaderTokens.PlatformPillPaddingH),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         item.title,
-                        color = if (selected) palette.accent else PageMuted,
+                        color = pillFg,
                         fontSize = 14.sp,
                         lineHeight = 18.sp,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
@@ -289,7 +321,7 @@ internal fun UnifiedCollapsingHeader(
     val titleWeight = if (p < 0.5f) FontWeight.Bold else FontWeight(650)
     val subtitleAlpha = (1f - p / 0.55f).coerceIn(0f, 1f)
     val compactPlatformAlpha = ((p - 0.85f) / 0.15f).coerceIn(0f, 1f)
-    val bgAlpha = if (p <= 0.02f) 0f else (0.75f + p * 0.21f).coerceIn(0f, 0.96f)
+    val bgAlpha = if (p <= 0.02f) 0f else if (p >= 0.90f) 1f else (0.78f + p * 0.24f).coerceIn(0f, 1f)
 
     Column(
         Modifier

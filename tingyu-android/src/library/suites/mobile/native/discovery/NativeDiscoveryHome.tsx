@@ -65,7 +65,12 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             : kind === 'local' ? '暂无本地音乐，可在资料库导入本地曲库。'
             : '当前平台候选数据不足，请先收听或收藏一些歌曲，或切换其他平台。';
         const desc = list.length ? (kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及当前筛选来源生成。') : emptyHint;
-        controls.openSongs(radarNames[kind], list, desc, true);
+        const radarCoverMap: Partial<Record<RadarKind, string>> = {
+            style: '/assets/discovery/radar-style.webp',
+            time: '/assets/discovery/radar-time.webp',
+            explore: '/assets/discovery/radar-explore.webp',
+        };
+        controls.openSongs(radarNames[kind], list, desc, true, radarCoverMap[kind]);
     };
     const actions: PageActions = { settings: openSettings, sources: onSources, refresh: feed.retry,
         next: () => setBatch(value => value + 1), roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs),

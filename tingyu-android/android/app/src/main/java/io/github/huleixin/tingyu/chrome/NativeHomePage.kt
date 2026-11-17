@@ -79,7 +79,15 @@ import kotlinx.coroutines.launch
                         section.layout=="textActions" -> item(key=section.id){DiscoveryTextActions(section,Modifier.padding(start=start,end=end),action)}
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
                         section.layout=="chips" && section.id=="discovery-sources" -> item(key=section.id){
-                            UnifiedPlatformFilterBar(section,Modifier.padding(top=8.dp),horizontalPadding=start,action=action)
+                            val platformAlpha = (1f - (collapseProgress - 0.25f) / 0.55f).coerceIn(0f, 1f)
+                            UnifiedPlatformFilterBar(
+                                section,
+                                Modifier.padding(top=8.dp),
+                                horizontalPadding=start,
+                                alpha=platformAlpha,
+                                interactive=platformAlpha > 0.05f,
+                                action=action
+                            )
                         }
                         section.layout=="chips" -> item(key=section.id){
                             NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=8.dp),action=action)
@@ -127,8 +135,14 @@ import kotlinx.coroutines.launch
                         // 圆形图标容器），图标在上 / 名称居中 / 真实数量在下，无竖线分隔；
                         // 按压沿用 ChromeMaterial 的缩放+透明度反馈。导航与计数逻辑不变。
                         section.layout=="quickLinks" && discovery -> item(key=section.id){
-                            val tintColors = listOf(Color(0x1F3B82F6), Color(0x1FEF4444), Color(0x1F10B981), Color(0x1FF59E0B))
-                            val iconColors = listOf(Color(0xFF3B82F6), Color(0xFFEF4444), Color(0xFF10B981), Color(0xFFD97706))
+                            val palette = LocalInterfacePalette.current
+                            val isGlacierLight = palette.light && palette.style == "glacier"
+                            val tintColors = if (isGlacierLight) {
+                                listOf(Color(0xFFDDE8F5), Color(0xFFF0E2EB), Color(0xFFDCEDEA), Color(0xFFEEE8DC))
+                            } else {
+                                listOf(Color(0x246289B4), Color(0x24BB829C), Color(0x24639D98), Color(0x24AD9876))
+                            }
+                            val iconColors = listOf(Color(0xFF6289B4), Color(0xFFBB829C), Color(0xFF639D98), Color(0xFFAD9876))
                             Row(Modifier.padding(start=start,end=end,top=12.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                                 section.items.forEachIndexed { idx, item ->
                                     val interaction=remember { MutableInteractionSource() }

@@ -3,140 +3,42 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>听屿 V2 · 漫游与专属雷达正式封面预览</title>
+<title>听屿 · 推荐页正式艺术素材预览</title>
 <style>
-  body { margin: 0; padding: 32px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1720; color: #eef4f7; }
+  body { margin: 0; padding: 32px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #edf3f8; color: #203747; }
   h1 { margin: 0 0 8px; font-size: 24px; }
-  p { margin: 0 0 28px; color: #9db0bd; font-size: 14px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; max-width: 1120px; }
-  .card { background: #18232e; border-radius: 18px; padding: 16px; }
+  p { margin: 0 0 28px; color: #49677D; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; max-width: 1120px; }
+  .card { background: #ffffff; border-radius: 18px; padding: 16px; box-shadow: 0 6px 24px rgba(32,55,71,0.06); }
   .card.wide { grid-column: 1 / -1; }
-  .art { width: 100%; display: block; border-radius: 14px; }
+  .art { width: 100%; display: block; border-radius: 14px; object-fit: cover; }
   .meta { margin-top: 12px; font-size: 14px; font-weight: 600; }
-  .palette { margin-top: 6px; display: flex; gap: 6px; font-size: 12px; color: #9db0bd; align-items: center; }
-  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .sub { margin-top: 4px; font-size: 12px; color: #49677D; }
 </style>
 </head>
 <body>
-  <h1>听屿 V2 · 正式视觉封面预览</h1>
-  <p>独立 SVG 矢量资源预览（与 Android Compose DiscoveryCards.kt 同步同一专属色板与构图标准，无烘焙文字与按钮）。</p>
+  <h1>听屿 · 推荐页正式艺术素材预览</h1>
+  <p>以下为直接接入的优化 WebP 正式资源（Android 与 Web/Pad 共用 <code>public/assets/discovery/</code>）。</p>
   <div class="grid">
     <div class="card wide">
-      <svg class="art" viewBox="0 0 1120 480" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="roamBg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#193D59"/><stop offset="52%" stop-color="#215173"/><stop offset="100%" stop-color="#76AFC9"/>
-          </linearGradient>
-          <radialGradient id="roamGlow" cx="0.80" cy="0.30" r="0.35">
-            <stop offset="0%" stop-color="#F5D6A0" stop-opacity="0.58"/><stop offset="55%" stop-color="#C9EBEE" stop-opacity="0.18"/><stop offset="100%" stop-color="#C9EBEE" stop-opacity="0"/>
-          </radialGradient>
-          <linearGradient id="roamSun" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#F5D6A0"/><stop offset="100%" stop-color="#ECC07D"/>
-          </linearGradient>
-          <linearGradient id="roamScrim" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#193D59" stop-opacity="0.92"/><stop offset="46%" stop-color="#193D59" stop-opacity="0.72"/><stop offset="72%" stop-color="#193D59" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <rect width="1120" height="480" fill="url(#roamBg)"/>
-        <rect width="1120" height="480" fill="url(#roamGlow)"/>
-        <circle cx="896" cy="144" r="82" fill="url(#roamSun)"/>
-        <path d="M627 317 C717 211, 806 216, 885 317 Z" fill="#193D59" fill-opacity="0.58"/>
-        <path d="M739 336 C829 235, 963 240, 1075 336 Z" fill="#1E4B6B"/>
-        <path d="M0 326 C314 298, 616 355, 1120 298 L1120 480 L0 480 Z" fill="#76AFC9" fill-opacity="0.34"/>
-        <path d="M0 374 C381 403, 762 326, 1120 370 L1120 480 L0 480 Z" fill="#C9EBEE" fill-opacity="0.24"/>
-        <path d="M0 422 C336 394, 806 451, 1120 408 L1120 480 L0 480 Z" fill="#193D59" fill-opacity="0.42"/>
-        <path d="M766 112 A134 134 0 0 1 1018 190" fill="none" stroke="#C9EBEE" stroke-opacity="0.20" stroke-width="3" stroke-linecap="round"/>
-        <path d="M712 86 A196 196 0 0 1 1068 212" fill="none" stroke="#C9EBEE" stroke-opacity="0.14" stroke-width="3" stroke-linecap="round"/>
-        <rect width="1120" height="480" fill="url(#roamScrim)"/>
-      </svg>
-      <div class="meta">听屿漫游（1120×480）</div>
-      <div class="palette">
-        <span class="dot" style="background:#193D59"></span>#193D59
-        <span class="dot" style="background:#76AFC9"></span>#76AFC9
-        <span class="dot" style="background:#C9EBEE"></span>#C9EBEE
-        <span class="dot" style="background:#F5D6A0"></span>#F5D6A0
-      </div>
+      <img class="art" style="aspect-ratio:16/7;" src="/assets/discovery/roaming.webp" alt="听屿漫游" />
+      <div class="meta">听屿漫游（roaming.webp）</div>
+      <div class="sub">1024×438 · 31.4 KB · 标题 #203747 / 副标题 #49677D / 按钮 #203F59</div>
     </div>
-
     <div class="card">
-      <svg class="art" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="styleBg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#35396F"/><stop offset="55%" stop-color="#474C8C"/><stop offset="100%" stop-color="#777BC4"/>
-          </linearGradient>
-        </defs>
-        <rect width="512" height="512" fill="url(#styleBg)"/>
-        <circle cx="190" cy="230" r="154" fill="#C3C5F1" fill-opacity="0.26"/>
-        <circle cx="190" cy="230" r="114" fill="none" stroke="#E8EAFE" stroke-opacity="0.32" stroke-width="2"/>
-        <circle cx="190" cy="230" r="52" fill="#777BC4" fill-opacity="0.55"/>
-        <circle cx="287" cy="266" r="174" fill="#232652"/>
-        <circle cx="287" cy="266" r="150" fill="none" stroke="#C3C5F1" stroke-opacity="0.26" stroke-width="2"/>
-        <circle cx="287" cy="266" r="125" fill="none" stroke="#C3C5F1" stroke-opacity="0.21" stroke-width="2"/>
-        <circle cx="287" cy="266" r="101" fill="none" stroke="#C3C5F1" stroke-opacity="0.16" stroke-width="2"/>
-        <path d="M366 152 A139 139 0 0 1 426 266" fill="none" stroke="#E8EAFE" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/>
-        <circle cx="287" cy="266" r="56" fill="#C3C5F1"/>
-        <circle cx="287" cy="266" r="14" fill="#E8EAFE"/>
-        <path d="M41 430 C143 369, 266 481, 471 399" fill="none" stroke="#E8EAFE" stroke-opacity="0.42" stroke-width="3.5" stroke-linecap="round"/>
-      </svg>
-      <div class="meta">风格雷达（512×512）</div>
-      <div class="palette">
-        <span class="dot" style="background:#35396F"></span>#35396F
-        <span class="dot" style="background:#777BC4"></span>#777BC4
-        <span class="dot" style="background:#C3C5F1"></span>#C3C5F1
-        <span class="dot" style="background:#E8EAFE"></span>#E8EAFE
-      </div>
+      <img class="art" style="aspect-ratio:1/1;" src="/assets/discovery/radar-style.webp" alt="风格雷达" />
+      <div class="meta">风格雷达（radar-style.webp）</div>
+      <div class="sub">768×768 · 55.0 KB</div>
     </div>
-
     <div class="card">
-      <svg class="art" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="timeBg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#805A43"/><stop offset="55%" stop-color="#9C7250"/><stop offset="100%" stop-color="#D4A46B"/>
-          </linearGradient>
-        </defs>
-        <rect width="512" height="512" fill="url(#timeBg)"/>
-        <path d="M70 364 A215 215 0 1 1 440 160" fill="none" stroke="#F3DFC2" stroke-opacity="0.28" stroke-width="2.5" stroke-linecap="round"/>
-        <g transform="rotate(-8 256 266)">
-          <rect x="82" y="154" width="348" height="225" rx="22" fill="#4D3324"/>
-          <rect x="113" y="183" width="285" height="94" rx="10" fill="#F3DFC2" fill-opacity="0.92"/>
-          <line x1="134" y1="208" x2="378" y2="208" stroke="#D4A46B" stroke-width="4"/>
-          <rect x="152" y="230" width="208" height="76" rx="14" fill="#805A43"/>
-          <circle cx="200" cy="268" r="27" fill="#F3DFC2"/><circle cx="200" cy="268" r="12" fill="#805A43"/>
-          <circle cx="312" cy="268" r="27" fill="#F3DFC2"/><circle cx="312" cy="268" r="12" fill="#805A43"/>
-          <path d="M158 379 L179 334 L333 334 L354 379 Z" fill="#B9A38D" fill-opacity="0.45"/>
-        </g>
-      </svg>
-      <div class="meta">时光雷达（512×512）</div>
-      <div class="palette">
-        <span class="dot" style="background:#805A43"></span>#805A43
-        <span class="dot" style="background:#D4A46B"></span>#D4A46B
-        <span class="dot" style="background:#F3DFC2"></span>#F3DFC2
-        <span class="dot" style="background:#B9A38D"></span>#B9A38D
-      </div>
+      <img class="art" style="aspect-ratio:1/1;" src="/assets/discovery/radar-time.webp" alt="时光雷达" />
+      <div class="meta">时光雷达（radar-time.webp）</div>
+      <div class="sub">768×768 · 55.3 KB</div>
     </div>
-
     <div class="card">
-      <svg class="art" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="expBg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#245C61"/><stop offset="55%" stop-color="#59A6A2"/><stop offset="100%" stop-color="#ACDDD0"/>
-          </linearGradient>
-        </defs>
-        <rect width="512" height="512" fill="url(#expBg)"/>
-        <circle cx="338" cy="164" r="87" fill="#F2DFB0"/>
-        <ellipse cx="338" cy="164" rx="152" ry="37" transform="rotate(-22 338 164)" fill="none" stroke="#ACDDD0" stroke-opacity="0.72" stroke-width="3.5"/>
-        <path d="M0 328 C123 256, 297 358, 512 282 L512 512 L0 512 Z" fill="#59A6A2" fill-opacity="0.55"/>
-        <path d="M0 379 C154 430, 317 317, 512 374 L512 512 L0 512 Z" fill="#245C61" fill-opacity="0.65"/>
-        <path d="M0 430 C179 399, 358 471, 512 420 L512 512 L0 512 Z" fill="#194246"/>
-        <path d="M72 399 C143 266, 215 205, 287 174" fill="none" stroke="#F2DFB0" stroke-opacity="0.50" stroke-width="3" stroke-linecap="round"/>
-      </svg>
-      <div class="meta">探索雷达（512×512）</div>
-      <div class="palette">
-        <span class="dot" style="background:#245C61"></span>#245C61
-        <span class="dot" style="background:#59A6A2"></span>#59A6A2
-        <span class="dot" style="background:#ACDDD0"></span>#ACDDD0
-        <span class="dot" style="background:#F2DFB0"></span>#F2DFB0
-      </div>
+      <img class="art" style="aspect-ratio:1/1;" src="/assets/discovery/radar-explore.webp" alt="探索雷达" />
+      <div class="meta">探索雷达（radar-explore.webp）</div>
+      <div class="sub">768×768 · 61.5 KB</div>
     </div>
   </div>
 </body>

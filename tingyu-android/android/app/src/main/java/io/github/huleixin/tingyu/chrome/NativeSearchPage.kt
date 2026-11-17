@@ -388,7 +388,7 @@ internal fun NativeSearchPage(
         if (!pane && !headerOnly) TyTopGlassSurface(glass, colors)
         if (!pane) TyTopGlassForeground {
             val palette = LocalInterfacePalette.current
-            val headerBgAlpha = if (collapse <= 0.02f) 0f else (0.75f + collapse * 0.21f).coerceIn(0f, 0.96f)
+            val headerBgAlpha = if (collapse <= 0.02f) 0f else if (collapse >= 0.90f) 1f else (0.78f + collapse * 0.24f).coerceIn(0f, 1f)
             Column(
                 Modifier
                     .fillMaxWidth()

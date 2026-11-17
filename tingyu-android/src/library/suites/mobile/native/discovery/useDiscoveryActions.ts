@@ -21,11 +21,11 @@ export function useDiscoveryActions(props: NativeHomeProps['props']) {
     const pending = useRef(false);
     const [menu, setMenu] = useState<{ song: SongResult; queue: SongResult[]; reason?: string } | null>(null);
     const [hidden, setHidden] = useState<Set<string>>(() => new Set());
-    const openSongs = (title: string, songs: SongResult[], description = '', allowEmpty = false) => {
+    const openSongs = (title: string, songs: SongResult[], description = '', allowEmpty = false, fallbackCoverUrl?: string) => {
         if (!songs.length && !allowEmpty) { setNotice('候选数据不足，请先播放或收藏一些歌曲，或启用其他推荐来源。'); return false; }
         props.onOpenGridView({ source: 'online', providerId: 'discovery', type: 'discovery',
             id: title + ':' + Date.now(), name: title, description, trackCount: songs.length,
-            coverUrl: songs[0] ? getSongCoverUrl(songs[0]) : undefined, discoveryTracks: songs });
+            coverUrl: songs[0] ? getSongCoverUrl(songs[0]) : fallbackCoverUrl, discoveryTracks: songs });
         return true;
     };
     const openCollection = (collection: ProviderCollection) => props.onOpenGridView({ ...collection, source: 'online', raw: collection });
