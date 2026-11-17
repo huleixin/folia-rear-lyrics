@@ -12,6 +12,11 @@ const record: ListeningSessionRecord = { id:'session', songKey:'local:1', provid
 afterEach(async () => { await appDatabase.delete(); });
 beforeEach(async () => { await appDatabase.open(); });
 describe('listening statistics persistence', () => {
+    it('applies account scope before the record cap', async () => {
+        await storeListeningSession(record);
+        await storeListeningSession({ ...record, id: 'other', accountKey: 'other', startedAt: 110000 });
+        expect((await readListeningSessions(0, 200000, 1, item => item.accountKey === 'device')).map(item => item.id)).toEqual(['session']);
+    });
     it('reads the newest bounded records and excludes the end boundary', async () => {
         await storeListeningSession(record);
         await storeListeningSession({...record,id:'newer',startedAt:110000});

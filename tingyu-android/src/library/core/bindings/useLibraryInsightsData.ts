@@ -39,9 +39,14 @@ export function useLibraryInsightsData(props: LibraryHomeSurfaceProps, active: b
         }, 15_000);
         setSnapshot(empty);
         void (async () => {
-            const [records, legacy] = await Promise.all([readListeningSessions(0, Date.now() + 1), getLocalPlayHistory()]);
-            const sessions = records.slice(0, 50_000).filter(record => record.providerId === 'local' ? source === 'all' || source === 'local'
-                : ids.includes(record.providerId) && libraryScope(record.providerId).authenticated && String(libraryScope(record.providerId).userId) === record.accountKey);
+            const accountIds = new Map(ids.flatMap(id => {
+                const account = libraryScope(id);
+                return account.authenticated && account.userId != null ? [[id, String(account.userId)] as const] : [];
+            }));
+            const [records, legacy] = await Promise.all([readListeningSessions(0, Date.now() + 1, 50_001,
+                record => record.providerId === 'local' ? source === 'all' || source === 'local'
+                    : accountIds.get(record.providerId) === record.accountKey), getLocalPlayHistory()]);
+            const sessions = records.slice(0, 50_000);
             const candidates = new Map<string, SmartCandidate>();
             sessions.forEach(record => candidates.set(record.songKey, { song: record.song }));
             if (source === 'all' || source === 'local') {

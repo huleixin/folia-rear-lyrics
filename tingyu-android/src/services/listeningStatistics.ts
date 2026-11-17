@@ -37,9 +37,12 @@ export async function clearListeningStatistics(): Promise<void> {
     await write;
 }
 
-export async function readListeningSessions(from: number, to: number, limit = 50_001): Promise<ListeningSessionRecord[]> {
+export async function readListeningSessions(from: number, to: number, limit = 50_001,
+    accepts?: (record: ListeningSessionRecord) => boolean): Promise<ListeningSessionRecord[]> {
     await writes;
-    return appDatabase.listening_sessions.where('startedAt').between(from, to, true, false).reverse().limit(limit).toArray();
+    const query = appDatabase.listening_sessions.where('startedAt').between(from, to, true, false).reverse();
+    // Apply account scope before the cap so another account cannot consume this user's record budget.
+    return (accepts ? query.filter(accepts) : query).limit(limit).toArray();
 }
 
 export interface ListeningSummary {
@@ -49,8 +52,14 @@ export interface ListeningSummary {
     daily: Array<{ day: string; seconds: number; plays: number }>;
     hourly: number[];
     topSongs: Array<{ song: ListeningSessionRecord['song']; seconds: number; plays: number }>;
-    topArtists: Array<{ name: string; seconds: number; plays: number }>;
-    topAlbums: Array<{ name: string; seconds: number; plays: number }>;
+    topArtists: ListeningEntitySummary[];
+    topAlbums: ListeningEntitySummary[];
+}
+
+export interface ListeningEntitySummary {
+    key: string; name: string; seconds: number; plays: number;
+    song: ListeningSessionRecord['song'];
+    entity: ListeningSessionRecord['song']['artists'][number];
 }
 
 /** Each session belongs to its actual start date; paused/buffering time was excluded upstream. */
@@ -58,8 +67,8 @@ export function summarizeListening(records: readonly ListeningSessionRecord[]): 
     const songs = new Map<string, { song: ListeningSessionRecord['song']; seconds: number; plays: number }>();
     const providers = new Map<string, { id: string; seconds: number; plays: number }>();
     const daily = new Map<string, { day: string; seconds: number; plays: number }>();
-    const artists = new Map<string, { name: string; seconds: number; plays: number }>();
-    const albums = new Map<string, { name: string; seconds: number; plays: number }>();
+    const artists = new Map<string, ListeningEntitySummary>();
+    const albums = new Map<string, ListeningEntitySummary>();
     const hourly = Array<number>(24).fill(0), seen = new Set<string>();
     let seconds = 0, firstRecordedAt: number | null = null;
     for (const record of records) {
@@ -76,13 +85,14 @@ export function summarizeListening(records: readonly ListeningSessionRecord[]): 
         const dateEntry = daily.get(day) ?? { day, seconds: 0, plays: 0 };
         dateEntry.seconds += record.seconds; dateEntry.plays++; daily.set(day, dateEntry);
         for (const artist of record.song.artists) {
-            const key = record.providerId + ':' + artist.id + ':' + artist.name;
-            const entry = artists.get(key) ?? { name: artist.name, seconds: 0, plays: 0 };
+            const key = JSON.stringify([record.providerId, artist.entityId || artist.catalogRef?.id || artist.id, artist.name]);
+            const entry = artists.get(key) ?? { key, name: artist.name, song: record.song, entity: artist, seconds: 0, plays: 0 };
             entry.seconds += record.seconds; entry.plays++; artists.set(key, entry);
         }
         if (record.song.album?.name) {
-            const key = record.providerId + ':' + record.song.album.id + ':' + record.song.album.name;
-            const entry = albums.get(key) ?? { name: record.song.album.name, seconds: 0, plays: 0 };
+            const album = record.song.album;
+            const key = JSON.stringify([record.providerId, album.entityId || album.catalogRef?.id || album.id, album.name]);
+            const entry = albums.get(key) ?? { key, name: album.name, song: record.song, entity: album, seconds: 0, plays: 0 };
             entry.seconds += record.seconds; entry.plays++; albums.set(key, entry);
         }
     }

@@ -109,9 +109,15 @@ describe('store contract', () => {
             useHomeLayoutSettingsStore: ['useHomeCardPositionStore'],
             // An explicit search submission records its term in a provider-scoped sink.
             // The history store imports no navigation store, so the edge stays one-way.
-            useSearchNavigationStore: ['useSearchHistoryStore'],
+            // Search settings define enabled sources/history policy; account changes invalidate
+            // private results synchronously. Neither dependency imports search navigation.
+            useSearchNavigationStore: ['useSearchHistoryStore', 'useSearchSettingsStore', 'useOnlineProviderAccountStore'],
             // 综合搜索的分类 store 只借 SearchSource 这个类型（import type），没有运行时边。
-            useSearchExploreStore: ['useSearchNavigationStore'],
+            // Category search shares enabled-source policy and account invalidation with song search.
+            useSearchExploreStore: ['useSearchNavigationStore', 'useSearchSettingsStore', 'useOnlineProviderAccountStore'],
+            // Capture the current song once when opening the add dialog; explicit row targets win.
+            // The playback store never depends on the dialog store.
+            useAddToPlaylistStore: ['usePlaybackStore'],
             // 全局音乐来源（在线/本地）是唯一权威：它驱动资料库页签，避免音源弹窗选了
             // 本地音乐而资料库仍停在 QQ 音乐。单向边，navigation store 不反向导入它。
             useHomeSourceStore: ['useSearchNavigationStore', 'useOnlineProviderAccountStore'],

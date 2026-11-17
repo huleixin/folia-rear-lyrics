@@ -1,5 +1,6 @@
 // src/i18n/libraryV2Copy.ts
 export const libraryV2Zh = {
+  "catalogUnavailable": "暂时无法打开详情，请重试；部分历史记录没有可用的歌手或专辑标识。",
   "insightsTimeout": "整理资料超时，已加载的数据仍可使用，请重试。",
   "insightsPartial": "部分平台收藏暂时不可用，已加载的数据仍可使用。",
   "insightsFailed": "读取本机记录失败，请重试。",
@@ -145,6 +146,7 @@ export const libraryV2Zh = {
   "minutes": "{{count}} 分钟"
 };
 export const libraryV2En: Record<keyof typeof libraryV2Zh, string> = {
+  "catalogUnavailable": "Details could not be opened. Try again; some older records have no usable artist or album ID.",
   "insightsTimeout": "Loading timed out. Available items can still be used. Please retry.",
   "insightsPartial": "Favorites from some sources are unavailable. Loaded items can still be used.",
   "insightsFailed": "Could not read local records. Please retry.",
