@@ -11,6 +11,7 @@ import { AlertCircle, Loader2, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import type { LocalPlaylist, LocalSong, Theme, UnifiedSong } from '../../../types';
+import type { LocalLibraryCatalogSnapshot } from '../../../hooks/useLocalLibraryCatalog';
 import type { MediaId } from '../../../types/onlineMusic';
 import type { GridViewCollectionDescriptor } from '../../../library/core/contracts/collection';
 import type { SearchAlbumHit, SearchArtistHit, SearchPlaylistHit, SearchSuggestions } from '../../../types/search';
@@ -64,6 +65,7 @@ type SearchWorkspaceProps = {
     /** 本地歌单搜索需要读当前歌单目录。 */
     localPlaylists: readonly LocalPlaylist[];
     localSongs?: readonly LocalSong[];
+    localLibraryCatalog: LocalLibraryCatalogSnapshot;
     account?: LibraryAccountController;
 };
 
@@ -95,6 +97,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     onOpenSearchCollection,
     localPlaylists,
     localSongs=EMPTY_LOCAL,
+    localLibraryCatalog,
     account,
 }) => {
     const interfaceLight=useInterfaceLight();
@@ -172,7 +175,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         .filter(term => term && term !== searchQuery.trim() && term.toLowerCase().includes(searchQuery.trim().toLowerCase()))
         .slice(0, 4);
 
-    const deps = useMemo(() => ({ localPlaylists }), [localPlaylists]);
+    const deps = useMemo(() => ({ localPlaylists, localSongs, localLibraryCatalog }), [localLibraryCatalog, localPlaylists, localSongs]);
 
     const submit = useCallback((query?: string, source?: SearchSource) => {
         const nextQuery = (query ?? useSearchNavigationStore.getState().searchQuery).trim();
@@ -199,9 +202,9 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     }, [deps, mode, onSubmitSearch]);
 
     const openHit = useCallback((kind: 'artist' | 'album' | 'playlist', hit: SearchArtistHit | SearchAlbumHit | SearchPlaylistHit) => {
-        const descriptor = buildSearchCollectionDescriptor(kind, hit, localPlaylists);
+        const descriptor = buildSearchCollectionDescriptor(kind, hit, localPlaylists, localSongs, localLibraryCatalog);
         if (descriptor) onOpenSearchCollection(descriptor);
-    }, [localPlaylists, onOpenSearchCollection]);
+    }, [localLibraryCatalog, localPlaylists, localSongs, onOpenSearchCollection]);
 
     const getSourceLabel = (source: SearchSource) => {
         if (source === 'aggregate') return t('search.sourceAggregate', { defaultValue: '综合搜索' });

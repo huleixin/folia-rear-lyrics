@@ -25,7 +25,7 @@ export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: strin
     const [exporting, setExporting] = useState<SmartPlaylistExport | null>(null);
     const [menu, setMenu] = useState<string | null>(null);
     const [confirmClear, setConfirmClear] = useState(false), [error, setError] = useState('');
-    const footprint = useListeningFootprint(data.sessions, props.isInteractive, data.truncated, props.onPlaySong,
+    const footprint = useListeningFootprint(source, data.queryOwner, props.isInteractive, props.onPlaySong,
         () => { setError(''); setConfirmClear(true); }, owner, props);
     const day = new Date().toLocaleDateString('sv-SE');
     const entries = useMemo(() => evaluateSmartPlaylists(data.candidates, data.sessions, [...defaultSmartRules().map(rule => ({ ...rule, name: t(`libraryV2.builtin_${rule.id}`) })), ...rules])

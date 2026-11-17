@@ -85,5 +85,5 @@ export function useLibraryInsightsData(props: LibraryHomeSurfaceProps, active: b
         })().catch(() => { if (!task.signal.aborted) setSnapshot({ ...empty, owner, error: 'libraryV2.insightsFailed' }); }).finally(() => clearTimeout(timer));
         return () => { clearTimeout(timer); task.abort(); };
     }, [active, owner, revision, props.localSongs, props.localPlaylists, props.localLibraryCatalog]);
-    return { ...(snapshot.owner === owner ? snapshot : empty), loading: active && snapshot.owner !== owner, retry: () => setRevision(value => value + 1) };
+    return { ...(snapshot.owner === owner ? snapshot : empty), queryOwner: owner, loading: active && snapshot.owner !== owner, retry: () => setRevision(value => value + 1) };
 }

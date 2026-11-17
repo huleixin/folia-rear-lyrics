@@ -30,7 +30,7 @@ beforeEach(()=>{
     useSearchNavigationStore.setState({homeViewTab:'playlist',searchSourceTab:'qq',isSearchOpen:true,searchQuery:'',searchResults:null});
 });
 afterEach(()=>vi.unstubAllGlobals());
-const props=()=>({theme:{} as never,isDaylight:false,onClose:vi.fn(),onSubmitSearch:vi.fn(),onLoadMore:vi.fn(),onPlayTrack:vi.fn(),onAddTrackToQueue:vi.fn(),onOpenArtist:vi.fn(),onOpenAlbum:vi.fn(),onOpenSearchCollection:vi.fn(),localPlaylists:[]});
+const props=()=>({theme:{} as never,isDaylight:false,onClose:vi.fn(),onSubmitSearch:vi.fn(),onLoadMore:vi.fn(),onPlayTrack:vi.fn(),onAddTrackToQueue:vi.fn(),onOpenArtist:vi.fn(),onOpenAlbum:vi.fn(),onOpenSearchCollection:vi.fn(),localPlaylists:[],localLibraryCatalog:{entities:[],assignments:[],ready:true,reload:async()=>{}}});
 it('chooses a search source without changing home or playback source',async()=>{
     const root=createRoot(document.createElement('div'));
     try{

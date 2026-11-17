@@ -70,7 +70,7 @@ describe('suggestion ownership, IME gating and cancellation', () => {
 });
 
 describe('formal category retries and in-flight invalidation', () => {
-    const deps = { localPlaylists: [] };
+    const deps = { localPlaylists: [], localSongs: [], localLibraryCatalog: { entities: [], assignments: [], ready: true, reload: async () => {} } };
     it('retries a failed initial category even when hasMore is false', async () => {
         vi.spyOn(console, 'warn').mockImplementation(() => {});
         vi.mocked(omni.searchProviderArtists).mockRejectedValueOnce(new Error('timeout')).mockResolvedValue({ items: [{ providerId: 'qq', id: 'real-mid', name: '许嵩' }], hasMore: false, nextOffset: 1 });

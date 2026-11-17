@@ -38,7 +38,7 @@ it('times out typed categories independently and releases their loading flags', 
     vi.spyOn(omni, 'searchProviderArtists').mockImplementation(() => new Promise(() => {}));
     vi.spyOn(omni, 'searchProviderAlbums').mockResolvedValue({ items: [], hasMore: false, nextOffset: 0 });
     vi.spyOn(omni, 'searchProviderPlaylists').mockResolvedValue({ items: [], hasMore: false, nextOffset: 0 });
-    const pending = useSearchExploreStore.getState().submit({ query: 'test', source: 'qq', deps: { localPlaylists: [] } });
+    const pending = useSearchExploreStore.getState().submit({ query: 'test', source: 'qq', deps: { localPlaylists: [], localSongs: [], localLibraryCatalog: { entities: [], assignments: [], ready: true, reload: async () => {} } } });
     await vi.advanceTimersByTimeAsync(SEARCH_REQUEST_TIMEOUT_MS);
     await pending;
     expect(useSearchExploreStore.getState().artists.status).toBe('error');

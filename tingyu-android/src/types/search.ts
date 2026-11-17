@@ -20,7 +20,7 @@ export interface SearchCapabilities {
 }
 
 export interface SearchArtistHit {
-    providerId: OnlineProviderId;
+    providerId: OnlineProviderId | 'local';
     id: MediaId;
     name: string;
     coverUrl?: string;
@@ -32,7 +32,7 @@ export interface SearchArtistHit {
 }
 
 export interface SearchAlbumHit {
-    providerId: OnlineProviderId;
+    providerId: OnlineProviderId | 'local';
     id: MediaId;
     name: string;
     coverUrl?: string;
@@ -43,7 +43,7 @@ export interface SearchAlbumHit {
 }
 
 export interface SearchPlaylistHit {
-    providerId: OnlineProviderId;
+    providerId: OnlineProviderId | 'local';
     id: MediaId;
     name: string;
     coverUrl?: string;

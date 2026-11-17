@@ -90,6 +90,8 @@ function Probe() {
         onOpenAlbum={() => {}}
         onOpenSearchCollection={(collection) => { opened.push(collection); }}
         localPlaylists={[]}
+        localSongs={[]}
+        localLibraryCatalog={{ entities: [], assignments: [], ready: true, reload: async () => {} }}
     />;
 }
 

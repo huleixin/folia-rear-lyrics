@@ -41,7 +41,7 @@ const buttons = (selector = 'button') => Array.from(document.querySelectorAll<HT
 describe('search presentation delegates real existing operations', () => {
     it('reopening with an empty keyword restores landing content without stale result tabs', async () => {
         useSearchNavigationStore.setState({ isSearchOpen: true, searchQuery: '许嵩', searchSourceTab: 'qq', searchResults: [song] });
-        const props = { theme: {} as never, isDaylight: false, onClose: vi.fn(), onSubmitSearch: vi.fn(), onLoadMore: vi.fn(), onPlayTrack: vi.fn(), onAddTrackToQueue: vi.fn(), onOpenArtist: vi.fn(), onOpenAlbum: vi.fn(), onOpenSearchCollection: vi.fn(), localPlaylists: [] };
+        const props = { theme: {} as never, isDaylight: false, onClose: vi.fn(), onSubmitSearch: vi.fn(), onLoadMore: vi.fn(), onPlayTrack: vi.fn(), onAddTrackToQueue: vi.fn(), onOpenArtist: vi.fn(), onOpenAlbum: vi.fn(), onOpenSearchCollection: vi.fn(), localPlaylists: [], localLibraryCatalog: { entities: [], assignments: [], ready: true, reload: async () => {} } };
         await act(async () => root.render(h(SearchWorkspace, props)));
         expect(host.querySelectorAll('[role=tab]')).toHaveLength(5);
         act(() => useSearchNavigationStore.getState().hideSearchOverlay());

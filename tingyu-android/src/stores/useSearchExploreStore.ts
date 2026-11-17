@@ -5,10 +5,12 @@ import { useOnlineProviderAccountStore } from './useOnlineProviderAccountStore';
 import { create } from 'zustand';
 import type { OnlineProviderId } from '../types/onlineMusic';
 import type { LocalPlaylist } from '../types';
+import type { LocalSong } from '../types';
+import type { LocalLibraryCatalogSnapshot } from '../hooks/useLocalLibraryCatalog';
 import type { SearchAlbumHit, SearchArtistHit, SearchPage, SearchPlaylistHit } from '../types/search';
 import { SEARCH_PAGE_LIMIT } from '../types/search';
 import { omni } from '../services/onlineMusic/omni';
-import { searchLocalPlaylists, searchNavidromeAlbums, searchNavidromeArtists } from '../services/search/deviceSearch';
+import { searchLocalCatalogEntities, searchLocalPlaylists, searchNavidromeAlbums, searchNavidromeArtists } from '../services/search/deviceSearch';
 import type { SearchSource } from './useSearchNavigationStore';
 
 // src/stores/useSearchExploreStore.ts
@@ -32,6 +34,8 @@ export interface ExploreCategory<T> {
 
 export interface ExploreDeps {
     localPlaylists: readonly LocalPlaylist[];
+    localSongs: readonly LocalSong[];
+    localLibraryCatalog: LocalLibraryCatalogSnapshot;
 }
 
 const idleCategory = <T>(): ExploreCategory<T> => ({ items: [], status: 'idle', hasMore: false, offset: 0, error: null });
@@ -58,8 +62,10 @@ const fetchCategory = async (
     signal?: AbortSignal,
 ): Promise<SearchPage<SearchArtistHit | SearchAlbumHit | SearchPlaylistHit>> => {
     if (source === 'local') {
+        if (kind === 'artist' || kind === 'album') {
+            return searchLocalCatalogEntities(kind, query, deps.localLibraryCatalog, deps.localSongs, SEARCH_PAGE_LIMIT, offset);
+        }
         if (kind === 'playlist') return searchLocalPlaylists(query, deps.localPlaylists, SEARCH_PAGE_LIMIT, offset);
-        return { items: [], hasMore: false, nextOffset: offset };
     }
     if (source === 'navidrome') {
         if (kind === 'artist') return searchNavidromeArtists(query, SEARCH_PAGE_LIMIT, offset);
@@ -152,8 +158,7 @@ export const exploreCapabilities = (source: SearchSource): Record<ExploreKind, b
         const capabilities = aggregateSearchSources().map(exploreCapabilities);
         return { artist: capabilities.some(c => c.artist), album: capabilities.some(c => c.album), playlist: capabilities.some(c => c.playlist) };
     }
-    // 本地：歌单目录可直接搜；歌手 / 专辑的实体页需要从曲库分配表反查歌曲，本轮没有接，避免打开空页。
-    if (source === 'local') return { artist: false, album: false, playlist: true };
+    if (source === 'local') return { artist: true, album: true, playlist: true };
     if (source === 'navidrome') return { artist: true, album: true, playlist: false };
     const capabilities = omni.getSearchCapabilities(source as OnlineProviderId);
     return { artist: capabilities.artist, album: capabilities.album, playlist: capabilities.playlist };

@@ -118,8 +118,8 @@ describe('搜索能力来自实现而非音源名字', () => {
         expect(resolveSearchCapabilities({ searchSongs: async () => ({ items: [], hasMore: false, nextOffset: 0 }) }))
             .toEqual({ song: true, artist: false, album: false, playlist: false, suggest: false, general: false });
     });
-    it('declares local playlists and Navidrome artist/album, but no local artist/album pages', () => {
-        expect(exploreCapabilities('local')).toEqual({ artist: false, album: false, playlist: true });
+    it('declares local catalog-backed artist/album and playlist pages plus Navidrome artist/album', () => {
+        expect(exploreCapabilities('local')).toEqual({ artist: true, album: true, playlist: true });
         expect(exploreCapabilities('navidrome')).toEqual({ artist: true, album: true, playlist: false });
     });
     it('never asks local or Navidrome for suggestions', () => {

@@ -12,7 +12,7 @@ type SettingsLifecycle='native-settings-flow'|'desktop-only'|'android-unavailabl
 export const settingsSectionLifecycles:Record<SettingsSectionId,SettingsLifecycle>={
     appearance:'native-settings-flow',general:'native-settings-flow',playback:'native-settings-flow',
     interaction:'android-unavailable',integration:'native-settings-flow',storage:'native-settings-flow',
-    desktop:'desktop-only',graphics:'native-settings-flow',mods:'desktop-only',lab:'android-unavailable',developer:'native-settings-flow',
+    desktop:'desktop-only',graphics:'native-settings-flow',mods:'desktop-only',lab:'android-unavailable',developer:'android-unavailable',
 };
 export const rearSettingsLifecycles:Record<RearSettingsPage,'native-settings-flow'>={
     control:'native-settings-flow',advanced:'native-settings-flow',guide:'native-settings-flow',diagnostics:'native-settings-flow',
