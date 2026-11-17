@@ -12,6 +12,7 @@ import NativeSettingsLoading from '../../modal/settings/NativeSettingsLoading';
 const SettingsModal = lazy(loadSettingsModule);
 const SearchSettingsPage = lazy(() => import('../../modal/settings/SearchSettingsPage'));
 const DiscoverySettingsPage = lazy(() => import('../../modal/settings/DiscoverySettingsPage'));
+const PlatformAccountsPage = lazy(() => import('../../modal/settings/PlatformAccountsPage'));
 export default function SettingsDialogHost(props: React.ComponentProps<typeof SettingsModalType>) {
     const suite = useActiveLibrarySuiteId();
     const phoneFit = useAndroidLayoutSettingsStore(state => state.phoneFitEnabled);
@@ -19,6 +20,7 @@ export default function SettingsDialogHost(props: React.ComponentProps<typeof Se
     const index = suite === 'mobile' && (!wide||NATIVE_FIRST) && (!props.initialTab || props.initialTab === 'options')
         && !props.initialSubview && !props.initialAnchor && !props.initialVisualizerSection;
     const ResolvedSettingsModal = peekSettingsModule()?.default ?? SettingsModal;
+    if (props.initialSubview === 'accounts') return <Suspense fallback={<NativeSettingsLoading section="accounts" onClose={props.onClose}/>}><PlatformAccountsPage onClose={props.onClose}/></Suspense>;
     if (props.initialSubview === 'search') return <Suspense fallback={<NativeSettingsLoading section="search" onClose={props.onClose}/>}><SearchSettingsPage onClose={props.onClose}/></Suspense>;
     if (props.initialSubview === 'discovery') return <Suspense fallback={<NativeSettingsLoading section="discovery" onClose={props.onClose}/>}><DiscoverySettingsPage onClose={props.onClose}/></Suspense>;
     return index ? <MobileSettingsLanding onClose={props.onClose} />

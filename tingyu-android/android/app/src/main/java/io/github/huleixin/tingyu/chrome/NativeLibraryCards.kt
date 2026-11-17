@@ -27,8 +27,16 @@ internal fun LazyListScope.libraryGridRows(page:NativePage,section:NativePageSec
                 if(item!=null)Column(Modifier.weight(1f).chromeClickable(corner=10.dp){action(item.action,"",0.0)}){
                     Box(Modifier.fillMaxWidth().aspectRatio(1f)){
                         PageArtwork(item.image,Modifier.fillMaxSize(),10.dp)
-                        if(item.secondary.isNotBlank())Box(Modifier.align(Alignment.TopEnd).padding(2.dp)){
-                            ChromeButton(item.secondaryLabel.ifBlank{item.title},modifier=Modifier.background(Color.Black.copy(alpha=.58f),CircleShape),size=40.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",Color.White,Modifier.size(18.dp))}
+                        if(item.secondary.isNotBlank())Box(
+                            Modifier.align(Alignment.TopEnd).size(48.dp).chromeClickable(corner=24.dp){action(item.secondary,"",0.0)},
+                            contentAlignment=Alignment.TopEnd
+                        ){
+                            Box(
+                                Modifier.padding(top=6.dp,end=6.dp).size(28.dp).background(Color(0xFF203747).copy(alpha=0.45f),CircleShape),
+                                contentAlignment=Alignment.Center
+                            ){
+                                PageIcon("ellipsis-vertical",Color.White,Modifier.size(16.dp))
+                            }
                         }
                     }
                     Text(item.title,color=PageInk,fontSize=13.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().padding(top=6.dp))

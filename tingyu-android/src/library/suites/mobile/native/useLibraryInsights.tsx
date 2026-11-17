@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import React, { useMemo, useState } from 'react';
-import { Play, SlidersHorizontal, RefreshCw, Trash2, Plus } from 'lucide-react';
+import { Play, SlidersHorizontal, RefreshCw, Trash2, Plus, Eye, ListMusic } from 'lucide-react';
 import { useLibraryInsightsData } from '../../../core/bindings/useLibraryInsightsData';
-import { defaultSmartRules, evaluateSmartPlaylist, evaluateSmartPlaylists, type SmartRule } from '../../../core/model/smartPlaylists';
+import { defaultSmartRules, evaluateSmartPlaylist, evaluateSmartPlaylists, type SmartFacts, type SmartRule } from '../../../core/model/smartPlaylists';
 import { useLibraryOrganization } from '../../../core/state/useLibraryOrganization';
 import { clearListeningStatistics } from '../../../../services/listeningStatistics';
 import { absolutePageImage } from '../../../../services/nativePages';
@@ -16,11 +16,45 @@ import SmartRuleEditor, { newSmartRule } from './SmartRuleEditor';
 import OperationPanel from '../../../../components/shared/OperationPanel';
 import MobileSheet from '../../../../components/shared/MobileSheet';
 import SaveSmartPlaylistPanel, { type SmartPlaylistExport } from './SaveSmartPlaylistPanel';
+import { useSheetThemeTokens } from './sheetThemeTokens';
 
 // src/library/suites/mobile/native/useLibraryInsights.tsx
+const SYSTEM_ART: Record<string, { c1: string; c2: string; label: string }> = {
+    week: { c1: '#7196B5', c2: '#385B73', label: '7D' },
+    month: { c1: '#527E9F', c2: '#203747', label: '30D' },
+    forgotten: { c1: '#B9BCD9', c2: '#62678A', label: 'OLD' },
+    added: { c1: '#AAC8DF', c2: '#49677D', label: 'NEW' },
+    unheard: { c1: '#8EAEC8', c2: '#3B566B', label: 'LIKE' },
+    quality: { c1: '#6FA3B8', c2: '#234C5E', label: 'SQ' },
+    night: { c1: '#6D7A9E', c2: '#232B42', label: '22+' },
+    year: { c1: '#7E9FB8', c2: '#2F4D63', label: 'YR' },
+};
+
+function smartArtDataUrl(c1: string, c2: string, label: string): string {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></linearGradient></defs><rect width="256" height="256" rx="32" fill="url(#g)"/><circle cx="198" cy="58" r="56" fill="#fff" fill-opacity="0.10"/><circle cx="62" cy="198" r="72" fill="#fff" fill-opacity="0.08"/><text x="128" y="142" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="54" fill="#FFFFFF" fill-opacity="0.92">${label}</text></svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function smartEntryCover(rule: SmartRule, songs: SmartFacts[], usedCovers: Set<string>): string {
+    if (!rule.id.startsWith('custom:')) {
+        const spec = SYSTEM_ART[rule.id] ?? { c1: '#7196B5', c2: '#385B73', label: 'MIX' };
+        return smartArtDataUrl(spec.c1, spec.c2, spec.label);
+    }
+    for (const entry of songs) {
+        const cover = absolutePageImage(getSongCoverUrl(entry.song));
+        if (cover && !usedCovers.has(cover)) {
+            usedCovers.add(cover);
+            return cover;
+        }
+    }
+    const fallback = songs[0] ? absolutePageImage(getSongCoverUrl(songs[0].song)) : undefined;
+    return fallback || smartArtDataUrl('#7196B5', '#385B73', '♪');
+}
+
 /** Shared library insights; bottom management entry removed in favor of top-right Library Manage menu. */
 export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: string, owner: string) {
     const { t } = useTranslation();
+    const tokens = useSheetThemeTokens();
     const data = useLibraryInsightsData(props, props.isInteractive, source);
     const rules = useLibraryOrganization(state => state.rules);
     const removeRule = useLibraryOrganization(state => state.removeRule);
@@ -52,6 +86,15 @@ export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: strin
             .filter(entry => entry.songs.length || entry.rule.id.startsWith('custom:')),
         [data.candidates, data.sessions, allRules, day],
     );
+
+    const coverMap = useMemo(() => {
+        const used = new Set<string>();
+        const map = new Map<string, string>();
+        for (const { rule, songs } of entries) {
+            map.set(rule.id, smartEntryCover(rule, songs, used));
+        }
+        return map;
+    }, [entries]);
 
     const openSongs = (rule: SmartRule, songs: SongResult[]) => {
         if (!songs.length) return;
@@ -101,17 +144,19 @@ export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: strin
                 return {
                     id: action,
                     title: rule.name,
-                    subtitle: `智能歌单 · ${songs.length} 首`,
+                    subtitle: `${rule.id.startsWith('custom:') ? '我的智能歌单' : '系统智能歌单'} · ${songs.length} 首`,
                     action,
-                    image: songs[0] ? absolutePageImage(getSongCoverUrl(songs[0].song)) : undefined,
+                    image: coverMap.get(rule.id),
                     secondary: 'menu:' + rule.id,
                     secondaryLabel: t('mobileLibrary.more'),
                 };
             }),
         });
     }
-    if (data.loading) sections.push({ id: 'insights-loading', layout: 'message', text: t('libraryV2.preparing') });
     if (data.error) sections.push({ id: 'insights-error', layout: 'message', text: t(data.error), more: 'insights-retry', moreLabel: t('libraryV2.retry') });
+
+    const systemEntries = entries.filter(e => !e.rule.id.startsWith('custom:'));
+    const customEntries = entries.filter(e => e.rule.id.startsWith('custom:'));
 
     const panels = <>
         {footprint.page}
@@ -148,66 +193,161 @@ export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: strin
         />
 
         {manageSmartOpen && (
-            <MobileSheet title="管理智能歌单" onClose={() => setManageSmartOpen(false)}>
-                <div className="flex flex-col gap-3 pb-6">
+            <MobileSheet
+                title="管理智能歌单"
+                footer={
                     <button
                         type="button"
                         onClick={() => { setManageSmartOpen(false); openCreateSmart(); }}
-                        className="flex items-center justify-center gap-2 rounded-2xl py-3 text-[14px] font-semibold text-white"
-                        style={{ background: 'var(--tingyu-accent, #527E9F)' }}
+                        className="w-full flex items-center justify-center gap-2"
+                        style={{
+                            height: 48,
+                            borderRadius: 14,
+                            fontSize: 14,
+                            fontWeight: 600,
+                            background: tokens.primaryBtnBg,
+                            color: tokens.primaryBtnText,
+                        }}
                     >
-                        <Plus size={16} /> 创建智能歌单
+                        <Plus size={20} /> 创建智能歌单
                     </button>
-                    {entries.filter(e => e.rule.id.startsWith('custom:')).length === 0 && (
-                        <p className="text-[13px] opacity-70 text-center py-4 m-0">还没有自定义智能歌单，点击上方按钮即可创建。</p>
-                    )}
-                    {entries.filter(e => e.rule.id.startsWith('custom:')).map(({ rule, songs }) => (
-                        <div
-                            key={rule.id}
-                            className="flex items-center justify-between rounded-2xl p-3"
-                            style={{ background: 'var(--tingyu-surface-card, rgba(255,255,255,0.06))' }}
-                        >
-                            <div className="min-w-0 flex-1 pr-2">
-                                <div className="truncate font-semibold text-[15px]">{rule.name}</div>
-                                <div className="text-[12px] opacity-70">智能歌单 · {songs.length} 首</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    type="button"
-                                    aria-label="播放"
-                                    disabled={!songs.length}
-                                    onClick={() => { if (songs.length) { setManageSmartOpen(false); props.onPlaySong(songs[0].song, songs.map(s => s.song)); } }}
-                                    className="p-2 rounded-xl disabled:opacity-35"
+                }
+                onClose={() => setManageSmartOpen(false)}
+            >
+                <div className="flex flex-col pb-4" style={{ gap: 20 }}>
+                    {/* 分组1：系统智能歌单 */}
+                    <section>
+                        <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 10px', color: tokens.text }}>系统智能歌单</h3>
+                        <div className="flex flex-col gap-2">
+                            {systemEntries.length === 0 ? (
+                                <p className="m-0 py-2" style={{ fontSize: 12, color: tokens.muted }}>
+                                    暂无匹配歌曲，播放或收藏歌曲后将自动生成。
+                                </p>
+                            ) : systemEntries.map(({ rule, songs }) => (
+                                <div
+                                    key={rule.id}
+                                    className="flex items-center justify-between rounded-2xl px-3 py-2"
+                                    style={{ minHeight: 56, background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
                                 >
-                                    <Play size={16} />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="编辑规则"
-                                    onClick={() => { setManageSmartOpen(false); setEditing(rule); }}
-                                    className="p-2 rounded-xl"
-                                >
-                                    <SlidersHorizontal size={16} />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="更新"
-                                    onClick={() => data.retry()}
-                                    className="p-2 rounded-xl"
-                                >
-                                    <RefreshCw size={16} />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="删除"
-                                    onClick={() => setConfirmDeleteId(rule.id)}
-                                    className="p-2 rounded-xl text-red-500"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
+                                    <img
+                                        src={coverMap.get(rule.id)}
+                                        alt=""
+                                        className="shrink-0 object-cover"
+                                        style={{ width: 40, height: 40, borderRadius: 8, marginRight: 12 }}
+                                    />
+                                    <div className="min-w-0 flex-1 pr-2">
+                                        <div className="truncate font-medium" style={{ fontSize: 14, color: tokens.text }}>{rule.name}</div>
+                                        <div style={{ fontSize: 12, color: tokens.muted }}>系统预设 · {songs.length} 首</div>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            aria-label="查看歌曲"
+                                            onClick={() => { setManageSmartOpen(false); openSongs(rule, songs.map(s => s.song)); }}
+                                            className="flex items-center justify-center rounded-xl"
+                                            style={{ minWidth: 40, minHeight: 40, color: tokens.text }}
+                                        >
+                                            <Eye size={17} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            aria-label="播放"
+                                            disabled={!songs.length}
+                                            onClick={() => { if (songs.length) { setManageSmartOpen(false); props.onPlaySong(songs[0].song, songs.map(s => s.song)); } }}
+                                            className="flex items-center justify-center rounded-xl disabled:opacity-35"
+                                            style={{ minWidth: 40, minHeight: 40, color: tokens.accent }}
+                                        >
+                                            <Play size={17} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            aria-label="刷新"
+                                            onClick={() => data.retry()}
+                                            className="flex items-center justify-center rounded-xl"
+                                            style={{ minWidth: 40, minHeight: 40, color: tokens.muted }}
+                                        >
+                                            <RefreshCw size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    </section>
+
+                    {/* 分组2：我的智能歌单 */}
+                    <section>
+                        <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 10px', color: tokens.text }}>我的智能歌单</h3>
+                        {customEntries.length === 0 ? (
+                            <div
+                                className="flex flex-col items-center text-center rounded-2xl py-6 px-4"
+                                style={{ background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
+                            >
+                                <ListMusic size={48} strokeWidth={1.5} color={tokens.accent} style={{ opacity: 0.75 }} />
+                                <div className="mt-2.5 font-semibold" style={{ fontSize: 14, color: tokens.text }}>还没有自定义歌单</div>
+                                <div className="mt-1" style={{ fontSize: 12, color: tokens.muted }}>创建属于自己的音乐整理规则。</div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                {customEntries.map(({ rule, songs }) => (
+                                    <div
+                                        key={rule.id}
+                                        className="flex items-center justify-between rounded-2xl px-3 py-2"
+                                        style={{ minHeight: 56, background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
+                                    >
+                                        <img
+                                            src={coverMap.get(rule.id)}
+                                            alt=""
+                                            className="shrink-0 object-cover"
+                                            style={{ width: 40, height: 40, borderRadius: 8, marginRight: 12 }}
+                                        />
+                                        <div className="min-w-0 flex-1 pr-2">
+                                            <div className="truncate font-medium" style={{ fontSize: 14, color: tokens.text }}>{rule.name}</div>
+                                            <div style={{ fontSize: 12, color: tokens.muted }}>我的歌单 · {songs.length} 首</div>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <button
+                                                type="button"
+                                                aria-label="播放"
+                                                disabled={!songs.length}
+                                                onClick={() => { if (songs.length) { setManageSmartOpen(false); props.onPlaySong(songs[0].song, songs.map(s => s.song)); } }}
+                                                className="flex items-center justify-center rounded-xl disabled:opacity-35"
+                                                style={{ minWidth: 40, minHeight: 40, color: tokens.accent }}
+                                            >
+                                                <Play size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                aria-label="编辑规则"
+                                                onClick={() => { setManageSmartOpen(false); setEditing(rule); }}
+                                                className="flex items-center justify-center rounded-xl"
+                                                style={{ minWidth: 40, minHeight: 40, color: tokens.text }}
+                                            >
+                                                <SlidersHorizontal size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                aria-label="更新"
+                                                onClick={() => data.retry()}
+                                                className="flex items-center justify-center rounded-xl"
+                                                style={{ minWidth: 40, minHeight: 40, color: tokens.muted }}
+                                            >
+                                                <RefreshCw size={15} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                aria-label="删除"
+                                                onClick={() => setConfirmDeleteId(rule.id)}
+                                                className="flex items-center justify-center rounded-xl text-red-500"
+                                                style={{ minWidth: 40, minHeight: 40 }}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
                 </div>
             </MobileSheet>
         )}

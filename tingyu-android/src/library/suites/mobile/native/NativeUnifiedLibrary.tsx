@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ListPlus, SlidersHorizontal, TrendingUp, ArrowUpDown, RefreshCw,
-    LayoutGrid, Smartphone, RotateCcw, ChevronUp, ChevronDown,
+    LayoutGrid, Smartphone, RotateCcw, ChevronUp, ChevronDown, GripVertical,
 } from 'lucide-react';
 import { useNativePage } from '../../../../hooks/useNativePage';
 import { useUnifiedLibrary } from '../../../core/bindings/useUnifiedLibrary';
@@ -10,17 +10,20 @@ import { useLibraryOrganization, collectionOrganizationKey, type LibrarySortKey 
 import { omni } from '../../../../services/onlineMusic/omni';
 import { absolutePageImage } from '../../../../services/nativePages';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
+import { useSettingsModalStore } from '../../../../stores/useSettingsModalStore';
 import type { NativeHomeProps } from './NativeHomeOverview';
 import type { PageActions, PageSection } from '../../../../types/nativePages';
 import type { ProviderCollection } from '../../../../types/onlineMusic';
 import OperationPanel from '../../../../components/shared/OperationPanel';
 import MobileSheet from '../../../../components/shared/MobileSheet';
+import { MobileLocalTools } from '../MobileHomeSources';
 import { pageRowActions } from '../../../../utils/nativePageActions';
 import { getSongCoverUrl } from '../../../../services/onlineMusic/songMetadata';
 import { privateLibrarySongs } from '../../../core/model/privateLibrarySongs';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import type { SongResult } from '../../../../types';
 import { useLibraryInsights } from './useLibraryInsights';
+import { useSheetThemeTokens } from './sheetThemeTokens';
 
 // src/library/suites/mobile/native/NativeUnifiedLibrary.tsx
 const SORT_LABELS: Array<{ id: LibrarySortKey; label: string }> = [
@@ -33,6 +36,7 @@ const SORT_LABELS: Array<{ id: LibrarySortKey; label: string }> = [
 
 export default function NativeUnifiedLibrary({ root, props, sources, onSources, onReady }: NativeHomeProps) {
     const { t } = useTranslation();
+    const tokens = useSheetThemeTokens();
     const organization = useLibraryOrganization();
     const [resource, setResource] = useState<'playlists' | 'albums'>('playlists');
     const [query, setQuery] = useState('');
@@ -40,7 +44,15 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     const [group, setGroup] = useState('');
     const [menu, setMenu] = useState<{ collection: ProviderCollection; key: string } | null>(null);
     const [manageOpen, setManageOpen] = useState(false);
+    const [localManageOpen, setLocalManageOpen] = useState(false);
     const [platformOrderOpen, setPlatformOrderOpen] = useState(false);
+
+    // Drag-to-reorder draft state for 平台排序 (never mutates library until 完成)
+    const [draftOrder, setDraftOrder] = useState<string[]>([]);
+    const [draggingId, setDraggingId] = useState<string | null>(null);
+    const dragTimer = useRef<number | null>(null);
+    const dragStartY = useRef(0);
+    const dragListRef = useRef<HTMLDivElement>(null);
 
     const feed = useUnifiedLibrary(props.isInteractive, organization.source, resource);
     const sharedInsights = useLibraryInsights(props, organization.source, feed.owner);
@@ -73,6 +85,13 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         const rest = availableProviderIds.filter(id => !saved.includes(id));
         return [...saved, ...rest];
     }, [organization.platformOrder, availableProviderIds]);
+
+    useEffect(() => {
+        if (platformOrderOpen) {
+            setDraftOrder(effectivePlatformOrder);
+            setDraggingId(null);
+        }
+    }, [platformOrderOpen]);
 
     const providerRank = useMemo(() => {
         const map = new Map<string, number>();
@@ -142,6 +161,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         'toggle-platform-group': () => organization.patch({ groupByPlatform: !organization.groupByPlatform }),
         'platform-order': () => setPlatformOrderOpen(true),
         local: () => useHomeSourceStore.getState().setSource('local'),
+        'open-accounts': () => useSettingsModalStore.getState().openSettingsFromIndex('accounts'),
     };
 
     const isUnified = organization.source === 'all';
@@ -248,40 +268,69 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         }
     } else {
         const items = selected.slice(offset, offset + 100).map(toItem);
-        sections.push({
-            id: 'directory',
-            layout: organization.layout === 'list' ? 'rows' : 'cards',
-            key: `${feed.owner}:${query}:${group}:${organization.sort}:${organization.layout}`,
-            items,
-            total: selected.length,
-            offset,
-            request: 'range',
-        });
-    }
-
-    for (const page of feed.pages) {
-        const label = omni.getProviderLabel(page.providerId);
-        if (!['ready', 'unsupported'].includes(page.status)) {
-            const text = {
-                loading: t('libraryV2.loading'),
-                login: t('libraryV2.loginHint'),
-                empty: t('libraryV2.empty'),
-                error: t('libraryV2.error'),
-            }[page.status as 'loading' | 'login' | 'empty' | 'error'];
-            const action = 'retry:' + page.providerId;
-            actions[action] = () => page.status === 'login' ? void props.account.startLogin(page.providerId) : feed.retry();
+        if (items.length || !isUnified) {
             sections.push({
-                id: 'state:' + page.providerId,
-                layout: 'message',
-                text: label + '：' + text,
-                more: ['error', 'login'].includes(page.status) ? action : undefined,
-                moreLabel: page.status === 'login' ? t('libraryV2.login') : t('libraryV2.retry'),
+                id: 'directory',
+                layout: organization.layout === 'list' ? 'rows' : 'cards',
+                key: `${feed.owner}:${query}:${group}:${organization.sort}:${organization.layout}`,
+                items,
+                total: selected.length,
+                offset,
+                request: 'range',
             });
         }
-        if (page.hasMore) {
-            const action = 'more:' + page.providerId;
-            actions[action] = () => { void feed.more(page.providerId); };
-            sections.push({ id: action, layout: 'textActions', items: [{ id: action, title: '加载更多 · ' + label, action }] });
+    }
+
+    // 综合资料库：隐藏未登录平台提示、登录按钮与冗余单平台加载提示，只保留统一紧凑反馈；
+    // 切换至独立未登录平台时，展示简洁空状态与前往账号管理入口。
+    if (isUnified) {
+        const anyLoading = feed.pages.some(p => p.status === 'loading');
+        if (anyLoading && !selected.length) {
+            sections.push({ id: 'unified-loading', layout: 'message', text: '正在同步已登录平台资料库…' });
+        }
+        const failed = feed.pages.filter(p => p.status === 'error');
+        if (failed.length && !selected.length) {
+            sections.push({
+                id: 'unified-error',
+                layout: 'message',
+                text: '部分平台暂未同步成功',
+                more: 'refresh',
+                moreLabel: '重试',
+            });
+        }
+        for (const page of feed.pages) {
+            if (page.hasMore) {
+                const label = omni.getProviderLabel(page.providerId);
+                const action = 'more:' + page.providerId;
+                actions[action] = () => { void feed.more(page.providerId); };
+                sections.push({ id: action, layout: 'textActions', items: [{ id: action, title: '加载更多 · ' + label, action }] });
+            }
+        }
+    } else {
+        for (const page of feed.pages) {
+            const label = omni.getProviderLabel(page.providerId);
+            if (page.status === 'login') {
+                sections.push({
+                    id: 'state:' + page.providerId,
+                    layout: 'message',
+                    text: `${label}尚未登录，登录后可同步个人歌单与收藏。`,
+                    more: 'open-accounts',
+                    moreLabel: '前往账号管理',
+                });
+            } else if (page.status === 'loading' && !selected.length) {
+                sections.push({ id: 'state:' + page.providerId, layout: 'message', text: `正在读取${label}资料库…` });
+            } else if (page.status === 'empty' && !selected.length) {
+                sections.push({ id: 'state:' + page.providerId, layout: 'message', text: `${label}暂无${resource === 'playlists' ? '歌单' : '收藏专辑'}` });
+            } else if (page.status === 'error') {
+                const action = 'retry:' + page.providerId;
+                actions[action] = () => feed.retry();
+                sections.push({ id: 'state:' + page.providerId, layout: 'message', text: `${label}加载失败`, more: action, moreLabel: '重试' });
+            }
+            if (page.hasMore) {
+                const action = 'more:' + page.providerId;
+                actions[action] = () => { void feed.more(page.providerId); };
+                sections.push({ id: action, layout: 'textActions', items: [{ id: action, title: '加载更多 · ' + label, action }] });
+            }
         }
     }
 
@@ -337,11 +386,13 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
             : setMenu(item);
     });
 
+    // 关键修复：显示全屏 React 二级页（音乐足迹 / 本地目录管理）时必须将 active 置为 false，
+    // 否则 useNativePage 会继续将 Compose 原生页保留在屏幕上遮挡 WebView 二级页面。
     useNativePage(
         root,
         'home',
-        props.isInteractive,
-        sources.online.accountView === 'resolving' ? null : footprint.opened ? null : {
+        props.isInteractive && !footprint.opened && !localManageOpen,
+        sources.online.accountView === 'resolving' ? null : {
             key: 'library:unified:' + feed.owner,
             title: t('libraryV2.library'),
             trailing: 'manage',
@@ -356,14 +407,50 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
 
     const current = menu && organization.collections[menu.key];
 
-    const movePlatform = (index: number, direction: -1 | 1) => {
+    const moveDraftPlatform = (index: number, direction: -1 | 1) => {
         const target = index + direction;
-        if (target < 0 || target >= effectivePlatformOrder.length) return;
-        const next = [...effectivePlatformOrder];
+        if (target < 0 || target >= draftOrder.length) return;
+        const next = [...draftOrder];
         const tmp = next[index];
         next[index] = next[target];
         next[target] = tmp;
-        organization.patch({ platformOrder: next });
+        setDraftOrder(next);
+    };
+
+    const handleHandlePointerDown = (providerId: string, clientY: number) => {
+        if (dragTimer.current) window.clearTimeout(dragTimer.current);
+        dragStartY.current = clientY;
+        dragTimer.current = window.setTimeout(() => {
+            setDraggingId(providerId);
+            try { navigator.vibrate?.(12); } catch { /* Ignore unsupported vibration. */ }
+        }, 180);
+    };
+
+    const handleHandlePointerMove = (clientY: number) => {
+        if (!draggingId) return;
+        const delta = clientY - dragStartY.current;
+        const threshold = 56;
+        if (Math.abs(delta) >= threshold) {
+            const idx = draftOrder.indexOf(draggingId);
+            const target = idx + (delta > 0 ? 1 : -1);
+            if (target >= 0 && target < draftOrder.length) {
+                moveDraftPlatform(idx, delta > 0 ? 1 : -1);
+                dragStartY.current += delta > 0 ? threshold : -threshold;
+            }
+        }
+        const box = dragListRef.current?.getBoundingClientRect();
+        if (box) {
+            if (clientY < box.top + 48) dragListRef.current?.scrollBy({ top: -12 });
+            else if (clientY > box.bottom - 48) dragListRef.current?.scrollBy({ top: 12 });
+        }
+    };
+
+    const handleHandlePointerUp = () => {
+        if (dragTimer.current) {
+            window.clearTimeout(dragTimer.current);
+            dragTimer.current = null;
+        }
+        setDraggingId(null);
     };
 
     const manageRows: Array<{ id: string; title: string; subtitle: string; icon: React.ReactNode; onClick: () => void }> = [
@@ -391,7 +478,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         {
             id: 'platform-order',
             title: '平台排序',
-            subtitle: '自定义综合资料库中各音乐平台的展示顺序',
+            subtitle: '长按拖拽调整综合资料库中各平台展示顺序',
             icon: <ArrowUpDown size={20} />,
             onClick: () => { setManageOpen(false); setPlatformOrderOpen(true); },
         },
@@ -410,11 +497,11 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
             onClick: () => { setManageOpen(false); organization.patch({ layout: organization.layout === 'list' ? 'grid' : 'list' }); },
         },
         {
-            id: 'local',
+            id: 'local-manage',
             title: '本地音乐与目录管理',
-            subtitle: '管理手机本地曲库、目录扫描与标签匹配',
+            subtitle: `当前已索引 ${props.localSongs.length} 首 · 扫描目录与标签匹配`,
             icon: <Smartphone size={20} />,
-            onClick: () => { setManageOpen(false); useHomeSourceStore.getState().setSource('local'); },
+            onClick: () => { setManageOpen(false); setLocalManageOpen(true); },
         },
         {
             id: 'reset-org',
@@ -456,29 +543,29 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
 
         {manageOpen && (
             <MobileSheet title="资料库管理" onClose={() => setManageOpen(false)}>
-                <div className="flex flex-col gap-1 pb-6" style={{ paddingLeft: 4, paddingRight: 4 }}>
+                <div className="flex flex-col gap-1 pb-6">
                     {manageRows.map(row => (
                         <button
                             key={row.id}
                             type="button"
                             onClick={row.onClick}
                             className="flex items-center text-left w-full rounded-2xl transition-colors"
-                            style={{ minHeight: 64, padding: '10px 8px', gap: 12 }}
+                            style={{ minHeight: 64, padding: '10px 4px', gap: 12, color: tokens.text }}
                         >
                             <div
                                 className="flex items-center justify-center rounded-xl shrink-0"
                                 style={{
                                     width: 36,
                                     height: 36,
-                                    background: 'var(--tingyu-accent-soft, rgba(113,150,181,0.14))',
-                                    color: 'var(--tingyu-accent, #527E9F)',
+                                    background: tokens.accentSoft,
+                                    color: tokens.accent,
                                 }}
                             >
                                 {row.icon}
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div style={{ fontSize: 15, fontWeight: 500, lineHeight: '20px' }}>{row.title}</div>
-                                <div className="truncate" style={{ fontSize: 12, opacity: 0.68, marginTop: 2 }}>{row.subtitle}</div>
+                                <div className="truncate" style={{ fontSize: 12, color: tokens.muted, marginTop: 2 }}>{row.subtitle}</div>
                             </div>
                         </button>
                     ))}
@@ -486,41 +573,135 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
             </MobileSheet>
         )}
 
+        {localManageOpen && (
+            <MobileSheet
+                title="本地音乐与目录管理"
+                subtitle={`当前已索引 ${props.localSongs.length} 首本地歌曲（移除目录不会删除手机音频文件）`}
+                onClose={() => setLocalManageOpen(false)}
+            >
+                <div className="pb-6">
+                    <MobileLocalTools homeResources={props.homeResources} />
+                </div>
+            </MobileSheet>
+        )}
+
         {platformOrderOpen && (
-            <MobileSheet title="自定义平台顺序" onClose={() => setPlatformOrderOpen(false)}>
-                <div className="flex flex-col gap-2 pb-6">
-                    <p className="text-[12px] opacity-75 m-0 mb-1">
-                        调整「综合资料库」中按平台顺序展示时的平台先后顺序；独立平台页签不受影响。
-                    </p>
-                    {effectivePlatformOrder.map((providerId, idx) => (
-                        <div
-                            key={providerId}
-                            className="flex items-center justify-between rounded-2xl px-3.5 py-3"
-                            style={{ background: 'var(--tingyu-surface-card, rgba(255,255,255,0.06))' }}
+            <MobileSheet
+                title="平台排序"
+                subtitle="长按右侧手柄，拖动调整平台显示顺序。"
+                footer={
+                    <div className="flex gap-2.5">
+                        <button
+                            type="button"
+                            onClick={() => setDraftOrder([...availableProviderIds])}
+                            className="flex-1 flex items-center justify-center"
+                            style={{
+                                height: 48,
+                                borderRadius: 14,
+                                fontSize: 14,
+                                fontWeight: 600,
+                                background: tokens.secondaryBtnBg,
+                                color: tokens.secondaryBtnText,
+                            }}
                         >
-                            <span className="font-medium text-[15px]">{omni.getProviderLabel(providerId, false)}</span>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    aria-label="上移"
-                                    disabled={idx === 0}
-                                    onClick={() => movePlatform(idx, -1)}
-                                    className="p-2 rounded-xl disabled:opacity-30"
-                                >
-                                    <ChevronUp size={18} />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="下移"
-                                    disabled={idx === effectivePlatformOrder.length - 1}
-                                    onClick={() => movePlatform(idx, 1)}
-                                    className="p-2 rounded-xl disabled:opacity-30"
-                                >
-                                    <ChevronDown size={18} />
-                                </button>
+                            恢复默认顺序
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                organization.patch({ platformOrder: draftOrder });
+                                setPlatformOrderOpen(false);
+                            }}
+                            className="flex-1 flex items-center justify-center"
+                            style={{
+                                height: 48,
+                                borderRadius: 14,
+                                fontSize: 14,
+                                fontWeight: 600,
+                                background: tokens.primaryBtnBg,
+                                color: tokens.primaryBtnText,
+                            }}
+                        >
+                            完成
+                        </button>
+                    </div>
+                }
+                onClose={() => setPlatformOrderOpen(false)}
+            >
+                <div
+                    ref={dragListRef}
+                    className="flex flex-col pb-4"
+                    style={{ gap: 8 }}
+                    onPointerMove={e => handleHandlePointerMove(e.clientY)}
+                    onPointerUp={handleHandlePointerUp}
+                    onPointerCancel={handleHandlePointerUp}
+                >
+                    {draftOrder.map((providerId, idx) => {
+                        const isDragging = draggingId === providerId;
+                        return (
+                            <div
+                                key={providerId}
+                                className="flex items-center justify-between transition-transform"
+                                style={{
+                                    minHeight: 56,
+                                    borderRadius: 12,
+                                    padding: '0 8px 0 12px',
+                                    background: isDragging ? tokens.accentSoft : tokens.cardBg,
+                                    border: `1px solid ${isDragging ? tokens.accent : tokens.border}`,
+                                    transform: isDragging ? 'scale(1.02)' : 'scale(1)',
+                                    boxShadow: isDragging ? '0 8px 20px rgba(0,0,0,0.14)' : 'none',
+                                    color: tokens.text,
+                                }}
+                            >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <span
+                                        className="w-6 text-center font-semibold shrink-0"
+                                        style={{ fontSize: 13, color: tokens.muted }}
+                                    >
+                                        {idx + 1}
+                                    </span>
+                                    <span className="truncate font-medium" style={{ fontSize: 15 }}>
+                                        {omni.getProviderLabel(providerId, false)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center">
+                                    <button
+                                        type="button"
+                                        aria-label={`上移 ${omni.getProviderLabel(providerId, false)}`}
+                                        disabled={idx === 0}
+                                        onClick={() => moveDraftPlatform(idx, -1)}
+                                        className="flex items-center justify-center disabled:opacity-30"
+                                        style={{ minWidth: 36, minHeight: 48 }}
+                                    >
+                                        <ChevronUp size={18} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label={`下移 ${omni.getProviderLabel(providerId, false)}`}
+                                        disabled={idx === draftOrder.length - 1}
+                                        onClick={() => moveDraftPlatform(idx, 1)}
+                                        className="flex items-center justify-center disabled:opacity-30"
+                                        style={{ minWidth: 36, minHeight: 48 }}
+                                    >
+                                        <ChevronDown size={18} />
+                                    </button>
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`长按拖动 ${omni.getProviderLabel(providerId, false)}`}
+                                        onPointerDown={e => {
+                                            e.currentTarget.setPointerCapture?.(e.pointerId);
+                                            handleHandlePointerDown(providerId, e.clientY);
+                                        }}
+                                        className="flex items-center justify-center touch-none cursor-grab"
+                                        style={{ width: 48, height: 48, color: isDragging ? tokens.accent : tokens.muted }}
+                                    >
+                                        <GripVertical size={22} />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </MobileSheet>
         )}

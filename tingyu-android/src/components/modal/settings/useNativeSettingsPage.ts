@@ -12,10 +12,21 @@ import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../servic
 // Same index groups and rear-display controls as MobileSettingsNavigation / AndroidRearLyricsSetting.
 export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:RearSettingsPage|'index',onClose:()=>void,onPage:(page:RearSettingsPage)=>void,
     groups:SettingsNavGroup[],onSelect:(section:SettingsSectionId)=>void,onHelp:()=>void,rear:RearSettingsController,onBack:()=>void,
-    onDiscovery?:()=>void,onSearch?:()=>void) {
+    onDiscovery?:()=>void,onSearch?:()=>void,onAccounts?:()=>void) {
     const {t}=useTranslation();
     const actions:PageActions={close:onClose,help:onHelp,...rearControlActions(rear,onPage,onBack)};
     const sections:PageSection[]=[];
+    if (onAccounts) {
+        actions['settings:accounts'] = onAccounts;
+        sections.push({
+            id: 'accounts-service',
+            title: '账号与服务',
+            layout: 'rows',
+            items: [
+                { id: 'platform-accounts', title: '音乐平台账号', subtitle: '管理各音乐平台的登录状态', action: 'settings:accounts' },
+            ],
+        });
+    }
     const lyricsItems: PageItem[] = [];
     if (nativeLyricsAvailable()) {
         actions['lyrics:desktop'] = () => openNativeLyricsSettings('desktop');

@@ -9,6 +9,7 @@ import { calendarDaysInRange, type ListeningRange } from '../../../core/model/li
 import { LISTENING_STATISTICS_SYNC, type ListeningEntitySummary, type ListeningSummary } from '../../../../services/listeningStatistics';
 import type { SongResult } from '../../../../types';
 import MobileSheet from '../../../../components/shared/MobileSheet';
+import { useSheetThemeTokens } from './sheetThemeTokens';
 
 // src/library/suites/mobile/native/ListeningFootprintPage.tsx
 const RANGES: Array<{ id: ListeningRange; label: string }> = [
@@ -59,6 +60,7 @@ export default function ListeningFootprintPage({
     onGoDiscover: () => void;
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
+    const tokens = useSheetThemeTokens();
 
     useEffect(() => {
         if (!open) return;
@@ -91,8 +93,8 @@ export default function ListeningFootprintPage({
             className="fixed inset-0 overflow-y-auto"
             style={{
                 zIndex: 132,
-                background: 'var(--tingyu-bg, var(--color-background, #eef4f8))',
-                color: 'var(--tingyu-text, var(--color-text-primary, #1f3342))',
+                background: tokens.pageBg,
+                color: tokens.text,
                 paddingTop: 'env(safe-area-inset-top, 16px)',
                 paddingBottom: 152,
             }}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Flame, Heart, Mic, Clock, Sparkles, SlidersHorizontal, Plus, Trash2, Eye, Check } from 'lucide-react';
+import { Flame, Heart, Mic, Clock, Sparkles, SlidersHorizontal, Plus, Trash2, Eye, Check, Info } from 'lucide-react';
 import MobileSheet from '../../../../components/shared/MobileSheet';
 import { useLibraryOrganization } from '../../../core/state/useLibraryOrganization';
 import {
@@ -16,6 +16,7 @@ import {
 import type { ListeningSessionRecord } from '../../../../types/listeningStatistics';
 import { omni } from '../../../../services/onlineMusic/omni';
 import { parseDay } from '../../../core/model/listeningRange';
+import { useSheetThemeTokens } from './sheetThemeTokens';
 
 // src/library/suites/mobile/native/SmartRuleEditor.tsx
 const NUMERIC_FIELDS: SmartField[] = ['plays', 'seconds', 'duration', 'lastPlayed', 'addedAt'];
@@ -121,6 +122,7 @@ export default function SmartRuleEditor({
     onPreview: (rule: SmartRule) => void;
 }) {
     const store = useLibraryOrganization();
+    const tokens = useSheetThemeTokens();
     const isEditing = Boolean(rule && store.rules.some(item => item.id === rule.id));
     const [templateId, setTemplateId] = useState<SmartTemplateId>('most_played');
     const [artistInput, setArtistInput] = useState('');
@@ -128,6 +130,7 @@ export default function SmartRuleEditor({
     const [op, setOp] = useState<SmartCondition['op']>('contains');
     const [valueInput, setValueInput] = useState('');
     const [customLimit, setCustomLimit] = useState('30');
+    const [scopeDetailOpen, setScopeDetailOpen] = useState(false);
     const [error, setError] = useState('');
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [debouncedRule, setDebouncedRule] = useState<SmartRule | null>(rule);
@@ -136,6 +139,7 @@ export default function SmartRuleEditor({
         if (!rule) return;
         setError('');
         setConfirmDelete(false);
+        setScopeDetailOpen(false);
         setCustomLimit(String(rule.limit || 30));
         const detected: SmartTemplateId = rule.templateId
             ?? (rule.conditions.length === 1 && rule.conditions[0].field === 'artist' ? 'artist' : 'custom');
@@ -157,17 +161,14 @@ export default function SmartRuleEditor({
         return () => window.clearTimeout(timer);
     }, [rule]);
 
-    const templateSupport = useMemo(() => {
-        const map: Record<SmartTemplateId, { supported: boolean; reason?: string }> = {
-            most_played: isTemplateSupported('most_played', candidates, sessions),
-            recent_liked: isTemplateSupported('recent_liked', candidates, sessions),
-            artist: isTemplateSupported('artist', candidates, sessions),
-            long_time_no_see: isTemplateSupported('long_time_no_see', candidates, sessions),
-            lossless: isTemplateSupported('lossless', candidates, sessions),
-            custom: { supported: true },
-        };
-        return map;
-    }, [candidates, sessions]);
+    const templateSupport = useMemo(() => ({
+        most_played: isTemplateSupported('most_played', candidates, sessions),
+        recent_liked: isTemplateSupported('recent_liked', candidates, sessions),
+        artist: isTemplateSupported('artist', candidates, sessions),
+        long_time_no_see: isTemplateSupported('long_time_no_see', candidates, sessions),
+        lossless: isTemplateSupported('lossless', candidates, sessions),
+        custom: { supported: true } as { supported: boolean; reason?: string },
+    }), [candidates, sessions]);
 
     const matchedSongs = useMemo(
         () => (debouncedRule ? evaluateSmartPlaylist(candidates, sessions, debouncedRule) : []),
@@ -185,6 +186,7 @@ export default function SmartRuleEditor({
             artistName: artistInput,
             limit: rule.limit,
         });
+        setCustomLimit(String(rebuilt.limit));
         onChange(rebuilt);
     };
 
@@ -249,11 +251,69 @@ export default function SmartRuleEditor({
                 ? ['gte', 'lte', 'is']
                 : ['contains', 'is'];
 
-    return (
-        <MobileSheet title={isEditing ? '编辑智能歌单' : '创建智能歌单'} onClose={onClose}>
-            <div className="flex flex-col gap-4 pb-6" style={{ paddingLeft: 4, paddingRight: 4 }}>
-                <p className="text-[12px] opacity-75 m-0">让听屿自动为你整理喜欢的音乐</p>
+    const inputStyle: React.CSSProperties = {
+        height: 44,
+        borderRadius: 12,
+        fontSize: 14,
+        border: `1px solid ${tokens.border}`,
+        background: tokens.cardBg,
+        color: tokens.text,
+        paddingLeft: 12,
+        paddingRight: 12,
+        width: '100%',
+        outline: 'none',
+    };
 
+    const footer = (
+        <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+                <span style={{ fontSize: 13, fontWeight: 500, color: tokens.text }}>
+                    当前匹配 {matchedSongs.length} 首歌曲
+                </span>
+                <button
+                    type="button"
+                    disabled={!matchedSongs.length}
+                    onClick={() => onPreview(rule)}
+                    className="flex items-center gap-1.5 disabled:opacity-40"
+                    style={{
+                        minHeight: 40,
+                        padding: '0 10px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: tokens.accent,
+                    }}
+                >
+                    <Eye size={16} /> 预览匹配歌曲
+                </button>
+            </div>
+            {error && <div style={{ fontSize: 12, color: '#dc2626' }}>{error}</div>}
+            <button
+                type="button"
+                onClick={handleSave}
+                className="w-full flex items-center justify-center"
+                style={{
+                    height: 48,
+                    borderRadius: 14,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    background: tokens.primaryBtnBg,
+                    color: tokens.primaryBtnText,
+                }}
+            >
+                {isEditing ? '保存修改' : '创建智能歌单'}
+            </button>
+        </div>
+    );
+
+    return (
+        <MobileSheet
+            title={isEditing ? '编辑智能歌单' : '创建智能歌单'}
+            subtitle="让听屿自动为你整理喜欢的音乐"
+            footer={footer}
+            onClose={onClose}
+        >
+            <div className="flex flex-col pb-4" style={{ gap: 16 }}>
+                {/* 3. 六种模板选择卡片 */}
                 {!isEditing && (
                     <div className="grid grid-cols-2" style={{ gap: 10 }}>
                         {SMART_TEMPLATES.map(tpl => {
@@ -271,24 +331,20 @@ export default function SmartRuleEditor({
                                         padding: 12,
                                         borderRadius: 14,
                                         border: selected
-                                            ? '1.5px solid var(--tingyu-accent, #527E9F)'
-                                            : '1px solid var(--tingyu-border, rgba(120,140,160,0.22))',
-                                        background: selected
-                                            ? 'var(--tingyu-accent-soft, rgba(113,150,181,0.16))'
-                                            : 'var(--tingyu-surface-card, rgba(255,255,255,0.06))',
+                                            ? `1.5px solid ${tokens.accent}`
+                                            : `1px solid ${tokens.border}`,
+                                        background: selected ? tokens.accentSoft : tokens.cardBg,
+                                        color: tokens.text,
                                         opacity: support.supported ? 1 : 0.48,
                                     }}
                                 >
                                     <div className="flex items-center justify-between w-full">
-                                        <TemplateIcon
-                                            name={tpl.icon}
-                                            color={selected ? 'var(--tingyu-accent, #527E9F)' : 'currentColor'}
-                                        />
-                                        {selected && <Check size={16} color="var(--tingyu-accent, #527E9F)" />}
+                                        <TemplateIcon name={tpl.icon} color={selected ? tokens.accent : tokens.text} />
+                                        {selected && <Check size={16} color={tokens.accent} />}
                                     </div>
                                     <div className="mt-2">
                                         <div style={{ fontSize: 15, fontWeight: 600, lineHeight: '20px' }}>{tpl.title}</div>
-                                        <div style={{ fontSize: 12, opacity: 0.72, marginTop: 2 }}>
+                                        <div style={{ fontSize: 12, color: tokens.muted, marginTop: 2 }}>
                                             {support.supported ? tpl.description : (support.reason || tpl.description)}
                                         </div>
                                     </div>
@@ -298,253 +354,284 @@ export default function SmartRuleEditor({
                     </div>
                 )}
 
-                <div className="flex flex-col gap-3 rounded-2xl p-3" style={{ background: 'var(--tingyu-surface-card, rgba(255,255,255,0.05))' }}>
+                {/* 4. 歌单名称 */}
+                <div>
+                    <label className="block mb-1.5" style={{ fontSize: 13, fontWeight: 500, color: tokens.muted }}>
+                        歌单名称
+                    </label>
+                    <input
+                        type="text"
+                        value={rule.name}
+                        maxLength={80}
+                        placeholder="输入智能歌单名称"
+                        onChange={e => onChange({ ...rule, name: e.target.value })}
+                        style={inputStyle}
+                    />
+                </div>
+
+                {/* 专属歌手模板的歌手输入 */}
+                {templateId === 'artist' && (
                     <div>
-                        <label className="block text-[12px] opacity-75 mb-1">歌单名称</label>
+                        <label className="block mb-1.5" style={{ fontSize: 13, fontWeight: 500, color: tokens.muted }}>
+                            歌手名称
+                        </label>
                         <input
                             type="text"
-                            value={rule.name}
-                            maxLength={80}
-                            placeholder="输入智能歌单名称"
-                            onChange={e => onChange({ ...rule, name: e.target.value })}
-                            className="w-full rounded-xl px-3 py-2 text-[14px] bg-transparent border border-current/15 outline-none"
+                            value={artistInput}
+                            placeholder="例如：林俊杰"
+                            onChange={e => {
+                                const nextArtist = e.target.value;
+                                setArtistInput(nextArtist);
+                                const trimmed = nextArtist.trim();
+                                onChange({
+                                    ...rule,
+                                    templateId: 'artist',
+                                    name: !rule.name || rule.name.endsWith(' 精选') || rule.name === '专属歌手'
+                                        ? (trimmed ? `${trimmed} 精选` : '专属歌手')
+                                        : rule.name,
+                                    conditions: trimmed ? [{ field: 'artist', op: 'contains', value: trimmed }] : [],
+                                });
+                            }}
+                            style={inputStyle}
                         />
                     </div>
+                )}
 
-                    {templateId === 'artist' && (
+                {/* 高级自定义规则 */}
+                {templateId === 'custom' && (
+                    <div className="flex flex-col gap-3 rounded-2xl p-3" style={{ background: tokens.cardBg, border: `1px solid ${tokens.border}` }}>
                         <div>
-                            <label className="block text-[12px] opacity-75 mb-1">歌手名称</label>
-                            <input
-                                type="text"
-                                value={artistInput}
-                                placeholder="例如：林俊杰"
-                                onChange={e => {
-                                    const nextArtist = e.target.value;
-                                    setArtistInput(nextArtist);
-                                    const trimmed = nextArtist.trim();
-                                    onChange({
-                                        ...rule,
-                                        templateId: 'artist',
-                                        name: !rule.name || rule.name.endsWith(' 精选') || rule.name === '专属歌手'
-                                            ? (trimmed ? `${trimmed} 精选` : '专属歌手')
-                                            : rule.name,
-                                        conditions: trimmed ? [{ field: 'artist', op: 'contains', value: trimmed }] : [],
-                                    });
-                                }}
-                                className="w-full rounded-xl px-3 py-2 text-[14px] bg-transparent border border-current/15 outline-none"
-                            />
+                            <label className="block mb-1.5" style={{ fontSize: 13, fontWeight: 500, color: tokens.muted }}>
+                                条件组合方式
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {([
+                                    { id: 'all', label: '满足全部条件' },
+                                    { id: 'any', label: '满足任一条件' },
+                                ] as const).map(opt => (
+                                    <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => onChange({ ...rule, match: opt.id })}
+                                        className="rounded-xl text-[13px] font-medium"
+                                        style={{
+                                            height: 40,
+                                            border: rule.match === opt.id ? `1.5px solid ${tokens.accent}` : `1px solid ${tokens.border}`,
+                                            background: rule.match === opt.id ? tokens.accentSoft : 'transparent',
+                                            color: tokens.text,
+                                        }}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    )}
 
-                    {templateId === 'custom' && (
-                        <div className="flex flex-col gap-3">
-                            <div>
-                                <label className="block text-[12px] opacity-75 mb-1.5">条件组合方式</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {([
-                                        { id: 'all', label: '满足全部条件' },
-                                        { id: 'any', label: '满足任一条件' },
-                                    ] as const).map(opt => (
+                        {rule.conditions.length > 0 && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="block" style={{ fontSize: 13, fontWeight: 500, color: tokens.muted }}>
+                                    已添加筛选条件
+                                </label>
+                                {rule.conditions.map((cond, idx) => (
+                                    <div
+                                        key={`${cond.field}-${idx}`}
+                                        className="flex items-center justify-between rounded-xl px-3 py-2 text-[13px]"
+                                        style={{ background: tokens.elevatedBg, color: tokens.text }}
+                                    >
+                                        <span className="truncate">{conditionSummary(cond)}</span>
                                         <button
-                                            key={opt.id}
                                             type="button"
-                                            onClick={() => onChange({ ...rule, match: opt.id })}
-                                            className="rounded-xl py-2 px-3 text-[13px] font-medium"
-                                            style={{
-                                                border: rule.match === opt.id
-                                                    ? '1.5px solid var(--tingyu-accent, #527E9F)'
-                                                    : '1px solid var(--tingyu-border, rgba(120,140,160,0.22))',
-                                                background: rule.match === opt.id ? 'var(--tingyu-accent-soft, rgba(113,150,181,0.16))' : 'transparent',
-                                            }}
+                                            aria-label="移除条件"
+                                            onClick={() => onChange({ ...rule, conditions: rule.conditions.filter((_, i) => i !== idx) })}
+                                            className="ml-2 flex items-center justify-center"
+                                            style={{ minWidth: 36, minHeight: 36, opacity: 0.75 }}
                                         >
-                                            {opt.label}
+                                            <Trash2 size={15} />
                                         </button>
-                                    ))}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block mb-1" style={{ fontSize: 12, color: tokens.muted }}>筛选条件</label>
+                                    <select
+                                        value={field}
+                                        onChange={e => {
+                                            const nextField = e.target.value as SmartField;
+                                            setField(nextField);
+                                            setOp(nextField === 'liked' || nextField === 'source' ? 'is' : NUMERIC_FIELDS.includes(nextField) ? 'gte' : 'contains');
+                                            setValueInput('');
+                                        }}
+                                        style={{ ...inputStyle, height: 40, fontSize: 13 }}
+                                    >
+                                        {EXPOSED_FIELDS.map(f => (
+                                            <option key={f} value={f}>{FIELD_LABELS[f]}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block mb-1" style={{ fontSize: 12, color: tokens.muted }}>匹配方式</label>
+                                    <select
+                                        value={op}
+                                        onChange={e => setOp(e.target.value as SmartCondition['op'])}
+                                        style={{ ...inputStyle, height: 40, fontSize: 13 }}
+                                    >
+                                        {allowedOps.map(o => (
+                                            <option key={o} value={o}>{OP_LABELS[o]}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
-                            {rule.conditions.length > 0 && (
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="block text-[12px] opacity-75">已添加筛选条件</label>
-                                    {rule.conditions.map((cond, idx) => (
-                                        <div
-                                            key={`${cond.field}-${idx}`}
-                                            className="flex items-center justify-between rounded-xl px-3 py-2 text-[13px]"
-                                            style={{ background: 'var(--tingyu-surface-elevated, rgba(120,140,160,0.1))' }}
-                                        >
-                                            <span className="truncate">{conditionSummary(cond)}</span>
-                                            <button
-                                                type="button"
-                                                aria-label="移除条件"
-                                                onClick={() => onChange({ ...rule, conditions: rule.conditions.filter((_, i) => i !== idx) })}
-                                                className="ml-2 p-1 opacity-75 hover:opacity-100"
-                                            >
-                                                <Trash2 size={15} />
-                                            </button>
-                                        </div>
-                                    ))}
+                            {field === 'liked' || field === 'source' ? (
+                                <div className="flex gap-2">
+                                    <select
+                                        value={valueInput}
+                                        onChange={e => setValueInput(e.target.value)}
+                                        style={{ ...inputStyle, height: 40, fontSize: 13, flex: 1 }}
+                                    >
+                                        <option value="">请选择…</option>
+                                        {field === 'liked' ? (
+                                            <>
+                                                <option value="true">已收藏</option>
+                                                <option value="false">未收藏</option>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <option value="local">本地音乐</option>
+                                                {omni.getProviderSummaries().map(p => (
+                                                    <option key={p.providerId} value={p.providerId}>
+                                                        {omni.getProviderLabel(p.providerId, false)}
+                                                    </option>
+                                                ))}
+                                            </>
+                                        )}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={addCustomCondition}
+                                        className="flex items-center gap-1 rounded-xl px-3 text-[13px] font-medium shrink-0"
+                                        style={{ height: 40, background: tokens.primaryBtnBg, color: tokens.primaryBtnText }}
+                                    >
+                                        <Plus size={14} /> 添加
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={valueInput}
+                                        placeholder={valueHintFor(field)}
+                                        onChange={e => setValueInput(e.target.value)}
+                                        style={{ ...inputStyle, height: 40, fontSize: 13, flex: 1 }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={addCustomCondition}
+                                        className="flex items-center gap-1 rounded-xl px-3 text-[13px] font-medium shrink-0"
+                                        style={{ height: 40, background: tokens.primaryBtnBg, color: tokens.primaryBtnText }}
+                                    >
+                                        <Plus size={14} /> 添加
+                                    </button>
                                 </div>
                             )}
-
-                            <div className="flex flex-col gap-2 rounded-xl p-2.5 border border-current/10">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label className="block text-[11px] opacity-70 mb-1">筛选条件</label>
-                                        <select
-                                            value={field}
-                                            onChange={e => {
-                                                const nextField = e.target.value as SmartField;
-                                                setField(nextField);
-                                                setOp(nextField === 'liked' || nextField === 'source' ? 'is' : NUMERIC_FIELDS.includes(nextField) ? 'gte' : 'contains');
-                                                setValueInput('');
-                                            }}
-                                            className="w-full rounded-lg px-2 py-1.5 text-[13px] bg-transparent border border-current/15"
-                                        >
-                                            {EXPOSED_FIELDS.map(f => (
-                                                <option key={f} value={f}>{FIELD_LABELS[f]}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] opacity-70 mb-1">匹配方式</label>
-                                        <select
-                                            value={op}
-                                            onChange={e => setOp(e.target.value as SmartCondition['op'])}
-                                            className="w-full rounded-lg px-2 py-1.5 text-[13px] bg-transparent border border-current/15"
-                                        >
-                                            {allowedOps.map(o => (
-                                                <option key={o} value={o}>{OP_LABELS[o]}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {field === 'liked' || field === 'source' ? (
-                                    <div className="flex gap-2">
-                                        <select
-                                            value={valueInput}
-                                            onChange={e => setValueInput(e.target.value)}
-                                            className="flex-1 rounded-lg px-2 py-1.5 text-[13px] bg-transparent border border-current/15"
-                                        >
-                                            <option value="">请选择…</option>
-                                            {field === 'liked' ? (
-                                                <>
-                                                    <option value="true">已收藏</option>
-                                                    <option value="false">未收藏</option>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <option value="local">本地音乐</option>
-                                                    {omni.getProviderSummaries().map(p => (
-                                                        <option key={p.providerId} value={p.providerId}>
-                                                            {omni.getProviderLabel(p.providerId, false)}
-                                                        </option>
-                                                    ))}
-                                                </>
-                                            )}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            onClick={addCustomCondition}
-                                            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[13px] font-medium"
-                                            style={{ background: 'var(--tingyu-accent, #527E9F)', color: '#fff' }}
-                                        >
-                                            <Plus size={14} /> 添加
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={valueInput}
-                                            placeholder={valueHintFor(field)}
-                                            onChange={e => setValueInput(e.target.value)}
-                                            className="flex-1 rounded-lg px-2.5 py-1.5 text-[13px] bg-transparent border border-current/15 outline-none"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={addCustomCondition}
-                                            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[13px] font-medium"
-                                            style={{ background: 'var(--tingyu-accent, #527E9F)', color: '#fff' }}
-                                        >
-                                            <Plus size={14} /> 添加
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className="block text-[12px] opacity-75 mb-1">排序方式</label>
-                            <select
-                                value={rule.sort}
-                                onChange={e => onChange({ ...rule, sort: e.target.value as SmartRule['sort'] })}
-                                className="w-full rounded-xl px-2.5 py-2 text-[13px] bg-transparent border border-current/15"
-                            >
-                                {SORT_OPTIONS.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-[12px] opacity-75 mb-1">歌曲数量上限</label>
-                            <input
-                                type="number"
-                                min={1}
-                                max={1000}
-                                value={customLimit}
-                                onChange={e => {
-                                    setCustomLimit(e.target.value);
-                                    const num = Number(e.target.value);
-                                    if (Number.isInteger(num) && num >= 1 && num <= 1000) {
-                                        onChange({ ...rule, limit: num });
-                                    }
-                                }}
-                                className="w-full rounded-xl px-2.5 py-2 text-[13px] bg-transparent border border-current/15 outline-none"
-                            />
                         </div>
                     </div>
+                )}
 
-                    <div className="flex flex-wrap gap-2">
-                        {LIMIT_PRESETS.map(preset => (
-                            <button
-                                key={preset}
-                                type="button"
-                                onClick={() => { setCustomLimit(String(preset)); onChange({ ...rule, limit: preset }); }}
-                                className="rounded-full px-3 py-1 text-[12px]"
-                                style={{
-                                    border: rule.limit === preset
-                                        ? '1.5px solid var(--tingyu-accent, #527E9F)'
-                                        : '1px solid var(--tingyu-border, rgba(120,140,160,0.22))',
-                                    background: rule.limit === preset ? 'var(--tingyu-accent-soft, rgba(113,150,181,0.16))' : 'transparent',
-                                }}
-                            >
-                                {preset} 首
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="text-[12px] opacity-70 leading-relaxed">
-                    筛选范围：当前已同步收藏、已索引歌单歌曲、听屿真实收听记录及本地音乐（不直接筛选平台全部在线曲库）。
-                </div>
-
-                <div className="flex items-center justify-between rounded-2xl px-3.5 py-2.5" style={{ background: 'var(--tingyu-surface-card, rgba(255,255,255,0.05))' }}>
-                    <span className="text-[13px] font-medium">当前匹配 {matchedSongs.length} 首歌曲</span>
-                    <button
-                        type="button"
-                        disabled={!matchedSongs.length}
-                        onClick={() => onPreview(rule)}
-                        className="flex items-center gap-1.5 text-[13px] font-medium disabled:opacity-40"
-                        style={{ color: 'var(--tingyu-accent, #527E9F)' }}
+                {/* 5. 排序方式（独占一行） */}
+                <div>
+                    <label className="block mb-1.5" style={{ fontSize: 13, fontWeight: 500, color: tokens.muted }}>
+                        排序方式
+                    </label>
+                    <select
+                        value={rule.sort}
+                        onChange={e => onChange({ ...rule, sort: e.target.value as SmartRule['sort'] })}
+                        style={inputStyle}
                     >
-                        <Eye size={15} /> 预览匹配歌曲
-                    </button>
+                        {SORT_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
                 </div>
 
-                {error && <div className="text-[12px] text-red-500">{error}</div>}
+                {/* 6. 歌曲数量上限（四列等宽快捷选项 + 独立自定义输入框） */}
+                <div>
+                    <label className="block mb-1.5" style={{ fontSize: 13, fontWeight: 500, color: tokens.muted }}>
+                        歌曲数量上限
+                    </label>
+                    <div className="grid grid-cols-4" style={{ gap: 8 }}>
+                        {LIMIT_PRESETS.map(preset => {
+                            const selected = rule.limit === preset;
+                            return (
+                                <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => { setCustomLimit(String(preset)); onChange({ ...rule, limit: preset }); }}
+                                    className="flex items-center justify-center"
+                                    style={{ minHeight: 48 }}
+                                >
+                                    <span
+                                        className="w-full flex items-center justify-center whitespace-nowrap"
+                                        style={{
+                                            height: 36,
+                                            borderRadius: 10,
+                                            fontSize: 13,
+                                            fontWeight: selected ? 600 : 500,
+                                            padding: '0 8px',
+                                            border: selected ? `1.5px solid ${tokens.accent}` : `1px solid ${tokens.border}`,
+                                            background: selected ? tokens.accentSoft : tokens.cardBg,
+                                            color: selected ? tokens.accent : tokens.text,
+                                        }}
+                                    >
+                                        {preset} 首
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                        <span style={{ fontSize: 12, color: tokens.muted, whiteSpace: 'nowrap' }}>自定义数量</span>
+                        <input
+                            type="number"
+                            min={1}
+                            max={1000}
+                            value={customLimit}
+                            placeholder="1-1000"
+                            onChange={e => {
+                                setCustomLimit(e.target.value);
+                                const num = Number(e.target.value);
+                                if (Number.isInteger(num) && num >= 1 && num <= 1000) {
+                                    onChange({ ...rule, limit: num });
+                                }
+                            }}
+                            style={{ ...inputStyle, flex: 1 }}
+                        />
+                    </div>
+                </div>
+
+                {/* 7. 筛选范围说明 */}
+                <div>
+                    <div className="flex items-center justify-between gap-2">
+                        <span style={{ fontSize: 12, color: tokens.muted }}>从已收藏、本地音乐及已记录的歌曲中筛选</span>
+                        <button
+                            type="button"
+                            onClick={() => setScopeDetailOpen(v => !v)}
+                            className="flex items-center gap-1 shrink-0"
+                            style={{ fontSize: 12, color: tokens.accent, minHeight: 32 }}
+                        >
+                            <Info size={14} /> 说明
+                        </button>
+                    </div>
+                    {scopeDetailOpen && (
+                        <p className="mt-1.5 rounded-xl p-2.5 m-0" style={{ fontSize: 12, lineHeight: 1.5, background: tokens.elevatedBg, color: tokens.muted }}>
+                            当前筛选范围为本机已同步的收藏歌曲、已索引歌单曲目、听屿记录到的真实有效收听历史以及本地音乐曲库（不会直接全网检索平台全部在线曲库，也不会改动平台原始歌单）。
+                        </p>
+                    )}
+                </div>
 
                 {isEditing && !confirmDelete && (
                     <button
@@ -565,15 +652,6 @@ export default function SmartRuleEditor({
                         </div>
                     </div>
                 )}
-
-                <button
-                    type="button"
-                    onClick={handleSave}
-                    className="w-full rounded-2xl py-3.5 text-[15px] font-semibold text-white"
-                    style={{ background: 'var(--tingyu-accent, #527E9F)' }}
-                >
-                    {isEditing ? '保存修改' : '创建智能歌单'}
-                </button>
             </div>
         </MobileSheet>
     );

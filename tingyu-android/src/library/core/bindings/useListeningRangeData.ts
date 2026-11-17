@@ -36,7 +36,8 @@ export function useListeningRangeData(source: string, owner: string, active: boo
         const accountIds = new Map(scopes.flatMap(([id, scope]) => scope.ready && scope.authenticated && scope.userId != null
             ? [[id, String(scope.userId)] as const] : []));
         void readListeningSessions(bounds.from, bounds.to, 50_001, record => record.providerId === 'local'
-            ? source === 'all' || source === 'local' : accountIds.get(record.providerId) === record.accountKey)
+            ? source === 'all' || source === 'local'
+            : (accountIds.get(record.providerId) ?? 'anonymous') === record.accountKey)
             .then(records => { if (valid()) setSnapshot({ key, records: records.slice(0, 50_000), truncated: records.length > 50_000, error: false }); })
             .catch(() => { if (valid()) setSnapshot({ ...empty, key, error: true }); });
         return () => { stale = true; };

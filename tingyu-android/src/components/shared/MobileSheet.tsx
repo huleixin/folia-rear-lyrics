@@ -11,9 +11,16 @@ import MobileScrollFrame from './MobileScrollFrame';
 // src/components/shared/MobileSheet.tsx
 export default function MobileSheet({
     title,
+    subtitle,
+    footer,
     onClose,
     children,
-}: React.PropsWithChildren<{ title: string; onClose: () => void }>) {
+}: React.PropsWithChildren<{
+    title: string;
+    subtitle?: string;
+    footer?: React.ReactNode;
+    onClose: () => void;
+}>) {
     const ref = useRef<HTMLDivElement>(null);
     const reduced = useLiquidReduced();
     const [closing, setClosing] = useState(false);
@@ -74,7 +81,14 @@ export default function MobileSheet({
                     animate={{ y: closing ? '100%' : 0 }}
                     exit={{ y: '100%', transition: { duration: reduced ? 0 : TY_DURATION.panelExit } }}
                     transition={reduced ? { duration: 0 } : closing ? { duration: TY_DURATION.panelExit } : TY_SPRING.panel}
-                    style={{ animation: 'none' }}
+                    style={{
+                        animation: 'none',
+                        borderTopLeftRadius: 24,
+                        borderTopRightRadius: 24,
+                        paddingLeft: 20,
+                        paddingRight: 20,
+                        ...(footer ? { display: 'flex', flexDirection: 'column', maxHeight: '88dvh', overflow: 'hidden' } : {}),
+                    }}
                     ref={ref}
                     tabIndex={-1}
                     role="dialog"
@@ -83,13 +97,28 @@ export default function MobileSheet({
                     aria-label={title}
                     className="ml-sheet"
                 >
-                    <header>
-                        <h2>{title}</h2>
-                        <button className="ml-icon" aria-label={t('mobileLibrary.close')} onClick={close}>
+                    <header className="shrink-0" style={{ alignItems: subtitle ? 'flex-start' : 'center' }}>
+                        <div>
+                            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{title}</h2>
+                            {subtitle && <p style={{ fontSize: 12, opacity: 0.72, margin: '4px 0 0' }}>{subtitle}</p>}
+                        </div>
+                        <button className="ml-icon" style={{ minWidth: 48, minHeight: 48 }} aria-label={t('mobileLibrary.close')} onClick={close}>
                             <X />
                         </button>
                     </header>
-                    {children}
+                    {footer ? (
+                        <>
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-0.5">
+                                {children}
+                            </div>
+                            <div
+                                className="shrink-0 pt-3 border-t border-current/10"
+                                style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))' }}
+                            >
+                                {footer}
+                            </div>
+                        </>
+                    ) : children}
                 </motion.div>
             </MobileScrollFrame>
         </motion.div>,
