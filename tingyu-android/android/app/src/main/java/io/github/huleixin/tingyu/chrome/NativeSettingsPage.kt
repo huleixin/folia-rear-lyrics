@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 // 设置页：统一可折叠顶部栏(72dp->56dp)、16dp圆角分组卡片、64dp最小行高及语义化图标。
 
 private val SettingIcons = mapOf(
+    "platform-accounts" to "user-round",
     "desktop-lyrics" to "monitor",
     "bluetooth-lyrics" to "car",
     "rear-entry" to "captions",
@@ -45,6 +46,7 @@ private val SettingIcons = mapOf(
 )
 
 private val GroupIcons = mapOf(
+    "accounts-service" to "user-round",
     "lyrics-output" to "captions",
     "rear" to "captions",
     "discovery" to "compass",
@@ -125,7 +127,8 @@ internal fun NativeSettingsPage(page: NativePage, modifier: Modifier, action: Pa
                     }
                 }
             }
-            TyTopGlassSurface(glass, colors)
+            val scrolled = list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset > 0
+            if (scrolled) TyTopGlassSurface(glass, colors)
             TyTopGlassForeground {
                 Box(Modifier.onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) }) {
                     UnifiedCollapsingHeader(
@@ -135,7 +138,7 @@ internal fun NativeSettingsPage(page: NativePage, modifier: Modifier, action: Pa
                         collapsedHeightDp = 56f,
                         progress = collapseProgress,
                         horizontalPadding = inset,
-                        headerBackgroundColor = colors.first(),
+                        headerBackgroundColor = if (scrolled) colors.first() else androidx.compose.ui.graphics.Color.Transparent,
                         action = action
                     )
                 }

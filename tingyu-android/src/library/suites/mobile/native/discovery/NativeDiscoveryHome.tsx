@@ -58,10 +58,18 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const ranked = useMemo(() => rankDiscovery(candidates, preferences.values, settings, 'heart', seed, Date.now(), 100), [candidates, preferences.values, settings, seed]);
     const songs = controls.withoutHidden(ranked.map(item => item.song));
     // Local radar reads the local library even while the selected recommendation source is online.
-    const radar = (kind: RadarKind) => rankDiscovery(kind === 'local' ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : candidates, preferences.values, settings, kind, seed).map(item => item.song);
+    // Time radar merges recent history so historical songs not in today's feed remain eligible.
+    const radar = (kind: RadarKind) => {
+        const pool = kind === 'local'
+            ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE)
+            : kind === 'time'
+                ? [...candidates, ...recent]
+                : candidates;
+        return rankDiscovery(pool, preferences.values, settings, kind, seed).map(item => item.song);
+    };
     const openRadar = (kind: RadarKind) => {
         const list = radar(kind);
-        const emptyHint = kind === 'time' ? '多听一些音乐，时光雷达将为你找回曾经的旋律。'
+        const emptyHint = kind === 'time' ? '等待与你的旧旋律重逢\n听屿会根据真实的收听历史，为你找回曾经喜欢的音乐。'
             : kind === 'local' ? '暂无本地音乐，可在资料库导入本地曲库。'
             : '当前平台候选数据不足，请先收听或收藏一些歌曲，或切换其他平台。';
         const desc = list.length ? (kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及当前筛选来源生成。') : emptyHint;

@@ -61,7 +61,10 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
             ...catalogBadgePageFields(song,t,isLocalPlaybackSong(song)),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
     }),[model.view.displayTracks,indexes,total,offset,activeKey,t,cacheQuality,cacheRouteRevision]);
-    const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];
+    const controls: Array<{ id: string; title: string; action: string; disabled?: boolean }> = [];
+    if (total > 0) {
+        controls.push({ id: 'play', title: t('mobileLibrary.playAll'), action: 'playAll', disabled: !model.actions.capabilities.scope.enabled });
+    }
     if(model.mutations.capabilities.subscribe.supported)controls.push({id:'subscribe',title:t(model.mutations.subscribed?'mobileLibrary.saved':'mobileLibrary.save'),action:'subscribe',disabled:!model.mutations.capabilities.subscribe.enabled});
     const creator=model.snapshot?.detail?.creator??props.collection.creator;
     // Discovery snapshots are generated on this device; they must not claim a platform name or
@@ -71,20 +74,23 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
     // controls，由 Compose 侧同一 MediaDetailScaffold 渲染（NativePageView 按 page.id 路由，
     // 不再按 intro/playlistIntro 分流标记）。歌手页走 useNativeArtistPage 独立适配器。
     const sections:PageSection[]=[{id:'toolbar',layout:'chips' as const,items:[
-        {id:'back',title:t('mobileLibrary.back'),action:'back'},{id:'filterToggle',title:t('mobileLibrary.filter'),action:'filterToggle'},
+        {id:'back',title:t('mobileLibrary.back'),action:'back'},
+        ...(total > 0 ? [{id:'filterToggle',title:t('mobileLibrary.filter'),action:'filterToggle'}] : []),
         {id:'menu',title:t('mobileLibrary.playlistActions'),action:'menu'},
         ...(originalActive>=0?[{id:'locateCurrent',title:t('mobileLibrary.locateCurrent'),action:'locateCurrent'}]:[])]},
         {id:'intro',layout:'rows' as const,description:model.snapshot?.detail?.description||props.collection.description,
         creator:creator?.nickname||source,creatorImage:absolutePageImage(creator?.avatarUrl),items:[{id:'cover',title:name,subtitle:t('mobileLibrary.trackCount',{count}),
-        image:absolutePageImage(model.snapshot?.detail?.coverUrl||props.collection.coverUrl),action:'playAll'}]},
+        image:absolutePageImage(model.snapshot?.detail?.coverUrl||props.collection.coverUrl),action:total > 0 ? 'playAll' : ''}]},
         {id:'controls',layout:'chips',items:controls.map(item=>({...item,selected:item.id==='subscribe'&&!!model.mutations.subscribed}))},
-        ...(props.collection.type==='playlist'?[{id:'songHeading',layout:'message' as const,title:t('mobileLibrary.playlistSongs'),text:String(count)}]:[]),
+        ...(props.collection.type==='playlist'&&total>0?[{id:'songHeading',layout:'message' as const,title:t('mobileLibrary.playlistSongs'),text:String(count)}]:[]),
         // 筛选区只在展开/有词时下发：Compose 侧按 filterSection!=null 触发固定层展开，
         // 常驻下发会让搜索层在进页时自动弹开（旧行为里专辑页是常驻内联输入框）。
         ...(filterOpen||model.query?[{id:'filter',layout:'input' as const,value:model.query,placeholder:t('mobileLibrary.filter'),action:'filter',more:'filterClose',moreLabel:t('ui.cancel')}]:[]),
         {id:'tracks',key:`${model.query}:${model.field}:${model.direction}`,layout:'rows',total,offset,request:'range',items,
             activeKey,playing,activeIndex,locateRevision}];
-    if(!total)sections.push({id:'empty',layout:'message',text:props.collection.type==='discovery'&&props.collection.description?props.collection.description:t(model.snapshot?.status==='loading'?'mobileLibrary.loading':'mobileLibrary.emptyCollection'),more:props.collection.type==='discovery'?'back':undefined,moreLabel:props.collection.type==='discovery'?t('mobileLibrary.back'):undefined});
+    if(!total && !(props.collection.type==='discovery' && props.collection.description)) {
+        sections.push({id:'empty',layout:'message',text:t(model.snapshot?.status==='loading'?'mobileLibrary.loading':'mobileLibrary.emptyCollection')});
+    }
     if(model.snapshot?.error)sections.push({id:'error',layout:'message',text:model.snapshot.error.kind==='generic'?model.snapshot.error.message:t('mobileLibrary.loadFailed'),more:'reload',moreLabel:t('mobileLibrary.retry')});
     if(model.snapshot?.sync.status==='interrupted')sections.push({id:'resume',layout:'message',more:'resume',moreLabel:t('mobileLibrary.resumeSync')});
     const nativeModel:NativePageModel={key:`collection:${model.sessionKey}`,title:name,leading:'back',trailing:'menu',trailingLabel:'⋯',bottomClearance:100,sections};

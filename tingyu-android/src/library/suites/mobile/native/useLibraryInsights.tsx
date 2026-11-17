@@ -30,9 +30,43 @@ const SYSTEM_ART: Record<string, { c1: string; c2: string; label: string }> = {
     year: { c1: '#7E9FB8', c2: '#2F4D63', label: 'YR' },
 };
 
+const rasterArtCache = new Map<string, string>();
+
 function smartArtDataUrl(c1: string, c2: string, label: string): string {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></linearGradient></defs><rect width="256" height="256" rx="32" fill="url(#g)"/><circle cx="198" cy="58" r="56" fill="#fff" fill-opacity="0.10"/><circle cx="62" cy="198" r="72" fill="#fff" fill-opacity="0.08"/><text x="128" y="142" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="54" fill="#FFFFFF" fill-opacity="0.92">${label}</text></svg>`;
-    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    const key = `${c1}|${c2}|${label}`;
+    const cached = rasterArtCache.get(key);
+    if (cached) return cached;
+    if (typeof document === 'undefined') return '';
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 192;
+        canvas.height = 192;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return '';
+        const grad = ctx.createLinearGradient(0, 0, 192, 192);
+        grad.addColorStop(0, c1);
+        grad.addColorStop(1, c2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 192, 192);
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.beginPath();
+        ctx.arc(148, 44, 46, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath();
+        ctx.arc(46, 152, 58, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.font = '700 42px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, 96, 98);
+        const png = canvas.toDataURL('image/png');
+        rasterArtCache.set(key, png);
+        return png;
+    } catch {
+        return '';
+    }
 }
 
 function smartEntryCover(rule: SmartRule, songs: SmartFacts[], usedCovers: Set<string>): string {
@@ -52,7 +86,7 @@ function smartEntryCover(rule: SmartRule, songs: SmartFacts[], usedCovers: Set<s
 }
 
 /** Shared library insights; bottom management entry removed in favor of top-right Library Manage menu. */
-export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: string, owner: string) {
+export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: string, owner: string, smartGroupCollapsed = false, onToggleSmartGroup?: () => void) {
     const { t } = useTranslation();
     const tokens = useSheetThemeTokens();
     const data = useLibraryInsightsData(props, props.isInteractive, source);
@@ -133,10 +167,16 @@ export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: strin
 
     const sections: PageSection[] = [];
     if (entries.length) {
+        if (onToggleSmartGroup) actions['toggle-group:smart'] = onToggleSmartGroup;
         sections.push({
             id: 'smart-playlists',
             title: '智能歌单',
             layout: 'cards',
+            ...(onToggleSmartGroup ? {
+                more: 'toggle-group:smart',
+                moreLabel: `${entries.length}个歌单`,
+                text: smartGroupCollapsed ? 'collapsed' : '',
+            } : {}),
             items: entries.map(({ rule, songs }) => {
                 const action = 'smart:' + rule.id;
                 actions[action] = () => songs.length ? openSongs(rule, songs.map(item => item.song)) : setEditing(rule);

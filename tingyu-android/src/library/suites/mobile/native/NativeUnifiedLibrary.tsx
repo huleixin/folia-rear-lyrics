@@ -54,8 +54,19 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     const dragStartY = useRef(0);
     const dragListRef = useRef<HTMLDivElement>(null);
 
+    const isUnified = organization.source === 'all';
+    const showPlatformGrouping = isUnified && organization.sort === 'source' && organization.groupByPlatform;
+    const searchActive = query.trim().length > 0;
+    const isGroupCollapsed = (groupId: string) => !searchActive && Boolean(organization.collapsedGroups?.[groupId]);
+
     const feed = useUnifiedLibrary(props.isInteractive, organization.source, resource);
-    const sharedInsights = useLibraryInsights(props, organization.source, feed.owner);
+    const sharedInsights = useLibraryInsights(
+        props,
+        organization.source,
+        feed.owner,
+        isGroupCollapsed('smart'),
+        showPlatformGrouping ? () => organization.toggleGroup('smart') : undefined,
+    );
     const { data: insights, footprint } = sharedInsights;
 
     const privateSongs = useMemo(
@@ -159,23 +170,36 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         range: event => setOffset(Math.max(0, Math.floor((event.value || 0) / 100) * 100)),
         layout: () => organization.patch({ layout: organization.layout === 'list' ? 'grid' : 'list' }),
         'toggle-platform-group': () => organization.patch({ groupByPlatform: !organization.groupByPlatform }),
+        'toggle-all-groups': () => organization.setAllGroupsCollapsed(visibleGroupIds, !allCollapsed),
         'platform-order': () => setPlatformOrderOpen(true),
         local: () => useHomeSourceStore.getState().setSource('local'),
         'open-accounts': () => useSettingsModalStore.getState().openSettingsFromIndex('accounts'),
     };
 
-    const isUnified = organization.source === 'all';
-    const showPlatformGrouping = isUnified && organization.sort === 'source' && organization.groupByPlatform;
+    const visibleGroupIds = useMemo(() => {
+        if (!showPlatformGrouping) return [];
+        const ids: string[] = [];
+        for (const pid of effectivePlatformOrder) {
+            if (selected.some(e => e.collection.providerId === pid)) ids.push(pid);
+        }
+        if (sharedInsights.sections.some(s => s.id === 'smart-playlists')) ids.push('smart');
+        return ids;
+    }, [showPlatformGrouping, effectivePlatformOrder, selected, sharedInsights.sections]);
+
+    const allCollapsed = visibleGroupIds.length > 0 && visibleGroupIds.every(id => isGroupCollapsed(id));
 
     const viewActionItems = [
         { id: 'layout', title: organization.layout === 'list' ? t('libraryV2.grid') : t('libraryV2.list'), image: 'layout-grid', action: 'layout' },
         ...(isUnified && organization.sort === 'source'
             ? [{ id: 'toggle-platform-group', title: organization.groupByPlatform ? '关闭平台分组' : '按平台分组显示', image: 'layers', action: 'toggle-platform-group' }]
             : []),
+        ...(showPlatformGrouping && visibleGroupIds.length > 0
+            ? [{ id: 'toggle-all-groups', title: allCollapsed ? '全部展开' : '全部收起', image: 'chevrons-up-down', action: 'toggle-all-groups' }]
+            : []),
         ...(isUnified && effectivePlatformOrder.length > 1
             ? [{ id: 'platform-order', title: '平台顺序', image: 'arrow-up-down', action: 'platform-order' }]
             : []),
-        { id: 'refresh', title: t('libraryV2.refresh'), image: 'refresh-cw', action: 'refresh' },
+        { id: 'refresh', title: feed.syncing ? '同步中…' : t('libraryV2.refresh'), image: 'refresh-cw', action: 'refresh' },
     ];
 
     const sections: PageSection[] = [
@@ -258,10 +282,16 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         for (const providerId of effectivePlatformOrder) {
             const entriesForProvider = byProvider.get(providerId);
             if (!entriesForProvider || !entriesForProvider.length) continue;
+            const toggleAction = 'toggle-group:' + providerId;
+            actions[toggleAction] = () => organization.toggleGroup(providerId);
+            const unit = resource === 'playlists' ? '个歌单' : '张专辑';
             sections.push({
                 id: 'directory-group:' + providerId,
                 title: omni.getProviderLabel(providerId, false),
                 layout: organization.layout === 'list' ? 'rows' : 'cards',
+                more: toggleAction,
+                moreLabel: `${entriesForProvider.length}${unit}`,
+                text: isGroupCollapsed(providerId) ? 'collapsed' : '',
                 key: `${feed.owner}:${providerId}:${query}:${group}:${organization.layout}`,
                 items: entriesForProvider.slice(0, 100).map(toItem),
             });
@@ -281,12 +311,11 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         }
     }
 
-    // 综合资料库：隐藏未登录平台提示、登录按钮与冗余单平台加载提示，只保留统一紧凑反馈；
-    // 切换至独立未登录平台时，展示简洁空状态与前往账号管理入口。
+    // 综合资料库：缓存优先，已有缓存时不插入阻塞性"正在同步"大段文字；隐藏未登录平台与冗余加载提示。
     if (isUnified) {
         const anyLoading = feed.pages.some(p => p.status === 'loading');
-        if (anyLoading && !selected.length) {
-            sections.push({ id: 'unified-loading', layout: 'message', text: '正在同步已登录平台资料库…' });
+        if (anyLoading && !feed.hasCached && !selected.length) {
+            sections.push({ id: 'unified-loading', layout: 'message', text: '正在初始化资料库…' });
         }
         const failed = feed.pages.filter(p => p.status === 'error');
         if (failed.length && !selected.length) {

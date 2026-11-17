@@ -29,17 +29,36 @@ export function rankDiscovery(songs: SongResult[], preferences: PreferenceMap, s
         const preference = preferences[key], source = getPlaybackSourceRef(song);
         if (preference?.blocked || kind === 'local' && source.kind !== 'local' || kind === 'explore' && preference?.listens) return;
         if (kind === 'niche') return;
-        if (kind === 'time' && (!preference?.lastPlayed || now - preference.lastPlayed < 7 * 86400_000)) return;
+        let timeTier = 0;
+        if (kind === 'time') {
+            if (settings.source === 'local' && source.kind !== 'local') return;
+            if (settings.source === 'all' && source.kind === 'online' && settings.enabled[source.providerId] === false) return;
+            if (settings.source !== 'all' && settings.source !== 'local' && (source.kind !== 'online' || source.providerId !== settings.source)) return;
+            const ageMs = preference?.lastPlayed ? now - preference.lastPlayed : -1;
+            if (ageMs >= 30 * 86400_000) timeTier = 1;
+            else if (ageMs >= 7 * 86400_000) timeTier = 2;
+            else if (preference?.liked) timeTier = 3;
+            else return;
+        }
         const affinity = song.artists.reduce((max, artist) => { const stat = artists.get(artist.name.trim().toLowerCase());
             return Math.max(max, stat ? stat.sum / stat.count : 0); }, 0);
         const familiar = preference?.listens || preference?.liked;
         let score = decayedPreference(preference, now) * settings.familiarity + affinity * (1 - settings.crossArtist);
         if (!familiar) score += 8 * settings.exploration;
         if (kind === 'style') score = affinity * 2 + score * .3;
-        if (kind === 'time') score += Math.min(20, (now - preference!.lastPlayed) / 86400_000) + Math.min(10, preference!.listens);
+        if (kind === 'time') {
+            const tierBase = timeTier === 1 ? 60 : timeTier === 2 ? 40 : 20;
+            const ageBonus = preference?.lastPlayed ? Math.min(20, (now - preference.lastPlayed) / 86400_000) : 0;
+            const listenBonus = preference?.listens ? Math.min(10, preference.listens) : 0;
+            score += tierBase + ageBonus + listenBonus;
+        }
         score += 4 * (source.kind === 'online' ? Math.max(0, Math.min(3, settings.weights[source.providerId] ?? 1)) : 1);
         score += stableHash(`${seed}:${key}`) * (2 + settings.exploration * 4);
-        const reason = kind === 'time' ? '过去听过，最近较少播放' : preference?.liked ? '你收藏过这首歌' : affinity > 0 ? '与你听过的歌手有关'
+        const reason = kind === 'time'
+            ? (timeTier === 1 ? '曾经听过，近 30 天未再播放'
+                : timeTier === 2 ? '曾经听过，近 7 天未再播放'
+                : '你收藏过的旧爱歌曲')
+            : preference?.liked ? '你收藏过这首歌' : affinity > 0 ? '与你听过的歌手有关'
             : familiar ? '根据你的收听记录' : source.kind === 'local' ? '来自你的本地曲库'
             : preference ? '来自已启用平台的真实推荐' : '来自已启用平台的每日或 FM 候选';
         ranked.push({ song, score, reason });
@@ -80,4 +99,58 @@ export function mixRoaming(songs: SongResult[], preferences: PreferenceMap, mode
         if (result.length === before) break;
     }
     return result.slice(0, limit);
+}
+
+export interface TimeRadarDiagnostics {
+    rawHistoryCount: number;
+    tier1Count: number;
+    tier2Count: number;
+    tier3Count: number;
+    platformFilteredCount: number;
+    dedupedCount: number;
+    missingFieldsCount: number;
+    unavailableCount: number;
+    finalCount: number;
+    emptyReason: string;
+}
+
+export function diagnoseTimeRadar(
+    songs: SongResult[],
+    preferences: PreferenceMap,
+    settings: DiscoverySettings,
+    now = Date.now(),
+    limit = 30,
+): TimeRadarDiagnostics {
+    const rawHistoryCount = Object.keys(preferences).length;
+    let tier1Count = 0, tier2Count = 0, tier3Count = 0;
+    let platformFilteredCount = 0, missingFieldsCount = 0, unavailableCount = 0;
+    const seen = new Set<string>();
+    for (const song of songs) {
+        const key = getPlaybackSongKey(song);
+        if (!key || !song.name) { missingFieldsCount++; continue; }
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const pref = preferences[key];
+        if (pref?.blocked) { unavailableCount++; continue; }
+        const src = getPlaybackSourceRef(song);
+        const inScope = settings.source === 'all'
+            ? (src.kind !== 'online' || settings.enabled[src.providerId] !== false)
+            : settings.source === 'local'
+                ? src.kind === 'local'
+                : (src.kind === 'online' && src.providerId === settings.source);
+        if (!inScope) { platformFilteredCount++; continue; }
+        const ageMs = pref?.lastPlayed ? now - pref.lastPlayed : -1;
+        if (ageMs >= 30 * 86400_000) tier1Count++;
+        else if (ageMs >= 7 * 86400_000) tier2Count++;
+        else if (pref?.liked) tier3Count++;
+    }
+    const finalCount = Math.min(limit, tier1Count + tier2Count + tier3Count);
+    const emptyReason = finalCount > 0 ? ''
+        : rawHistoryCount === 0 ? 'no-history'
+        : (tier1Count + tier2Count + tier3Count === 0) ? 'insufficient-age-or-likes'
+        : 'filtered';
+    return {
+        rawHistoryCount, tier1Count, tier2Count, tier3Count,
+        platformFilteredCount, dedupedCount: seen.size, missingFieldsCount, unavailableCount, finalCount, emptyReason,
+    };
 }

@@ -54,16 +54,19 @@ import androidx.compose.ui.util.lerp
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt
 // 资料库与集合详情页：资料库使用统一折叠顶部栏(72dp->56dp) + 48dp吸顶分类工具栏(总折叠104dp) + 56dp内联搜索。
 
+private val savedDirectoryScroll = mutableMapOf<String, Pair<Int, Int>>()
+
 @Composable
 internal fun NativeDirectoryPage(page: NativePage, modifier: Modifier, action: PageAction) {
     val states = rememberSaveableStateHolder()
     val recent = rememberSaveable { mutableListOf<String>() }
-    LaunchedEffect(page.key) {
-        recent.remove(page.key)
-        recent.add(page.key)
+    val stateKey = if (page.key.startsWith("library:unified:")) "library:unified" else page.key
+    LaunchedEffect(stateKey) {
+        recent.remove(stateKey)
+        recent.add(stateKey)
         while (recent.size > 12) states.removeState(recent.removeAt(0))
     }
-    states.SaveableStateProvider(page.key) { NativeDirectoryContent(page, modifier, action) }
+    states.SaveableStateProvider(stateKey) { NativeDirectoryContent(page, modifier, action) }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -95,14 +98,19 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
 
         val rowSections = page.sections.filter { (it.layout == "rows" || it.layout == "cards") && it.id != "intro" }
         val caches = rowSections.associate { it.id to key(it.id) { rememberNativeRows(page.key, it) } }
-        val list = rememberLazyListState()
-        val identity = rowSections.map { it.id to it.dataKey }.toString()
-        var previous by rememberSaveable { mutableStateOf(identity) }
-        LaunchedEffect(identity) {
-            if (previous != identity) {
-                list.scrollToItem(0)
-                previous = identity
+        val scrollKey = if (isUnifiedLibrary) "library:unified" else page.key
+        val initialScroll = remember(scrollKey) { savedDirectoryScroll[scrollKey] ?: (0 to 0) }
+        val list = rememberLazyListState(
+            initialFirstVisibleItemIndex = initialScroll.first,
+            initialFirstVisibleItemScrollOffset = initialScroll.second
+        )
+        DisposableEffect(scrollKey) {
+            onDispose {
+                savedDirectoryScroll[scrollKey] = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
             }
+        }
+        LaunchedEffect(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset) {
+            savedDirectoryScroll[scrollKey] = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
         }
 
         val colors = page.surfaceColors()
@@ -175,12 +183,53 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                     }
 
                     page.sections.filter { it.id !in skipIds }.forEach { section ->
-                        if (library && section.title.isNotBlank() && (section.layout == "rows" || section.layout == "cards") && section.id != "directory") {
+                        val isCollapsibleGroup = library && section.more.startsWith("toggle-group:")
+                        val isGroupCollapsed = isCollapsibleGroup && section.text == "collapsed"
+                        if (isCollapsibleGroup && section.title.isNotBlank()) {
+                            item(key = "${section.id}:group-heading") {
+                                val rotation by animateFloatAsState(
+                                    targetValue = if (isGroupCollapsed) 180f else 0f,
+                                    animationSpec = tween(if (reduced) 0 else 200),
+                                    label = "group-chevron"
+                                )
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                        .heightIn(min = 48.dp)
+                                        .chromeClickable(corner = 10.dp) { action(section.more, "", 0.0) }
+                                        .padding(horizontal = start),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        section.title,
+                                        color = PageInk,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight(650),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (section.moreLabel.isNotBlank()) {
+                                        Text(
+                                            section.moreLabel,
+                                            color = PageMuted,
+                                            fontSize = 12.sp
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    PageIcon(
+                                        "chevron-up",
+                                        PageMuted,
+                                        Modifier.size(18.dp).graphicsLayer { rotationZ = rotation }
+                                    )
+                                }
+                                if (!isGroupCollapsed) Spacer(Modifier.height(8.dp))
+                            }
+                        } else if (library && section.title.isNotBlank() && (section.layout == "rows" || section.layout == "cards") && section.id != "directory") {
                             item(key = "${section.id}:heading") {
                                 Box(Modifier.padding(start = start, end = end)) { PageSectionHeading(section, action = action) }
                             }
                         }
-                        when {
+                        if (!isGroupCollapsed) when {
                             section.id == "intro" -> item(key = section.id) {
                                 Column(Modifier.padding(start = start, end = end, top = 4.dp, bottom = 13.dp)) {
                                     Text(page.title, color = PageInk, fontSize = 27.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
