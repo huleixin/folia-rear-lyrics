@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSmartRules, evaluateSmartPlaylist, type SmartCandidate, type SmartRule } from '../../../../src/library/core/model/smartPlaylists';
+import { defaultSmartRules, evaluateSmartPlaylist, evaluateSmartPlaylists, type SmartCandidate, type SmartRule } from '../../../../src/library/core/model/smartPlaylists';
 import type { ListeningSessionRecord } from '../../../../src/types/listeningStatistics';
 import type { SongResult } from '../../../../src/types';
 import { getPlaybackSongKey } from '../../../../src/utils/appPlaybackGuards';
@@ -13,6 +13,16 @@ const session = (s: SongResult, start = now, id = 'session'): ListeningSessionRe
     seconds: 60, completed: false, providerId: 'qq', accountKey: 'user' });
 const rule = (id: string) => defaultSmartRules(now).find(rule => rule.id === id)!;
 describe('smart playlists use real observations', () => {
+    it('shares time-window facts without sharing filtering or sorting between rules', () => {
+        const a = song('a'), b = song('b');
+        const candidates = [{ song: a, liked: true }, { song: b, addedAt: now }];
+        const records = [session(a, now - 40 * 86400000), session(b, now, 'b')];
+        const rules = defaultSmartRules(now);
+        const batch = evaluateSmartPlaylists(candidates, records, rules, now);
+        for (const entry of batch) expect(entry.songs).toEqual(evaluateSmartPlaylist(candidates, records, entry.rule, now));
+        expect(batch.find(entry => entry.rule.id === 'added')?.songs.map(fact => fact.song.id)).toEqual(['b']);
+        expect(batch.find(entry => entry.rule.id === 'forgotten')?.songs.map(fact => fact.song.id)).toEqual(['a']);
+    });
     it('never lists an unplayed track as forgotten', () => {
         const a = song('a'), b = song('b');
         expect(evaluateSmartPlaylist([{ song: a }, { song: b }], [session(a, now - 40 * 86400000)], rule('forgotten'), now).map(f => f.song.id)).toEqual(['a']);

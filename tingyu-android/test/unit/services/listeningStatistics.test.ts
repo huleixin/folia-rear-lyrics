@@ -12,6 +12,12 @@ const record: ListeningSessionRecord = { id:'session', songKey:'local:1', provid
 afterEach(async () => { await appDatabase.delete(); });
 beforeEach(async () => { await appDatabase.open(); });
 describe('listening statistics persistence', () => {
+    it('reads the newest bounded records and excludes the end boundary', async () => {
+        await storeListeningSession(record);
+        await storeListeningSession({...record,id:'newer',startedAt:110000});
+        await storeListeningSession({...record,id:'boundary',startedAt:120000});
+        expect((await readListeningSessions(0,120000,1)).map(item=>item.id)).toEqual(['newer']);
+    });
     it('settles an identical session once and distinguishes plays from songs', async () => {
         await Promise.all([storeListeningSession(record),storeListeningSession(record)]);
         await storeListeningSession({...record,id:'second'});

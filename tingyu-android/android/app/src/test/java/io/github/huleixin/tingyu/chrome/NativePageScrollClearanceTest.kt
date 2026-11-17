@@ -59,4 +59,11 @@ class NativePageScrollClearanceTest {
         repeat(18){i->sections.put(JSONObject().put("id","group$i").put("title","分组 $i").put("layout","rows").put("items",JSONArray().put(JSONObject().put("id","s$i").put("title","设置项目 $i").put("subtitle","说明").put("action","settings:$i"))))}
         check(page("settings",sections),"设置项目 17",96f)
     }
+    @Test fun listeningBarsSurviveBridgeAndClearFloatingPlayer() {
+        val items=JSONArray()
+        repeat(31){i->items.put(JSONObject().put("id","day$i").put("title","统计日期 $i").put("subtitle","12 分钟").put("number","0.5"))}
+        val model=page("home",JSONArray().put(JSONObject().put("id","daily").put("title","每日收听").put("layout","bars").put("items",items))).copy(key="library:footprint:test")
+        assertTrue(model.sections.any { it.layout == "bars" })
+        check(model,"统计日期 30",148f)
+    }
 }

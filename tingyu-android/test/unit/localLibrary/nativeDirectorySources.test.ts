@@ -17,7 +17,7 @@ vi.mock('@/hooks/useNativePage',()=>({useNativePage:(_root:unknown,_id:unknown,_
 vi.mock('@/services/nativePages',()=>({absolutePageImage:(value:string)=>value}));
 vi.mock('react-i18next',async original=>({...await original<typeof import('react-i18next')>(),useTranslation:()=>({t:(key:string)=>key})}));
 vi.mock('@/library/core/bindings/useLibraryAccount',()=>({useLibraryAccountProviders:()=>({providers:[{providerId:'qq',displayName:'QQ音乐',status:'authenticated',availability:{configured:true}}],activeProviderId:'qq'})}));
-vi.mock('@/library/suites/mobile/native/OperationPanel',()=>({default:(props:{panel:NativePanelModel;onAction:(id:string)=>void})=>{panel=props.panel;panelAction=props.onAction;return null}}));
+vi.mock('@/components/shared/OperationPanel',()=>({default:(props:{panel:NativePanelModel;onAction:(id:string)=>void})=>{panel=props.panel;panelAction=props.onAction;return null}}));
 beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;useHomeSourceStore.setState({source:'online'});useSearchNavigationStore.setState({homeViewTab:'playlist'});useOnlineProviderAccountStore.setState({activeProviderId:'qq'})});
 const tabs=['playlist','radio','albums','local','navidrome'].map(key=>({key,label:key}));
 it('keeps only supported content categories without changing legacy shared tabs',()=>{

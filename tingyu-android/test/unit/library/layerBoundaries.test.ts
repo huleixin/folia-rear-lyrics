@@ -155,12 +155,7 @@ describe('library core layer boundaries', () => {
 
     it('lets nothing outside the suites reach into a suite except the registry', () => {
         const files = listSources('src').filter(file => !/^src\/library\/(suites\/|registry\.ts$)/.test(file));
-        // Search reuses existing touch/Compose operation shells, without library data ownership.
-        const sharedShells = new Set([
-            'src/components/app/search/SearchResultRow.tsx -> ../../../library/suites/mobile/MobileSheet',
-            'src/components/app/search/SearchWorkspace.tsx -> ../../../library/suites/mobile/native/OperationPanel',
-        ]);
-        const offenders = offendersOf(files, target => /^src\/library\/suites\//.test(target), allSpecifiersOf).filter(edge => !sharedShells.has(edge));
+        const offenders = offendersOf(files, target => /^src\/library\/suites\//.test(target), allSpecifiersOf);
         expect(files).toEqual(expect.arrayContaining(['src/components/app/Home.tsx', 'src/library/app/GridViewOverlayHost.tsx']));
         expect(offenders).toEqual([]);
     });

@@ -147,14 +147,14 @@ describe('沉浸式毛玻璃顶栏结构契约', () => {
 
     it('集合详情的封面氛围层由内容层统一绘制（页面级原件已移除，避免双绘）', () => {
         const media = chrome('MediaDetail.kt');
-        expect(media).toContain('ambientImage=cover.image');
+        expect(media).toContain('ambientImage=if(splitPane)null else cover.image');
         expect(media, 'MediaDetail 不得再绘制页面级氛围原件').not.toContain('NativePlaylistBackdrop(');
         // 氛围副本在公共内容层里绘制（模糊采样必须含封面氛围色）。
         expect(glassKt).toContain('NativePlaylistBackdrop(ambientImage, ambientViewportHeight)');
     });
 
     it('上一轮内容侧渐隐的 WebView 能力已彻底移除', () => {
-        const frame = read('src', 'library', 'suites', 'mobile', 'MobileScrollFrame.tsx');
+        const frame = read('src', 'components', 'shared', 'MobileScrollFrame.tsx');
         expect(frame).not.toContain('ty-scrim');
         expect(frame).not.toContain('topScrimProgress');
         expect(() => read('src', 'styles', 'topScrollScrim.css')).toThrow();
@@ -169,6 +169,6 @@ describe('沉浸式毛玻璃顶栏结构契约', () => {
         // 设置文档页：区域级独立滚动窗口、无固定顶栏（DOM 是排版真值源）。
         expect(chrome('NativeSettingsDocumentView.kt')).not.toContain('TyTopGlass');
         // MobileSheet 的 header 在滚动容器内部（随内容滚动）→ 无固定顶部，豁免。
-        expect(read('src', 'library', 'suites', 'mobile', 'MobileSheet.tsx')).not.toContain('TyTopGlass');
+        expect(read('src', 'components', 'shared', 'MobileSheet.tsx')).not.toContain('TyTopGlass');
     });
 });
