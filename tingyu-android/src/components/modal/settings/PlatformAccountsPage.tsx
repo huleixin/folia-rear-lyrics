@@ -1,17 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, AlertCircle, UserRound, LogOut, RefreshCw, LogIn } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle, UserRound, LogOut, RefreshCw, LogIn, ChevronRight, KeyRound } from 'lucide-react';
 import { omni } from '../../../services/onlineMusic/omni';
 import { useOnlineProviderAccountStore, type OnlineProviderAccountState } from '../../../stores/useOnlineProviderAccountStore';
 import { clearProviderAccountSnapshot, loadProviderAccountSnapshot, saveProviderAccountSnapshot } from '../../../services/onlineMusic/providerAccountCache';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { registerModalBack, runTopModalBack } from '../../../services/modalBackStack';
-import type { OnlineProviderId } from '../../../types/onlineMusic';
+import type { OnlineProviderId, QrLoginMethod } from '../../../types/onlineMusic';
 import MobileSheet from '../../shared/MobileSheet';
 import { useLiquidReduced } from '../../shared/useLiquidReduced';
 import { TY_DURATION, TY_EASE } from '../../shared/motionTokens';
 import { useSheetThemeTokens } from '../../../library/suites/mobile/native/sheetThemeTokens';
+import qqIcon from '../../../assets/providers/qq.svg';
+import wechatIcon from '../../../assets/providers/wechat.svg';
 
 // src/components/modal/settings/PlatformAccountsPage.tsx
 const BRAND_STYLES: Record<string, { bg: string; fg: string; abbr: string }> = {
@@ -79,6 +81,30 @@ export function resolveAccountDisplayState(account: OnlineProviderAccountState |
     };
 }
 
+export function qrMethodLabel(method?: QrLoginMethod): string {
+    if (!method) return '';
+    if (method.id === 'qq') return 'QQ登录';
+    if (method.id === 'wechat') return '微信登录';
+    return method.labelKey || method.id;
+}
+
+export function qrMethodPrompt(providerId: OnlineProviderId, method?: QrLoginMethod): string {
+    if (method?.id === 'wechat') return '请使用微信扫码授权';
+    if (method?.id === 'qq') return '请使用手机QQ扫码授权';
+    if (providerId === 'netease') return '请使用网易云音乐 App 扫码授权';
+    if (providerId === 'kugou') return '请使用酷狗音乐 App 扫码授权';
+    if (providerId === 'bodian') return '请使用波点音乐 App 扫码授权';
+    if (providerId === 'qishui') return '请使用抖音 / 汽水音乐 App 扫码授权';
+    return '请使用对应平台 App 扫码授权';
+}
+
+export function selectQrLoginStep(methods: readonly QrLoginMethod[]):
+    | { kind: 'pick'; methods: readonly QrLoginMethod[] }
+    | { kind: 'direct'; method?: QrLoginMethod } {
+    if (methods.length > 1) return { kind: 'pick', methods };
+    return { kind: 'direct', method: methods[0] };
+}
+
 export default function PlatformAccountsPage({ onClose }: { onClose: () => void }) {
     const tokens = useSheetThemeTokens();
     const reduced = useLiquidReduced();
@@ -116,9 +142,32 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
 
     const [managingId, setManagingId] = useState<OnlineProviderId | null>(null);
     const [confirmLogoutId, setConfirmLogoutId] = useState<OnlineProviderId | null>(null);
-    const [qrLogin, setQrLogin] = useState<{ providerId: OnlineProviderId; imageUrl: string; statusText: string } | null>(null);
+    const [methodPicker, setMethodPicker] = useState<{ providerId: OnlineProviderId; methods: readonly QrLoginMethod[] } | null>(null);
+    const [qrLogin, setQrLogin] = useState<{
+        providerId: OnlineProviderId;
+        key: string;
+        imageUrl: string;
+        method?: QrLoginMethod;
+        canReturnToMethods: boolean;
+        methods: readonly QrLoginMethod[];
+        statusText: string;
+        expired?: boolean;
+    } | null>(null);
+    const activeQrRef = useRef<{ token: number; providerId: OnlineProviderId; key: string } | null>(null);
+    const qrTokenRef = useRef(0);
     const [busyId, setBusyId] = useState<string | null>(null);
     const [notice, setNotice] = useState('');
+
+    const stopActiveQr = useCallback(() => {
+        qrTokenRef.current += 1;
+        const active = activeQrRef.current;
+        activeQrRef.current = null;
+        if (active) {
+            void omni.cancelQrLogin(active.providerId, active.key).catch(() => {});
+        }
+    }, []);
+
+    useEffect(() => () => { stopActiveQr(); }, [stopActiveQr]);
 
     useEffect(() => {
         const unregister = registerModalBack(() => {
@@ -138,87 +187,117 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
         };
     }, [back]);
 
-    const startProviderLogin = async (providerId: OnlineProviderId) => {
+    const refreshProviderAccount = async (providerId: OnlineProviderId) => {
         setNotice('');
         setBusyId(providerId);
         try {
-            const currentAccount = useOnlineProviderAccountStore.getState().accounts[providerId];
-            const currentPhase = resolveAccountDisplayState(currentAccount).phase;
-            if (currentPhase === 'resolving' || currentPhase === 'network-error') {
-                const recovered = await omni.getLoginStatus(providerId).catch(() => null);
-                if (recovered) {
-                    const snapshot = await loadProviderAccountSnapshot(providerId).catch(() => null);
-                    const matching = snapshot && String(snapshot.user.id) === String(recovered.id) ? snapshot : null;
-                    useOnlineProviderAccountStore.getState().updateAccount(providerId, {
-                        status: 'authenticated',
-                        user: recovered,
-                        collections: matching?.collections || [],
-                        likedSongIds: matching?.likedSongIds || [],
-                        error: undefined,
-                        hydration: 'ready',
-                        freshness: 'fresh',
-                        lastUpdatedAt: Date.now(),
-                    });
-                    await saveProviderAccountSnapshot(providerId, {
-                        user: recovered,
-                        collections: matching?.collections || [],
-                        likedSongIds: matching?.likedSongIds || [],
-                    }).catch(() => {});
-                    setNotice(`${omni.getProviderLabel(providerId, false)}登录状态已恢复`);
-                    return;
-                }
+            const user = await omni.getLoginStatus(providerId);
+            if (!user) {
+                setNotice(`${omni.getProviderLabel(providerId, false)}登录状态已失效，请重新授权`);
+                return false;
             }
-            const methods = omni.getQrLoginMethods(providerId);
-            const qr = await omni.createQrLogin(providerId, methods[0]?.id);
+            const capabilities = omni.getProviderCapabilities(providerId);
+            const collections = capabilities.userLibrary
+                ? (await omni.getProviderUserPlaylists(providerId, user.id, { offset: 0, limit: 50 }).catch(() => ({ items: [] }))).items
+                : [];
+            const likedSongIds = capabilities.likes
+                ? await omni.getProviderLikedSongIds(providerId, user.id).catch(() => [])
+                : [];
+            useOnlineProviderAccountStore.getState().updateAccount(providerId, {
+                status: 'authenticated',
+                user,
+                collections,
+                likedSongIds,
+                error: undefined,
+                hydration: 'ready',
+                freshness: 'fresh',
+                lastUpdatedAt: Date.now(),
+            });
+            await saveProviderAccountSnapshot(providerId, { user, collections, likedSongIds }).catch(() => {});
+            setNotice(`${omni.getProviderLabel(providerId, false)}登录状态已刷新`);
+            return true;
+        } catch {
+            setNotice(`${omni.getProviderLabel(providerId, false)}网络异常，暂时无法刷新`);
+            return false;
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const beginQrSession = async (
+        providerId: OnlineProviderId,
+        method: QrLoginMethod | undefined,
+        methods: readonly QrLoginMethod[],
+        canReturnToMethods: boolean,
+    ) => {
+        stopActiveQr();
+        const sessionToken = ++qrTokenRef.current;
+        setNotice('');
+        setBusyId(providerId);
+        try {
+            const qr = await omni.createQrLogin(providerId, method?.id);
+            if (qrTokenRef.current !== sessionToken) {
+                if (qr?.key) void omni.cancelQrLogin(providerId, qr.key).catch(() => {});
+                return;
+            }
             if (!qr?.key || !qr?.imageUrl) {
-                const user = await omni.getLoginStatus(providerId).catch(() => null);
-                if (user) {
-                    useOnlineProviderAccountStore.getState().updateAccount(providerId, {
-                        status: 'authenticated',
-                        user,
-                        error: undefined,
-                        hydration: 'ready',
-                        freshness: 'fresh',
-                        lastUpdatedAt: Date.now(),
-                    });
-                    await saveProviderAccountSnapshot(providerId, { user, collections: [], likedSongIds: [] }).catch(() => {});
-                    setNotice(`${omni.getProviderLabel(providerId, false)}状态已刷新`);
-                } else {
-                    setNotice(`${omni.getProviderLabel(providerId, false)}暂未返回二维码，请在独立平台页面登录`);
+                const recovered = await refreshProviderAccount(providerId);
+                if (!recovered) {
+                    setNotice(`${omni.getProviderLabel(providerId, false)}暂未返回二维码，请重试`);
                 }
                 return;
             }
-            setQrLogin({ providerId, imageUrl: qr.imageUrl, statusText: '请使用对应平台 App 扫码授权' });
-            let active = true;
+            activeQrRef.current = { token: sessionToken, providerId, key: qr.key };
+            setMethodPicker(null);
+            setQrLogin({
+                providerId,
+                key: qr.key,
+                imageUrl: qr.imageUrl,
+                method,
+                canReturnToMethods,
+                methods,
+                statusText: '等待扫码',
+                expired: false,
+            });
             const poll = async () => {
-                for (let attempt = 0; attempt < 45 && active; attempt++) {
+                for (let attempt = 0; attempt < 45; attempt++) {
                     await new Promise(r => setTimeout(r, 2000));
-                    if (!active) break;
+                    if (qrTokenRef.current !== sessionToken) return;
                     try {
                         const res = await omni.checkQrLogin(providerId, qr.key);
+                        if (qrTokenRef.current !== sessionToken) return;
                         if (res.state === 'confirmed') {
                             const user = await omni.getLoginStatus(providerId).catch(() => null);
-                            if (user) {
-                                useOnlineProviderAccountStore.getState().updateAccount(providerId, {
-                                    status: 'authenticated',
-                                    user,
-                                    error: undefined,
-                                    hydration: 'ready',
-                                    freshness: 'fresh',
-                                    lastUpdatedAt: Date.now(),
-                                });
-                                await saveProviderAccountSnapshot(providerId, {
-                                    user,
-                                    collections: [],
-                                    likedSongIds: [],
-                                }).catch(() => {});
+                            if (qrTokenRef.current !== sessionToken) return;
+                            if (!user) {
+                                stopActiveQr();
+                                setQrLogin(cur => cur ? { ...cur, statusText: '授权尚未生效，请重新扫码', expired: true } : null);
+                                return;
                             }
+                            useOnlineProviderAccountStore.getState().updateAccount(providerId, {
+                                status: 'authenticated',
+                                user,
+                                error: undefined,
+                                hydration: 'ready',
+                                freshness: 'fresh',
+                                lastUpdatedAt: Date.now(),
+                            });
+                            await saveProviderAccountSnapshot(providerId, {
+                                user,
+                                collections: [],
+                                likedSongIds: [],
+                            }).catch(() => {});
+                            activeQrRef.current = null;
                             setQrLogin(null);
                             setNotice(`${omni.getProviderLabel(providerId, false)}登录成功`);
                             return;
                         }
                         if (res.state === 'expired') {
-                            setQrLogin(cur => cur ? { ...cur, statusText: '二维码已过期，请关闭重试' } : null);
+                            setQrLogin(cur => cur ? { ...cur, statusText: '二维码已过期，请点击刷新', expired: true } : null);
+                            return;
+                        }
+                        if (res.state === 'error') {
+                            setQrLogin(cur => cur ? { ...cur, statusText: '授权失败，请刷新重试', expired: true } : null);
                             return;
                         }
                         if (res.state === 'scanned') {
@@ -228,6 +307,52 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
                 }
             };
             void poll();
+        } catch {
+            setNotice(`${omni.getProviderLabel(providerId, false)}二维码获取失败，请重试`);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const startProviderLogin = async (providerId: OnlineProviderId, options?: { forceLogin?: boolean }) => {
+        setNotice('');
+        setBusyId(providerId);
+        try {
+            if (!options?.forceLogin) {
+                const currentAccount = useOnlineProviderAccountStore.getState().accounts[providerId];
+                const currentPhase = resolveAccountDisplayState(currentAccount).phase;
+                if (currentPhase === 'resolving' || currentPhase === 'network-error') {
+                    const recovered = await omni.getLoginStatus(providerId).catch(() => null);
+                    if (recovered) {
+                        const snapshot = await loadProviderAccountSnapshot(providerId).catch(() => null);
+                        const matching = snapshot && String(snapshot.user.id) === String(recovered.id) ? snapshot : null;
+                        useOnlineProviderAccountStore.getState().updateAccount(providerId, {
+                            status: 'authenticated',
+                            user: recovered,
+                            collections: matching?.collections || [],
+                            likedSongIds: matching?.likedSongIds || [],
+                            error: undefined,
+                            hydration: 'ready',
+                            freshness: 'fresh',
+                            lastUpdatedAt: Date.now(),
+                        });
+                        await saveProviderAccountSnapshot(providerId, {
+                            user: recovered,
+                            collections: matching?.collections || [],
+                            likedSongIds: matching?.likedSongIds || [],
+                        }).catch(() => {});
+                        setNotice(`${omni.getProviderLabel(providerId, false)}登录状态已恢复`);
+                        return;
+                    }
+                }
+            }
+            const methods = await omni.resolveQrLoginMethods(providerId);
+            const step = selectQrLoginStep(methods);
+            if (step.kind === 'pick') {
+                setMethodPicker({ providerId, methods: step.methods });
+                return;
+            }
+            await beginQrSession(providerId, step.method, methods, false);
         } catch {
             setNotice(`${omni.getProviderLabel(providerId, false)}登录未完成，请重试`);
         } finally {
@@ -389,68 +514,124 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
             {managingId && (
                 <MobileSheet
                     title={omni.getProviderLabel(managingId, false)}
-                    subtitle={managingAccount?.user?.nickname ? `当前账号：${managingAccount.user.nickname}` : '已登录'}
                     onClose={() => { setManagingId(null); setConfirmLogoutId(null); }}
                 >
-                    <div className="flex flex-col gap-2 pb-6">
+                    <div className="flex flex-col gap-3">
+                        {/* 账号信息卡片 */}
                         <div
-                            className="flex items-center gap-3 rounded-2xl p-3 mb-1"
-                            style={{ background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
+                            className="flex items-center gap-3 rounded-2xl"
+                            style={{ padding: '12px 16px', background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
                         >
-                            <UserRound size={20} color={tokens.accent} />
-                            <div className="min-w-0 flex-1">
-                                <div className="font-medium text-[14px]">
-                                    {managingAccount?.user?.nickname || String(managingAccount?.user?.id ?? '') || '已授权账号'}
+                            {managingAccount?.user?.avatarUrl ? (
+                                <img
+                                    src={managingAccount.user.avatarUrl}
+                                    alt=""
+                                    className="rounded-xl object-cover shrink-0"
+                                    style={{ width: 40, height: 40 }}
+                                />
+                            ) : (
+                                <div
+                                    className="flex items-center justify-center rounded-xl shrink-0"
+                                    style={{ width: 40, height: 40, background: tokens.accentSoft }}
+                                >
+                                    <UserRound size={20} color={tokens.accent} />
                                 </div>
-                                <div className="text-[12px]" style={{ color: tokens.muted }}>
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="truncate font-semibold" style={{ fontSize: 15 }}>
+                                        {managingAccount?.user?.nickname || String(managingAccount?.user?.id ?? '') || '已授权账号'}
+                                    </span>
+                                    <CheckCircle2 size={14} color="#12B76A" className="shrink-0" />
+                                </div>
+                                <div className="truncate mt-0.5" style={{ fontSize: 12, color: tokens.muted }}>
                                     {managingAccount?.lastUpdatedAt
                                         ? `最近同步：${new Date(managingAccount.lastUpdatedAt).toLocaleString()}`
-                                        : '登录状态正常'}
+                                        : '已登录'}
                                 </div>
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={() => { const id = managingId; setManagingId(null); void startProviderLogin(id); }}
-                            className="flex items-center gap-3 w-full text-left rounded-2xl px-3"
-                            style={{ minHeight: 56, background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
+                        {/* 账号操作分组 */}
+                        <div
+                            className="flex flex-col overflow-hidden rounded-2xl"
+                            style={{ background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
                         >
-                            <RefreshCw size={18} color={tokens.accent} />
-                            <div>
-                                <div className="text-[15px] font-medium">重新授权 / 刷新状态</div>
-                                <div className="text-[12px]" style={{ color: tokens.muted }}>刷新当前登录凭据与同步权限</div>
-                            </div>
-                        </button>
+                            <button
+                                type="button"
+                                onClick={() => { const id = managingId; setManagingId(null); void refreshProviderAccount(id); }}
+                                className="flex items-center gap-3 w-full text-left"
+                                style={{ minHeight: 60, padding: '10px 16px' }}
+                            >
+                                <span className="flex items-center justify-center shrink-0" style={{ width: 24, height: 24 }}>
+                                    <RefreshCw size={20} color={tokens.accent} />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-medium" style={{ fontSize: 15 }}>刷新登录状态</div>
+                                    <div className="truncate" style={{ fontSize: 12, color: tokens.muted }}>同步账号信息、歌单及收藏</div>
+                                </div>
+                                <ChevronRight size={18} color={tokens.muted} className="shrink-0" />
+                            </button>
 
-                        <button
-                            type="button"
-                            onClick={() => { const id = managingId; setManagingId(null); void startProviderLogin(id); }}
-                            className="flex items-center gap-3 w-full text-left rounded-2xl px-3"
-                            style={{ minHeight: 56, background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
-                        >
-                            <LogIn size={18} color={tokens.accent} />
-                            <div>
-                                <div className="text-[15px] font-medium">切换账号</div>
-                                <div className="text-[12px]" style={{ color: tokens.muted }}>使用其他账号重新登录该平台</div>
-                            </div>
-                        </button>
+                            <button
+                                type="button"
+                                onClick={() => { const id = managingId; setManagingId(null); void startProviderLogin(id, { forceLogin: true }); }}
+                                className="flex items-center gap-3 w-full text-left"
+                                style={{ minHeight: 60, padding: '10px 16px', borderTop: `1px solid ${tokens.border}` }}
+                            >
+                                <span className="flex items-center justify-center shrink-0" style={{ width: 24, height: 24 }}>
+                                    <KeyRound size={20} color={tokens.accent} />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-medium" style={{ fontSize: 15 }}>重新授权</div>
+                                    <div className="truncate" style={{ fontSize: 12, color: tokens.muted }}>重新验证当前平台账号</div>
+                                </div>
+                                <ChevronRight size={18} color={tokens.muted} className="shrink-0" />
+                            </button>
 
+                            <button
+                                type="button"
+                                onClick={() => { const id = managingId; setManagingId(null); void startProviderLogin(id, { forceLogin: true }); }}
+                                className="flex items-center gap-3 w-full text-left"
+                                style={{ minHeight: 60, padding: '10px 16px', borderTop: `1px solid ${tokens.border}` }}
+                            >
+                                <span className="flex items-center justify-center shrink-0" style={{ width: 24, height: 24 }}>
+                                    <LogIn size={20} color={tokens.accent} />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-medium" style={{ fontSize: 15 }}>切换账号</div>
+                                    <div className="truncate" style={{ fontSize: 12, color: tokens.muted }}>使用其他账号登录</div>
+                                </div>
+                                <ChevronRight size={18} color={tokens.muted} className="shrink-0" />
+                            </button>
+                        </div>
+
+                        {/* 独立危险操作卡片 */}
                         {confirmLogoutId !== managingId ? (
                             <button
                                 type="button"
                                 onClick={() => setConfirmLogoutId(managingId)}
-                                className="flex items-center gap-3 w-full text-left rounded-2xl px-3 text-red-500"
-                                style={{ minHeight: 56, background: tokens.cardBg, border: '1px solid rgba(239,68,68,0.28)' }}
+                                className="flex items-center gap-3 w-full text-left rounded-2xl text-red-500"
+                                style={{
+                                    minHeight: 60,
+                                    padding: '10px 16px',
+                                    background: tokens.cardBg,
+                                    border: '1px solid rgba(239,68,68,0.28)',
+                                }}
                             >
-                                <LogOut size={18} />
-                                <div>
-                                    <div className="text-[15px] font-medium">退出登录</div>
-                                    <div className="text-[12px] opacity-80">清除该平台登录态（不影响当前播放的本地/其他平台歌曲）</div>
+                                <span className="flex items-center justify-center shrink-0" style={{ width: 24, height: 24 }}>
+                                    <LogOut size={20} />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-medium" style={{ fontSize: 15 }}>退出登录</div>
+                                    <div className="opacity-80" style={{ fontSize: 12 }}>仅退出当前平台账号</div>
                                 </div>
                             </button>
                         ) : (
-                            <div className="flex items-center justify-between rounded-2xl p-3 border border-red-500/40">
+                            <div
+                                className="flex items-center justify-between rounded-2xl border border-red-500/40"
+                                style={{ minHeight: 60, padding: '10px 16px' }}
+                            >
                                 <span className="text-[13px] text-red-500">确认退出该平台账号？</span>
                                 <div className="flex gap-2">
                                     <button type="button" onClick={() => setConfirmLogoutId(null)} className="px-3 py-1.5 text-[12px] rounded-xl border border-current/15">取消</button>
@@ -462,20 +643,99 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
                 </MobileSheet>
             )}
 
+            {methodPicker && (
+                <MobileSheet
+                    title={`登录 ${omni.getProviderLabel(methodPicker.providerId, false)}`}
+                    subtitle="请选择登录方式"
+                    onClose={() => setMethodPicker(null)}
+                >
+                    <div
+                        className="flex flex-col overflow-hidden rounded-2xl"
+                        style={{ background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
+                    >
+                        {methodPicker.methods.map((method, index) => {
+                            const iconSrc = method.id === 'wechat' ? wechatIcon : method.id === 'qq' ? qqIcon : undefined;
+                            return (
+                                <button
+                                    key={method.id}
+                                    type="button"
+                                    onClick={() => void beginQrSession(methodPicker.providerId, method, methodPicker.methods, true)}
+                                    className="flex items-center gap-3 w-full text-left"
+                                    style={{
+                                        minHeight: 60,
+                                        padding: '10px 16px',
+                                        borderTop: index > 0 ? `1px solid ${tokens.border}` : 'none',
+                                    }}
+                                >
+                                    <span className="flex items-center justify-center shrink-0" style={{ width: 24, height: 24 }}>
+                                        {iconSrc
+                                            ? <img src={iconSrc} alt="" style={{ width: 22, height: 22 }} />
+                                            : <LogIn size={20} color={tokens.accent} />}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-medium" style={{ fontSize: 15 }}>{qrMethodLabel(method)}</div>
+                                        <div className="truncate" style={{ fontSize: 12, color: tokens.muted }}>
+                                            {qrMethodPrompt(methodPicker.providerId, method)}
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={18} color={tokens.muted} className="shrink-0" />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </MobileSheet>
+            )}
+
             {qrLogin && (
                 <MobileSheet
-                    title={`登录 ${omni.getProviderLabel(qrLogin.providerId, false)}`}
-                    subtitle={qrLogin.statusText}
-                    onClose={() => setQrLogin(null)}
+                    title={qrLogin.method
+                        ? `${omni.getProviderLabel(qrLogin.providerId, false)} · ${qrMethodLabel(qrLogin.method)}`
+                        : `登录 ${omni.getProviderLabel(qrLogin.providerId, false)}`}
+                    subtitle={qrMethodPrompt(qrLogin.providerId, qrLogin.method)}
+                    onClose={() => {
+                        const returnMethods = qrLogin.canReturnToMethods ? { providerId: qrLogin.providerId, methods: qrLogin.methods } : null;
+                        stopActiveQr();
+                        setQrLogin(null);
+                        if (returnMethods) setMethodPicker(returnMethods);
+                    }}
                 >
-                    <div className="flex flex-col items-center py-4 pb-6 gap-3">
+                    <div className="flex flex-col items-center py-3 gap-3">
                         <img
                             src={qrLogin.imageUrl}
                             alt="登录二维码"
                             className="rounded-2xl bg-white p-2"
                             style={{ width: 200, height: 200, objectFit: 'contain' }}
                         />
-                        <p className="text-[12px] m-0" style={{ color: tokens.muted }}>{qrLogin.statusText}</p>
+                        <p className="text-[13px] m-0 font-medium" style={{ color: qrLogin.expired ? '#EF4444' : tokens.muted }}>
+                            {qrLogin.statusText}
+                        </p>
+                        <div className="flex items-center gap-3">
+                            {qrLogin.canReturnToMethods && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const returnMethods = { providerId: qrLogin.providerId, methods: qrLogin.methods };
+                                        stopActiveQr();
+                                        setQrLogin(null);
+                                        setMethodPicker(returnMethods);
+                                    }}
+                                    className="px-4 py-2 rounded-full text-[13px] font-medium"
+                                    style={{ background: tokens.secondaryBtnBg, color: tokens.secondaryBtnText }}
+                                >
+                                    更换登录方式
+                                </button>
+                            )}
+                            {qrLogin.expired && (
+                                <button
+                                    type="button"
+                                    onClick={() => void beginQrSession(qrLogin.providerId, qrLogin.method, qrLogin.methods, qrLogin.canReturnToMethods)}
+                                    className="px-4 py-2 rounded-full text-[13px] font-medium"
+                                    style={{ background: tokens.primaryBtnBg, color: tokens.primaryBtnText }}
+                                >
+                                    刷新二维码
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </MobileSheet>
             )}
