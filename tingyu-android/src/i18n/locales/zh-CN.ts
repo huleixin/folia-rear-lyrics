@@ -1,8 +1,10 @@
+import {libraryV2Zh} from '../libraryV2Copy';
 import {audioCacheZh} from '../audioCacheCopy';
 
 
 import {cloudFeedbackZh} from '../cloudFeedbackCopy';
 export default {
+  libraryV2: libraryV2Zh,
   searchSettings: {"sourceLoading": "加载中", "sourceFailed": "暂时加载失败", "sourceCount": "{{count}} 条结果", "title": "搜索设置", "sources": "综合搜索来源", "scope": "仅影响综合搜索；仍可单独搜索某个平台，不影响正在播放的音乐。", "priority": "优先搜索来源", "automatic": "自动", "ranking": "结果排序", "sort": "排序方式", "relevance": "综合匹配", "local": "优先本地", "provider": "平台优先", "rankingNote": "精确匹配始终优先于相关性较低的结果。", "privacy": "历史与隐私", "record": "记录搜索历史", "recordHint": "仅保存在本机；关闭后保留已有记录，不再新增。", "clear": "清空全部搜索历史", "clearHint": "仅删除搜索词，不删除收听历史、推荐偏好、收藏、歌单或本地文件。", "confirm": "清空", "cancel": "取消"},
     musicProviders: {"netease":{"full":"网易云音乐","short":"网易云"},"qq":{"full":"QQ音乐","short":"QQ音乐"},"kugou":{"full":"酷狗音乐","short":"酷狗"},"bodian":{"full":"波点音乐","short":"波点"},"qishui":{"full":"汽水音乐","short":"汽水"},"local":{"full":"本地音乐","short":"本地"}},
   licenses: {"title": "第三方开源许可证", "openError": "许可证页面暂不可用，请重试"},

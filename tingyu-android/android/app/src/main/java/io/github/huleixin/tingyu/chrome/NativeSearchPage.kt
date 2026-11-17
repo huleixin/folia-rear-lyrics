@@ -170,7 +170,7 @@ import androidx.compose.ui.unit.sp
     Box{
         Row(Modifier.height(40.dp).widthIn(min=40.dp,max=104.dp)
             .chromeClickable(role=Role.Button,corner=999.dp){open=true}
-            .semantics(mergeDescendants=true){contentDescription="搜索音源：${selected?.title.orEmpty()}"}
+            .semantics(mergeDescendants=true){contentDescription=listOf(section.title,selected?.title.orEmpty()).filter{it.isNotBlank()}.joinToString(" · ")}
             .padding(horizontal=if(compact)10.dp else 8.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
             if(!compact)Text(selected?.title.orEmpty(),color=PageInk,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))

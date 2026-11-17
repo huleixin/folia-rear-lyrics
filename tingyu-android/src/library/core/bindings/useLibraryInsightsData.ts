@@ -35,7 +35,7 @@ export function useLibraryInsightsData(props: LibraryHomeSurfaceProps, active: b
         const timer = setTimeout(() => {
             task.abort();
             setSnapshot(previous => ({ ...(previous.owner === owner ? previous : empty), owner,
-                error: '整理资料超时，已加载的数据仍可使用，请重试。' }));
+                error: 'libraryV2.insightsTimeout' }));
         }, 15_000);
         setSnapshot(empty);
         void (async () => {
@@ -76,8 +76,8 @@ export function useLibraryInsightsData(props: LibraryHomeSurfaceProps, active: b
                 songs.forEach(song => { const key = getPlaybackSongKey(song); candidates.set(key, { ...candidates.get(key), song, liked: true }); });
                 publish();
             }));
-            publish(results.some(result => result.status === 'rejected') ? '部分平台收藏暂时不可用，已加载的数据仍可使用。' : '');
-        })().catch(() => { if (!task.signal.aborted) setSnapshot({ ...empty, owner, error: '读取本机记录失败，请重试。' }); }).finally(() => clearTimeout(timer));
+            publish(results.some(result => result.status === 'rejected') ? 'libraryV2.insightsPartial' : '');
+        })().catch(() => { if (!task.signal.aborted) setSnapshot({ ...empty, owner, error: 'libraryV2.insightsFailed' }); }).finally(() => clearTimeout(timer));
         return () => { clearTimeout(timer); task.abort(); };
     }, [active, owner, revision, props.localSongs, props.localPlaylists, props.localLibraryCatalog]);
     return { ...(snapshot.owner === owner ? snapshot : empty), loading: active && snapshot.owner !== owner, retry: () => setRevision(value => value + 1) };

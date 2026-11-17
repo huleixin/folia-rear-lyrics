@@ -83,7 +83,7 @@ export function useNativeSearchPage(p: Props) {
         retry:()=>p.submit(),more:p.loadMore,settings:()=>useSettingsModalStore.getState().openSettings('options','search'),
         clearHistory:()=>p.clearHistory?.(),discoveryRetry:()=>setRetry(v=>v+1),back:()=>{setMenu(null);setSourceGroupKey(null)},hotExpand:()=>setHotExpanded(value=>!value)};
     const sections:PageSection[]=[{id:'query',layout:'input',value:p.query,placeholder:t('search.placeholder'),action:'change',submit:'submit'},
-        {id:'sources',layout:'chips',items:p.sources.map(source=>{
+        {id:'sources',title:t('mobileLibrary.sources'),layout:'chips',items:p.sources.map(source=>{
             actions[`source:${source}`]=()=>p.switchSource(source);
             return{id:source,title:p.sourceLabel(source),action:`source:${source}`,selected:source===p.source};
         })}];

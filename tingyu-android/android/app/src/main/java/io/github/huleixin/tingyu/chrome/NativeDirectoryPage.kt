@@ -68,6 +68,7 @@ import kotlin.math.roundToInt
         val width=maxWidth;val wide=width>=840.dp;val library=page.key.startsWith("library:")
         val start=if(wide)if(maxHeight<=600.dp)108.dp else 116.dp else if(library&&width>=374.dp)18.dp else 16.dp
         val end=if(wide)32.dp else if(library&&width>=374.dp)18.dp else 16.dp
+        val libraryColumns=((width-start-end+12.dp).value/(152f*LocalDensity.current.fontScale.coerceAtLeast(1f))).toInt().coerceIn(1,4)
         val rowSections=page.sections.filter{(it.layout=="rows"||it.layout=="cards")&&it.id!="intro"}
         val caches=rowSections.associate{it.id to key(it.id){rememberNativeRows(page.key,it)}}
         val list=rememberLazyListState();val identity=rowSections.map{it.id to it.dataKey}.toString()
@@ -106,7 +107,7 @@ import kotlin.math.roundToInt
                             }
                         }
                         section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),if(library)NativePageDesign.DirectoryRow else 62,action,art=if(library)NativePageDesign.DirectoryArt.dp else null)
-                        library&&section.layout=="cards" -> libraryGridRows(page,section,caches.getValue(section.id),if(wide)4 else 2,action)
+                        library&&section.layout=="cards" -> libraryGridRows(page,section,caches.getValue(section.id),libraryColumns,action)
                         library&&(section.layout=="textActions"||section.layout=="quickLinks") -> item(key=section.id){
                             LibraryQuickActions(section,action)
                         }

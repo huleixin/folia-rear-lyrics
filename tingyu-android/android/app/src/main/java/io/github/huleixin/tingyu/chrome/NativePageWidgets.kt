@@ -130,7 +130,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     // 压出一块方角灰底。改成自绘圆角 tint（14dp），关掉 ripple。
     val pressSource=rememberPressSource()
     val coverSource=rememberCoverSource(item.action,if(art>=50.dp)11.dp else 7.dp)
-    Row(Modifier.fillMaxWidth().height(height)
+    Row(Modifier.fillMaxWidth().heightIn(min=height)
             .chromeRowPressed(pressSource)
             .clickable(interactionSource=pressSource,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){coverSource.select();action(item.action)},
         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(art>=50.dp)13.dp else 10.dp)) {
@@ -148,7 +148,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
             if(item.subtitle.isNotBlank()||item.audioSpecs.isNotEmpty()||item.audioCached)NativeSongSubtitle(item,size=subtitleSize,lineHeight=(subtitleSize*1.5).sp,modifier=Modifier.padding(top=2.dp))
         }
         if(item.duration.isNotBlank())Text(item.duration,color=PageMuted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-        if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(18.dp))}
+        if(item.secondary.isNotBlank())ChromeButton(item.secondaryLabel.ifBlank{item.title},size=48.dp,onClick={action(item.secondary)}){PageIcon(if(item.secondary.startsWith("sources:"))"layers" else "ellipsis-vertical",PageMuted,Modifier.size(18.dp))}
         else if(chevron)PageIcon("chevron-right",PageMuted,Modifier.size(16.dp))
     }
     if(divider)Box(Modifier.fillMaxWidth().height(1.dp).background(LocalInterfacePalette.current.divider))

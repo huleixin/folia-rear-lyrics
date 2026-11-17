@@ -1,8 +1,10 @@
+import {libraryV2En} from '../libraryV2Copy';
 import {audioCacheEn} from '../audioCacheCopy';
 
 
 import {cloudFeedbackEn} from '../cloudFeedbackCopy';
 export default {
+  libraryV2: libraryV2En,
   searchSettings: {"sourceLoading": "Loading", "sourceFailed": "Temporarily unavailable", "sourceCount": "{{count}} results", "title": "Search settings", "sources": "Aggregate search sources", "scope": "These switches only affect aggregate search. Single-source search remains available.", "priority": "Preferred source", "automatic": "Automatic", "ranking": "Result ranking", "sort": "Sort order", "relevance": "Relevance", "local": "Local first", "provider": "Preferred source first", "rankingNote": "Exact matches remain ahead of less relevant results.", "privacy": "History and privacy", "record": "Record search history", "recordHint": "Stored on this device. Turning this off keeps existing searches.", "clear": "Clear all search history", "clearHint": "Only search terms will be removed. Listening history, preferences, playlists and files are kept.", "confirm": "Clear", "cancel": "Cancel"},
     musicProviders: {"netease":{"full":"NetEase Cloud Music","short":"NetEase"},"qq":{"full":"QQ Music","short":"QQ Music"},"kugou":{"full":"KuGou Music","short":"KuGou"},"bodian":{"full":"Bodian Music","short":"Bodian"},"qishui":{"full":"Qishui Music","short":"Qishui"},"local":{"full":"Local music","short":"Local"}},
   licenses: {"title": "Third-party open-source licenses", "openError": "Licenses are temporarily unavailable. Please retry."},

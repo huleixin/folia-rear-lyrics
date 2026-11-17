@@ -1,12 +1,16 @@
 package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -20,11 +24,13 @@ internal fun LazyListScope.libraryGridRows(page:NativePage,section:NativePageSec
                 val index=row*columns+column
                 val item=if(index<section.total)cache.get(section,index)else null
                 if(item!=null)Column(Modifier.weight(1f).chromeClickable(corner=16.dp){action(item.action,"",0.0)}){
-                    PageArtwork(item.image,Modifier.fillMaxWidth().aspectRatio(1f),16.dp)
-                    Row(Modifier.fillMaxWidth().padding(top=7.dp),verticalAlignment=Alignment.CenterVertically){
-                        Text(item.title,color=PageInk,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
-                        if(item.secondary.isNotBlank())ChromeButton("更多",size=40.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(18.dp))}
+                    Box(Modifier.fillMaxWidth().aspectRatio(1f)){
+                        PageArtwork(item.image,Modifier.fillMaxSize(),16.dp)
+                        if(item.secondary.isNotBlank())Box(Modifier.align(Alignment.TopEnd).padding(4.dp)){
+                            ChromeButton(item.secondaryLabel.ifBlank{item.title},modifier=Modifier.background(Color.Black.copy(alpha=.64f),CircleShape),size=48.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",Color.White,Modifier.size(18.dp))}
+                        }
                     }
+                    Text(item.title,color=PageInk,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().padding(top=7.dp))
                     if(item.subtitle.isNotBlank()) Text(item.subtitle,color=PageMuted,fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
                 }else{
                     Spacer(Modifier.weight(1f).aspectRatio(1f))
@@ -38,18 +44,22 @@ internal fun LazyListScope.libraryGridRows(page:NativePage,section:NativePageSec
 }
 
 @Composable internal fun LibraryQuickActions(section:NativePageSection,action:PageAction){
-    Column(Modifier.fillMaxWidth().padding(vertical=8.dp)){
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical=8.dp)){
+        val columns=(maxWidth.value/(88f*LocalDensity.current.fontScale.coerceAtLeast(1f))).toInt().coerceIn(1,4)
+        Column{
         if(section.title.isNotBlank())PageSectionHeading(section,action=action)
-        section.items.chunked(4).forEach{row->
+        section.items.chunked(columns).forEach{row->
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
                 row.forEach{item->
                     Column(Modifier.weight(1f).heightIn(min=48.dp).chromeClickable(corner=12.dp){if(!item.disabled)action(item.action,"",0.0)}.padding(vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally){
                         if(item.image.isNotBlank())PageIcon(item.image,PageAccent,Modifier.size(22.dp))
-                        Text(item.title,color=if(item.disabled)PageMuted else PageInk,fontSize=13.sp,maxLines=2,modifier=Modifier.padding(top=4.dp))
-                        if(item.subtitle.isNotBlank()) Text(item.subtitle,color=PageMuted,fontSize=11.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                        Text(item.title,color=if(item.disabled)PageMuted else PageInk,fontSize=13.sp,modifier=Modifier.padding(top=4.dp))
+                        if(item.subtitle.isNotBlank()) Text(item.subtitle,color=PageMuted,fontSize=11.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
                     }
                 }
+                repeat(columns-row.size){Spacer(Modifier.weight(1f))}
             }
+        }
         }
     }
 }

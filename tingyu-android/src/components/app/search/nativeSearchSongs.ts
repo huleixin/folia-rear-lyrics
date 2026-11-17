@@ -19,7 +19,7 @@ export function nativeSearchSongItem(song: UnifiedSong, actions: PageActions, ca
     actions[`menu:${key}`] = () => callbacks.menu(song);
     return { id: key, title: song.name, ...catalogBadgePageFields(song, t, song.isLocal === true),
         subtitle: [data.artists.map(a => a.name).join(', '), callbacks.label(getPlaybackSongSource(song))].filter(Boolean).join(' · '),
-        image: absolutePageImage(data.coverUrl), action: `play:${key}`, secondary: `menu:${key}`, secondaryLabel: '•••',
+        image: absolutePageImage(data.coverUrl), action: `play:${key}`, secondary: `menu:${key}`, secondaryLabel: t('mobileLibrary.more'),
         disabled: isSongUnavailable(song) };
 }
 export function nativeSearchGroupItem(group: SongIdentityGroup<UnifiedSong>, actions: PageActions, callbacks: Callbacks,
