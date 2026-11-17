@@ -29,3 +29,11 @@ it('bounds histories and ignores malformed runtime source keys',()=>{
     expect(useSearchHistoryStore.getState().terms.qishui).toHaveLength(20);
     expect(Object.hasOwn(useSearchHistoryStore.getState().terms,'__proto__')).toBe(false);
 });
+it('delete actions preserve other scopes and cannot create unbounded or prototype records',()=>{
+    const store=useSearchHistoryStore.getState();store.remember('qq','first');store.remember('netease','keep');
+    store.remove('qq','first');expect(useSearchHistoryStore.getState().terms).toEqual({qq:[],netease:['keep']});
+    store.clear('netease');
+    for(let index=0;index<100;index++){store.clear('source'+index);store.remove('source'+index,'a');}
+    for(const key of ['__proto__','constructor','prototype']){store.clear(key);store.remove(key,'a');}
+    expect(useSearchHistoryStore.getState().terms).toEqual({qq:[],netease:[]});
+});
