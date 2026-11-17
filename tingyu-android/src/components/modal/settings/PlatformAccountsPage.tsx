@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, AlertCircle, UserRound, LogOut, RefreshCw, LogIn } from 'lucide-react';
 import { omni } from '../../../services/onlineMusic/omni';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
@@ -7,6 +8,8 @@ import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { registerModalBack, runTopModalBack } from '../../../services/modalBackStack';
 import type { OnlineProviderId } from '../../../types/onlineMusic';
 import MobileSheet from '../../shared/MobileSheet';
+import { useLiquidReduced } from '../../shared/useLiquidReduced';
+import { TY_DURATION, TY_EASE } from '../../shared/motionTokens';
 import { useSheetThemeTokens } from '../../../library/suites/mobile/native/sheetThemeTokens';
 
 // src/components/modal/settings/PlatformAccountsPage.tsx
@@ -20,11 +23,29 @@ const BRAND_STYLES: Record<string, { bg: string; fg: string; abbr: string }> = {
 
 export default function PlatformAccountsPage({ onClose }: { onClose: () => void }) {
     const tokens = useSheetThemeTokens();
+    const reduced = useLiquidReduced();
     const accounts = useOnlineProviderAccountStore(s => s.accounts);
     useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion);
     const providers = omni.getProviderSummaries();
     const fromIndex = useSettingsModalStore(s => s.settingsModalState.returnToIndex);
-    const back = () => fromIndex ? useSettingsModalStore.getState().returnSettingsToIndex() : onClose();
+    const [closing, setClosing] = useState(false);
+    const closedRef = useRef(false);
+    const commitBack = useCallback(() => {
+        if (closedRef.current) return;
+        closedRef.current = true;
+        if (fromIndex) useSettingsModalStore.getState().returnSettingsToIndex();
+        else onClose();
+    }, [fromIndex, onClose]);
+    const back = useCallback(() => {
+        if (reduced) {
+            commitBack();
+            return;
+        }
+        setClosing(true);
+    }, [reduced, commitBack]);
+    const finishClose = useCallback(() => {
+        if (closing) commitBack();
+    }, [closing, commitBack]);
 
     const [managingId, setManagingId] = useState<OnlineProviderId | null>(null);
     const [confirmLogoutId, setConfirmLogoutId] = useState<OnlineProviderId | null>(null);
@@ -48,7 +69,7 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
             unregister();
             window.removeEventListener('keydown', onKey, true);
         };
-    }, [fromIndex, onClose]);
+    }, [back]);
 
     const startProviderLogin = async (providerId: OnlineProviderId) => {
         setNotice('');
@@ -132,19 +153,30 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
     const managingAccount = managingId ? accounts[managingId] : undefined;
 
     return createPortal(
-        <div
+        <motion.div
+            initial={reduced ? false : { x: '100%', opacity: 0.92 }}
+            animate={closing ? { x: '100%', opacity: 0 } : { x: 0, opacity: 1 }}
+            transition={reduced ? { duration: 0 } : closing
+                ? { duration: TY_DURATION.panelExit, ease: TY_EASE.exit }
+                : { duration: TY_DURATION.slow, ease: TY_EASE.emphasized }}
+            onAnimationComplete={finishClose}
             className="fixed inset-0 overflow-y-auto"
             style={{
                 zIndex: 136,
                 background: tokens.pageBg,
                 color: tokens.text,
-                paddingTop: 'env(safe-area-inset-top, 16px)',
-                paddingBottom: 'max(32px, env(safe-area-inset-bottom, 24px))',
+                paddingTop: 'var(--folia-main-inset-top, env(safe-area-inset-top, 0px))',
+                paddingBottom: 'max(32px, var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px)))',
             }}
             data-folia-settings-overlay="true"
             data-folia-keyboard-window="true"
         >
-            <div style={{ paddingLeft: 20, paddingRight: 20 }}>
+            <div
+                style={{
+                    paddingLeft: 'max(20px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px)))',
+                    paddingRight: 'max(20px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px)))',
+                }}
+            >
                 {/* 二级顶部栏：高度 56dp，标题 22sp */}
                 <div className="flex items-center" style={{ height: 56 }}>
                     <button
@@ -349,7 +381,7 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
                     </div>
                 </MobileSheet>
             )}
-        </div>,
+        </motion.div>,
         document.body,
     );
 }

@@ -5,7 +5,15 @@ import { useNativePage } from '../../../../../hooks/useNativePage';
 import { useDiscoveryFeed } from '../../../../../hooks/useDiscoveryFeed';
 import { useDiscoverySettingsStore } from '../../../../../stores/useDiscoverySettingsStore';
 import { useDiscoveryPreferences } from '../../../../../services/discovery/preferences';
-import { rankDiscovery, type RadarKind } from '../../../../../services/discovery/ranking';
+import {
+    rankDiscovery,
+    diagnoseTimeRadar,
+    setLatestTimeRadarDiagnostics,
+    type RadarKind,
+    type TimeRadarContext,
+} from '../../../../../services/discovery/ranking';
+import { useLibraryInsightsData } from '../../../../core/bindings/useLibraryInsightsData';
+import { getNativeIdentityFailCount } from '../../../../../hooks/useDiscoveryListening';
 import { discoveryDay } from '../../../../../services/discovery/service';
 import { useDiscoveryRoaming, endDiscoveryRoaming } from '../../../../../services/discovery/roaming';
 import { useMobileLibraryStore } from '../../../../../stores/useMobileLibraryStore';
@@ -31,6 +39,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const { t } = useTranslation();
     const settings = useDiscoverySettingsStore(), preferences = useDiscoveryPreferences();
     const feed = useDiscoveryFeed(props.isInteractive), controls = useDiscoveryActions(props);
+    const insightsData = useLibraryInsightsData(props, props.isInteractive, settings.source);
     const recent = useMobileLibraryStore(state => state.recentTracks);
     const roaming = useDiscoveryRoaming();
     const [batch, setBatch] = useState(0);
@@ -57,22 +66,73 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const seed = discoveryDay() + ':' + batch;
     const ranked = useMemo(() => rankDiscovery(candidates, preferences.values, settings, 'heart', seed, Date.now(), 100), [candidates, preferences.values, settings, seed]);
     const songs = controls.withoutHidden(ranked.map(item => item.song));
+    const timeRadarContext = useMemo<TimeRadarContext>(() => {
+        const likedKeys = new Set<string>();
+        const platformLikedCounts: Record<string, number> = {};
+        const sessionStats = new Map<string, { lastPlayed: number; plays: number }>();
+
+        for (const candidate of insightsData.candidates) {
+            const key = getPlaybackSongKey(candidate.song);
+            if (candidate.liked) {
+                likedKeys.add(key);
+                const src = getPlaybackSourceRef(candidate.song);
+                const label = src.kind === 'online' ? src.providerId : src.kind;
+                platformLikedCounts[label] = (platformLikedCounts[label] ?? 0) + 1;
+            }
+            if (candidate.legacyLastPlayed) {
+                const prev = sessionStats.get(key) ?? { lastPlayed: 0, plays: 0 };
+                sessionStats.set(key, {
+                    lastPlayed: Math.max(prev.lastPlayed, candidate.legacyLastPlayed),
+                    plays: Math.max(prev.plays, 1),
+                });
+            }
+        }
+        for (const session of insightsData.sessions) {
+            const prev = sessionStats.get(session.songKey) ?? { lastPlayed: 0, plays: 0 };
+            sessionStats.set(session.songKey, {
+                lastPlayed: Math.max(prev.lastPlayed, session.endedAt || session.startedAt || 0),
+                plays: prev.plays + 1,
+            });
+        }
+        return {
+            likedKeys,
+            sessionStats,
+            preferencesReady: preferences.ready,
+            nativeIdentityFailCount: getNativeIdentityFailCount(),
+            platformLikedCounts,
+        };
+    }, [insightsData.candidates, insightsData.sessions, preferences.ready]);
+
+    const timeRadarPool = useMemo(
+        () => [...insightsData.candidates.map(item => item.song), ...candidates, ...recent],
+        [insightsData.candidates, candidates, recent],
+    );
+
+    useEffect(() => {
+        const diag = diagnoseTimeRadar(timeRadarPool, preferences.values, settings, Date.now(), 30, timeRadarContext);
+        setLatestTimeRadarDiagnostics(diag);
+    }, [timeRadarPool, preferences.values, settings, timeRadarContext]);
+
     // Local radar reads the local library even while the selected recommendation source is online.
-    // Time radar merges recent history so historical songs not in today's feed remain eligible.
+    // Time radar merges complete listening sessions, platform/local likes, and recent history.
     const radar = (kind: RadarKind) => {
+        if (kind === 'time') {
+            return rankDiscovery(timeRadarPool, preferences.values, settings, 'time', seed, Date.now(), 30, timeRadarContext).map(item => item.song);
+        }
         const pool = kind === 'local'
             ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE)
-            : kind === 'time'
-                ? [...candidates, ...recent]
-                : candidates;
+            : candidates;
         return rankDiscovery(pool, preferences.values, settings, kind, seed).map(item => item.song);
     };
     const openRadar = (kind: RadarKind) => {
         const list = radar(kind);
-        const emptyHint = kind === 'time' ? '等待与你的旧旋律重逢\n听屿会根据真实的收听历史，为你找回曾经喜欢的音乐。'
+        const emptyHint = kind === 'time'
+            ? (insightsData.loading
+                ? '正在同步你的收听历史与收藏歌曲…'
+                : '等待与你的旧旋律重逢\n听屿会根据真实的收听历史与收藏歌曲，为你找回曾经喜欢的音乐。')
             : kind === 'local' ? '暂无本地音乐，可在资料库导入本地曲库。'
             : '当前平台候选数据不足，请先收听或收藏一些歌曲，或切换其他平台。';
-        const desc = list.length ? (kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及当前筛选来源生成。') : emptyHint;
+        const desc = list.length ? (kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机收听历史、收藏记录及当前筛选来源生成。') : emptyHint;
         const radarCoverMap: Partial<Record<RadarKind, string>> = {
             style: '/assets/discovery/radar-style.webp',
             time: '/assets/discovery/radar-time.webp',
@@ -138,7 +198,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             const action = 'radar:' + kind, list = radar(kind);
             actions[action] = () => openRadar(kind);
             actions[action+':play'] = () => { if(list.length)props.onPlaySong(list[0],list); };
-            return { id: kind, title: radarNames[kind], subtitle: kind === 'style' ? '歌手与音乐的关联' : kind === 'time' ? '重逢旧日旋律' : '发现未听过的音乐', action, secondary:list.length?action+':play':'' };
+            return { id: kind, title: radarNames[kind], subtitle: kind === 'style' ? '歌手与音乐的关联' : kind === 'time' ? (insightsData.loading && !list.length ? '正在整理收听记忆…' : '重逢旧日旋律') : '发现未听过的音乐', action, secondary:list.length?action+':play':'' };
         }) },
         songs: { id: 'discovery-songs', title: '猜你想听', layout: 'rows', more: 'next', moreLabel: '换一批', items: rows(songs.slice(0, 6), 'song:') },
         collections: { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: scopedResults.flatMap(result => result.collections).slice(0, 24).map(collection => {

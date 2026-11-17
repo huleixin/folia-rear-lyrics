@@ -95,11 +95,14 @@ export default function ListeningFootprintPage({
                 zIndex: 132,
                 background: tokens.pageBg,
                 color: tokens.text,
-                paddingTop: 'env(safe-area-inset-top, 16px)',
-                paddingBottom: 152,
+                paddingTop: 'var(--folia-main-inset-top, env(safe-area-inset-top, 0px))',
+                paddingBottom: 'calc(152px + var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px)))',
             }}
         >
-            <div style={{ paddingLeft: 20, paddingRight: 20 }}>
+            <div style={{
+                paddingLeft: 'max(20px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px)))',
+                paddingRight: 'max(20px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px)))',
+            }}>
                 {/* 1. Header */}
                 <div className="flex items-center justify-between" style={{ minHeight: 52 }}>
                     <button

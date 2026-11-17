@@ -1066,7 +1066,7 @@
     align-items: flex-end;
     justify-content: center;
     background: var(--it-mobile-library-background-16);
-    padding-top: 40px;
+    padding-top: max(40px, var(--folia-main-inset-top, env(safe-area-inset-top, 0px)));
 }
 .ml-sheet {
     width: 100%;
@@ -1074,7 +1074,7 @@
     max-height: 85dvh;
     background: var(--ml-bg);
     border-radius: 18px 18px 0 0;
-    padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    padding: 16px max(20px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px))) calc(24px + var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px))) max(20px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px)));
     overflow-y: auto;
     overscroll-behavior: contain;
     box-shadow: var(--it-mobile-library-box-shadow-4);

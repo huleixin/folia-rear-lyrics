@@ -33,7 +33,7 @@ import {
     hasVisualizerBackgroundMode,
 } from '../components/visualizer/backgrounds/registry';
 
-// src/utils/buildDiagnosticReport.ts
+import { formatTimeRadarDiagnosticLines } from '../services/discovery/ranking';
 // 设置 → 帮助 → 复制诊断数据。给用户原样贴进 issue 用，所以字段固定为英文并包在代码块里。
 // 只包含可以公开的内容：版本、运行环境、请求形态与条数，不含 cookie、token、账号。
 
@@ -1259,6 +1259,7 @@ export const buildDiagnosticReport = async (): Promise<string> => {
     }
 
     lines.push(...getLxDiagnosticLines());
+    lines.push(...formatTimeRadarDiagnosticLines());
     lines.push('```');
     return lines.join('\n');
 };
