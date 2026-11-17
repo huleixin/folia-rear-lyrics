@@ -2,6 +2,7 @@ package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -31,36 +32,35 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.cos
-import kotlin.math.sin
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/DiscoveryCards.kt
-// 听屿漫游与专属雷达正式矢量视觉资源：固定专属色板，2.5D 多层次构图，无持续动画、无主题灰化。
+// 听屿漫游与专属雷达正式视觉资源：冰川轻透玻璃质感、统一光影语言、克制同调渐变。
 
 private object DiscoveryArtPalette {
-    // 听屿漫游：深海蓝、冰川蓝、浅青蓝、日光暖金
-    val RoamDeep = Color(0xFF193D59)
-    val RoamGlacier = Color(0xFF76AFC9)
-    val RoamMist = Color(0xFFC9EBEE)
-    val RoamSun = Color(0xFFF5D6A0)
+    // 听屿漫游：深海蓝、冰川蓝、浅青雾、柔和晨光
+    val RoamDeep = Color(0xFF1C3F5A)
+    val RoamMid = Color(0xFF3E7090)
+    val RoamGlacier = Color(0xFF84B7CE)
+    val RoamMist = Color(0xFFCDE8EF)
+    val RoamSun = Color(0xFFEDE0C9)
 
-    // 风格雷达：深紫蓝、雾紫、浅薰衣草、冷白高光
-    val StyleDeep = Color(0xFF35396F)
-    val StyleMist = Color(0xFF777BC4)
-    val StyleLavender = Color(0xFFC3C5F1)
-    val StyleHighlight = Color(0xFFE8EAFE)
+    // 风格雷达：冷调雾紫冰蓝（同材质轻透渐变）
+    val StyleDeep = Color(0xFF3B4272)
+    val StyleMid = Color(0xFF5D669B)
+    val StyleLight = Color(0xFFAAB2DF)
+    val StyleHighlight = Color(0xFFE7EAFA)
 
-    // 时光雷达：暖棕、琥珀金、奶油色、暖灰
-    val TimeBrown = Color(0xFF805A43)
-    val TimeAmber = Color(0xFFD4A46B)
-    val TimeCream = Color(0xFFF3DFC2)
-    val TimeGray = Color(0xFFB9A38D)
+    // 时光雷达：克制清冷暖灰雾金（去土黄棕橙卡通感，保持轻透怀旧氛围）
+    val TimeDeep = Color(0xFF514E4B)
+    val TimeMid = Color(0xFF7D776F)
+    val TimeLight = Color(0xFFC8C0B4)
+    val TimeHighlight = Color(0xFFF0EAE0)
 
-    // 探索雷达：深青绿、海洋绿、薄荷青、浅暖黄
-    val ExploreDeep = Color(0xFF245C61)
-    val ExploreSea = Color(0xFF59A6A2)
-    val ExploreMint = Color(0xFFACDDD0)
-    val ExploreWarm = Color(0xFFF2DFB0)
+    // 探索雷达：深海青雾、冰川青、薄荷雾
+    val ExploreDeep = Color(0xFF215157)
+    val ExploreMid = Color(0xFF478585)
+    val ExploreLight = Color(0xFFA0CFCB)
+    val ExploreHighlight = Color(0xFFE4F2EE)
 }
 
 @Composable
@@ -76,109 +76,120 @@ internal fun DiscoveryArtCanvas(kind: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** 统一玻璃光泽与柔和左上→右下光影，保持三张雷达与漫游卡同一视觉语言。 */
+private fun DrawScope.drawUnifiedGlassSheen(highlight: Color) {
+    val w = size.width
+    val h = size.height
+    drawRect(
+        Brush.linearGradient(
+            colors = listOf(
+                highlight.copy(alpha = 0.22f),
+                highlight.copy(alpha = 0.04f),
+                Color.Transparent
+            ),
+            start = Offset(0f, 0f),
+            end = Offset(w * 0.85f, h * 0.85f)
+        )
+    )
+}
+
 private fun DrawScope.drawRoamArt() {
     val w = size.width
     val h = size.height
     drawRect(
         Brush.linearGradient(
-            colors = listOf(DiscoveryArtPalette.RoamDeep, Color(0xFF215173), DiscoveryArtPalette.RoamGlacier),
+            colors = listOf(DiscoveryArtPalette.RoamDeep, DiscoveryArtPalette.RoamMid, DiscoveryArtPalette.RoamGlacier),
             start = Offset(0f, 0f),
             end = Offset(w, h)
         )
     )
-    // 右侧日光暖金光晕与太阳本体（保留左侧文字区干净）
-    val sunCenter = Offset(w * 0.80f, h * 0.30f)
+    // 右侧柔和晨光弥散光晕（无硬边实心大圆）
+    val sunCenter = Offset(w * 0.80f, h * 0.28f)
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
-                DiscoveryArtPalette.RoamSun.copy(alpha = 0.52f),
-                DiscoveryArtPalette.RoamMist.copy(alpha = 0.16f),
+                DiscoveryArtPalette.RoamSun.copy(alpha = 0.62f),
+                DiscoveryArtPalette.RoamMist.copy(alpha = 0.22f),
                 Color.Transparent
             ),
             center = sunCenter,
-            radius = h * 0.62f
+            radius = h * 0.56f
         ),
-        radius = h * 0.62f,
+        radius = h * 0.56f,
         center = sunCenter
     )
     drawCircle(
-        brush = Brush.linearGradient(listOf(DiscoveryArtPalette.RoamSun, Color(0xFFECC07D))),
-        radius = h * 0.17f,
+        color = DiscoveryArtPalette.RoamSun.copy(alpha = 0.72f),
+        radius = h * 0.11f,
         center = sunCenter
     )
-    // 远景抽象海岛剪影（右侧 40% 主视觉区）
+
+    // 远方海平线与柔和抽象岛屿（半透明雾感层叠）
     val islandFar = Path().apply {
-        moveTo(w * 0.56f, h * 0.66f)
-        cubicTo(w * 0.64f, h * 0.44f, w * 0.72f, h * 0.45f, w * 0.79f, h * 0.66f)
+        moveTo(w * 0.58f, h * 0.68f)
+        cubicTo(w * 0.66f, h * 0.50f, w * 0.73f, h * 0.50f, w * 0.81f, h * 0.68f)
         close()
     }
-    drawPath(islandFar, DiscoveryArtPalette.RoamDeep.copy(alpha = 0.58f))
+    drawPath(islandFar, DiscoveryArtPalette.RoamDeep.copy(alpha = 0.34f))
 
     val islandNear = Path().apply {
-        moveTo(w * 0.66f, h * 0.70f)
-        cubicTo(w * 0.74f, h * 0.49f, w * 0.86f, h * 0.50f, w * 0.96f, h * 0.70f)
+        moveTo(w * 0.68f, h * 0.72f)
+        cubicTo(w * 0.76f, h * 0.54f, w * 0.87f, h * 0.55f, w * 0.97f, h * 0.72f)
         close()
     }
-    drawPath(
-        islandNear,
-        Brush.verticalGradient(
-            listOf(Color(0xFF1F4C6C), DiscoveryArtPalette.RoamDeep),
-            startY = h * 0.48f,
-            endY = h * 0.72f
-        )
-    )
+    drawPath(islandNear, DiscoveryArtPalette.RoamDeep.copy(alpha = 0.50f))
 
-    // 至少三层海浪景深（底部与右侧递增层次）
+    // 三层轻透海雾波浪
     val wave1 = Path().apply {
-        moveTo(0f, h * 0.68f)
-        cubicTo(w * 0.28f, h * 0.62f, w * 0.55f, h * 0.74f, w, h * 0.62f)
+        moveTo(0f, h * 0.69f)
+        cubicTo(w * 0.28f, h * 0.64f, w * 0.58f, h * 0.74f, w, h * 0.65f)
         lineTo(w, h)
         lineTo(0f, h)
         close()
     }
-    drawPath(wave1, DiscoveryArtPalette.RoamGlacier.copy(alpha = 0.34f))
+    drawPath(wave1, DiscoveryArtPalette.RoamMist.copy(alpha = 0.16f))
 
     val wave2 = Path().apply {
         moveTo(0f, h * 0.78f)
-        cubicTo(w * 0.34f, h * 0.84f, w * 0.68f, h * 0.68f, w, h * 0.77f)
+        cubicTo(w * 0.34f, h * 0.83f, w * 0.68f, h * 0.71f, w, h * 0.77f)
         lineTo(w, h)
         lineTo(0f, h)
         close()
     }
-    drawPath(wave2, DiscoveryArtPalette.RoamMist.copy(alpha = 0.24f))
+    drawPath(wave2, DiscoveryArtPalette.RoamMist.copy(alpha = 0.20f))
 
     val wave3 = Path().apply {
         moveTo(0f, h * 0.88f)
-        cubicTo(w * 0.30f, h * 0.82f, w * 0.72f, h * 0.94f, w, h * 0.85f)
+        cubicTo(w * 0.30f, h * 0.84f, w * 0.72f, h * 0.92f, w, h * 0.86f)
         lineTo(w, h)
         lineTo(0f, h)
         close()
     }
-    drawPath(wave3, DiscoveryArtPalette.RoamDeep.copy(alpha = 0.42f))
+    drawPath(wave3, DiscoveryArtPalette.RoamDeep.copy(alpha = 0.32f))
 
-    // 右侧低透明度声波纹理（与海平面日光呼应）
+    // 极细声波纹理
     repeat(3) { idx ->
-        val radius = h * (0.28f + idx * 0.13f)
+        val radius = h * (0.24f + idx * 0.13f)
         drawArc(
-            color = DiscoveryArtPalette.RoamMist.copy(alpha = 0.20f - idx * 0.05f),
+            color = DiscoveryArtPalette.RoamMist.copy(alpha = 0.16f - idx * 0.04f),
             startAngle = 195f,
-            sweepAngle = 145f,
+            sweepAngle = 140f,
             useCenter = false,
             topLeft = Offset(sunCenter.x - radius, sunCenter.y - radius),
             size = Size(radius * 2f, radius * 2f),
-            style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
+            style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round)
         )
     }
 
-    // 左侧文字对比度保护层（平滑溶入右侧插画）
+    // 左侧文字对比度保护层（平滑溶入冰川海雾）
     drawRect(
         Brush.horizontalGradient(
-            0.0f to DiscoveryArtPalette.RoamDeep.copy(alpha = 0.92f),
-            0.46f to DiscoveryArtPalette.RoamDeep.copy(alpha = 0.74f),
-            0.70f to DiscoveryArtPalette.RoamDeep.copy(alpha = 0.18f),
-            1.0f to Color.Transparent
+            0.0f to DiscoveryArtPalette.RoamDeep.copy(alpha = 0.88f),
+            0.48f to DiscoveryArtPalette.RoamDeep.copy(alpha = 0.56f),
+            0.74f to Color.Transparent
         )
     )
+    drawUnifiedGlassSheen(DiscoveryArtPalette.RoamMist)
 }
 
 private fun DrawScope.drawStyleRadarArt() {
@@ -186,155 +197,132 @@ private fun DrawScope.drawStyleRadarArt() {
     val h = size.height
     drawRect(
         Brush.linearGradient(
-            listOf(DiscoveryArtPalette.StyleDeep, Color(0xFF474C8C), DiscoveryArtPalette.StyleMist),
+            listOf(DiscoveryArtPalette.StyleDeep, DiscoveryArtPalette.StyleMid, DiscoveryArtPalette.StyleLight),
             start = Offset(0f, 0f),
             end = Offset(w, h)
         )
     )
-    // 顶部柔和光晕
     drawCircle(
         brush = Brush.radialGradient(
-            listOf(DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.28f), Color.Transparent),
-            center = Offset(w * 0.24f, h * 0.22f),
+            listOf(DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.24f), Color.Transparent),
+            center = Offset(w * 0.26f, h * 0.24f),
             radius = w * 0.65f
         ),
         radius = w * 0.65f,
-        center = Offset(w * 0.24f, h * 0.22f)
+        center = Offset(w * 0.26f, h * 0.24f)
     )
 
-    // 后层唱片（浅薰衣草半透明叠层）
-    val backCenter = Offset(w * 0.37f, h * 0.45f)
-    val backRadius = w * 0.30f
-    drawCircle(DiscoveryArtPalette.StyleLavender.copy(alpha = 0.26f), backRadius, backCenter)
-    drawCircle(DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.32f), backRadius * 0.74f, backCenter, style = Stroke(1.dp.toPx()))
-    drawCircle(DiscoveryArtPalette.StyleMist.copy(alpha = 0.55f), backRadius * 0.34f, backCenter)
+    // 磨砂叠层唱片（轻透同色系，无硬黑块）
+    val backCenter = Offset(w * 0.38f, h * 0.45f)
+    val backRadius = w * 0.29f
+    drawCircle(DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.14f), backRadius, backCenter)
+    drawCircle(DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.26f), backRadius * 0.72f, backCenter, style = Stroke(1.dp.toPx()))
 
-    // 前层主黑胶唱片与同心纹路
     val mainCenter = Offset(w * 0.56f, h * 0.52f)
-    val mainRadius = w * 0.34f
-    drawCircle(Color(0xFF232652), mainRadius, mainCenter)
+    val mainRadius = w * 0.32f
+    drawCircle(DiscoveryArtPalette.StyleDeep.copy(alpha = 0.62f), mainRadius, mainCenter)
     listOf(0.86f, 0.72f, 0.58f).forEachIndexed { idx, factor ->
         drawCircle(
-            color = DiscoveryArtPalette.StyleLavender.copy(alpha = 0.26f - idx * 0.05f),
+            color = DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.24f - idx * 0.05f),
             radius = mainRadius * factor,
             center = mainCenter,
             style = Stroke(width = 1.dp.toPx())
         )
     }
-    // 唱片冷白高光弧
     drawArc(
-        color = DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.55f),
+        color = DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.50f),
         startAngle = -55f,
-        sweepAngle = 52f,
+        sweepAngle = 48f,
         useCenter = false,
-        topLeft = Offset(mainCenter.x - mainRadius * 0.80f, mainCenter.y - mainRadius * 0.80f),
-        size = Size(mainRadius * 1.60f, mainRadius * 1.60f),
-        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+        topLeft = Offset(mainCenter.x - mainRadius * 0.78f, mainCenter.y - mainRadius * 0.78f),
+        size = Size(mainRadius * 1.56f, mainRadius * 1.56f),
+        style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round)
     )
-    // 中心唱片标签
-    drawCircle(
-        Brush.linearGradient(listOf(DiscoveryArtPalette.StyleLavender, DiscoveryArtPalette.StyleMist)),
-        mainRadius * 0.32f,
-        mainCenter
-    )
-    drawCircle(DiscoveryArtPalette.StyleHighlight, mainRadius * 0.08f, mainCenter)
+    drawCircle(DiscoveryArtPalette.StyleLight.copy(alpha = 0.65f), mainRadius * 0.28f, mainCenter)
+    drawCircle(DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.9f), mainRadius * 0.07f, mainCenter)
 
-    // 底部声波轨迹
     val wave = Path().apply {
-        moveTo(w * 0.08f, h * 0.84f)
-        cubicTo(w * 0.28f, h * 0.72f, w * 0.52f, h * 0.94f, w * 0.92f, h * 0.78f)
+        moveTo(w * 0.08f, h * 0.83f)
+        cubicTo(w * 0.30f, h * 0.73f, w * 0.56f, h * 0.91f, w * 0.92f, h * 0.78f)
     }
-    drawPath(wave, DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.42f), style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round))
+    drawPath(wave, DiscoveryArtPalette.StyleHighlight.copy(alpha = 0.32f), style = Stroke(1.2.dp.toPx(), cap = StrokeCap.Round))
+    drawUnifiedGlassSheen(DiscoveryArtPalette.StyleHighlight)
 }
 
 private fun DrawScope.drawTimeRadarArt() {
     val w = size.width
     val h = size.height
+    // 克制清冷暖灰雾金渐变，保持高级怀旧氛围
     drawRect(
         Brush.linearGradient(
-            listOf(DiscoveryArtPalette.TimeBrown, Color(0xFF9C7250), DiscoveryArtPalette.TimeAmber),
+            listOf(DiscoveryArtPalette.TimeDeep, DiscoveryArtPalette.TimeMid, DiscoveryArtPalette.TimeLight),
             start = Offset(0f, 0f),
             end = Offset(w, h)
         )
     )
-    // 暖光晕与时间圆弧轨迹
     drawCircle(
         brush = Brush.radialGradient(
-            listOf(DiscoveryArtPalette.TimeCream.copy(alpha = 0.34f), Color.Transparent),
-            center = Offset(w * 0.78f, h * 0.20f),
+            listOf(DiscoveryArtPalette.TimeHighlight.copy(alpha = 0.26f), Color.Transparent),
+            center = Offset(w * 0.26f, h * 0.24f),
             radius = w * 0.65f
         ),
         radius = w * 0.65f,
-        center = Offset(w * 0.78f, h * 0.20f)
-    )
-    drawArc(
-        color = DiscoveryArtPalette.TimeCream.copy(alpha = 0.28f),
-        startAngle = 150f,
-        sweepAngle = 210f,
-        useCenter = false,
-        topLeft = Offset(w * 0.08f, h * 0.08f),
-        size = Size(w * 0.84f, h * 0.84f),
-        style = Stroke(width = 1.2.dp.toPx(), cap = StrokeCap.Round)
+        center = Offset(w * 0.26f, h * 0.24f)
     )
 
-    // 怀旧磁带倾斜主体
-    rotate(-8f, pivot = Offset(w * 0.50f, h * 0.52f)) {
-        val left = w * 0.16f
-        val top = h * 0.30f
-        val bodyW = w * 0.68f
-        val bodyH = h * 0.44f
+    // 极简时间轨迹光环
+    drawArc(
+        color = DiscoveryArtPalette.TimeHighlight.copy(alpha = 0.24f),
+        startAngle = 155f,
+        sweepAngle = 215f,
+        useCenter = false,
+        topLeft = Offset(w * 0.12f, h * 0.12f),
+        size = Size(w * 0.76f, h * 0.76f),
+        style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round)
+    )
+
+    // 半透明磨砂磁带轮廓（克制同调，不堆砌卡通棕色块）
+    rotate(-7f, pivot = Offset(w * 0.50f, h * 0.52f)) {
+        val left = w * 0.18f
+        val top = h * 0.33f
+        val bodyW = w * 0.64f
+        val bodyH = h * 0.40f
         drawRoundRect(
-            brush = Brush.verticalGradient(listOf(Color(0xFF5D3F2D), Color(0xFF472F21))),
+            color = DiscoveryArtPalette.TimeDeep.copy(alpha = 0.58f),
             topLeft = Offset(left, top),
             size = Size(bodyW, bodyH),
             cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx())
         )
-        // 磁带奶油标签条
         drawRoundRect(
-            color = DiscoveryArtPalette.TimeCream.copy(alpha = 0.92f),
-            topLeft = Offset(left + bodyW * 0.09f, top + bodyH * 0.13f),
-            size = Size(bodyW * 0.82f, bodyH * 0.42f),
-            cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+            color = DiscoveryArtPalette.TimeHighlight.copy(alpha = 0.36f),
+            topLeft = Offset(left, top),
+            size = Size(bodyW, bodyH),
+            cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()),
+            style = Stroke(width = 1.dp.toPx())
         )
+        // 顶部柔和标签线
         drawLine(
-            color = DiscoveryArtPalette.TimeAmber,
-            start = Offset(left + bodyW * 0.15f, top + bodyH * 0.24f),
-            end = Offset(left + bodyW * 0.85f, top + bodyH * 0.24f),
-            strokeWidth = 2.dp.toPx()
+            color = DiscoveryArtPalette.TimeHighlight.copy(alpha = 0.55f),
+            start = Offset(left + bodyW * 0.14f, top + bodyH * 0.22f),
+            end = Offset(left + bodyW * 0.86f, top + bodyH * 0.22f),
+            strokeWidth = 1.4.dp.toPx(),
+            cap = StrokeCap.Round
         )
-        // 磁带透明视窗与左右卷轴
+        // 透明磁带窗与双卷轴
         drawRoundRect(
-            color = DiscoveryArtPalette.TimeBrown,
-            topLeft = Offset(left + bodyW * 0.20f, top + bodyH * 0.34f),
+            color = DiscoveryArtPalette.TimeHighlight.copy(alpha = 0.18f),
+            topLeft = Offset(left + bodyW * 0.20f, top + bodyH * 0.36f),
             size = Size(bodyW * 0.60f, bodyH * 0.34f),
             cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
         )
-        val reelY = top + bodyH * 0.51f
-        val leftReel = Offset(left + bodyW * 0.34f, reelY)
-        val rightReel = Offset(left + bodyW * 0.66f, reelY)
-        listOf(leftReel, rightReel).forEach { c ->
-            drawCircle(DiscoveryArtPalette.TimeCream, bodyH * 0.12f, c)
-            drawCircle(DiscoveryArtPalette.TimeBrown, bodyH * 0.055f, c)
+        val reelY = top + bodyH * 0.53f
+        listOf(left + bodyW * 0.35f, left + bodyW * 0.65f).forEach { rx ->
+            val center = Offset(rx, reelY)
+            drawCircle(DiscoveryArtPalette.TimeHighlight.copy(alpha = 0.78f), bodyH * 0.11f, center)
+            drawCircle(DiscoveryArtPalette.TimeDeep.copy(alpha = 0.80f), bodyH * 0.048f, center)
         }
-        // 底部梯形凹槽
-        val notch = Path().apply {
-            moveTo(left + bodyW * 0.22f, top + bodyH)
-            lineTo(left + bodyW * 0.28f, top + bodyH * 0.80f)
-            lineTo(left + bodyW * 0.72f, top + bodyH * 0.80f)
-            lineTo(left + bodyW * 0.78f, top + bodyH)
-            close()
-        }
-        drawPath(notch, DiscoveryArtPalette.TimeGray.copy(alpha = 0.45f))
     }
-
-    // 轻微怀旧颗粒感点缀
-    val dots = listOf(
-        0.14f to 0.18f, 0.24f to 0.86f, 0.82f to 0.24f,
-        0.86f to 0.76f, 0.48f to 0.14f, 0.66f to 0.86f
-    )
-    dots.forEach { (dx, dy) ->
-        drawCircle(DiscoveryArtPalette.TimeCream.copy(alpha = 0.28f), 1.5.dp.toPx(), Offset(w * dx, h * dy))
-    }
+    drawUnifiedGlassSheen(DiscoveryArtPalette.TimeHighlight)
 }
 
 private fun DrawScope.drawExploreRadarArt() {
@@ -342,74 +330,76 @@ private fun DrawScope.drawExploreRadarArt() {
     val h = size.height
     drawRect(
         Brush.linearGradient(
-            listOf(DiscoveryArtPalette.ExploreDeep, DiscoveryArtPalette.ExploreSea, DiscoveryArtPalette.ExploreMint.copy(alpha = 0.85f)),
+            listOf(DiscoveryArtPalette.ExploreDeep, DiscoveryArtPalette.ExploreMid, DiscoveryArtPalette.ExploreLight),
             start = Offset(0f, 0f),
             end = Offset(w, h)
         )
     )
-    // 星球与倾斜轨道
-    val planetCenter = Offset(w * 0.66f, h * 0.32f)
-    val planetRadius = w * 0.17f
     drawCircle(
         brush = Brush.radialGradient(
-            listOf(DiscoveryArtPalette.ExploreWarm.copy(alpha = 0.42f), Color.Transparent),
-            center = planetCenter,
-            radius = planetRadius * 2.2f
+            listOf(DiscoveryArtPalette.ExploreHighlight.copy(alpha = 0.26f), Color.Transparent),
+            center = Offset(w * 0.26f, h * 0.24f),
+            radius = w * 0.65f
         ),
-        radius = planetRadius * 2.2f,
-        center = planetCenter
+        radius = w * 0.65f,
+        center = Offset(w * 0.26f, h * 0.24f)
     )
+
+    val planetCenter = Offset(w * 0.62f, h * 0.36f)
+    val planetRadius = w * 0.15f
     drawCircle(
-        brush = Brush.linearGradient(listOf(DiscoveryArtPalette.ExploreWarm, Color(0xFFE3C685))),
-        radius = planetRadius,
+        brush = Brush.radialGradient(
+            listOf(DiscoveryArtPalette.ExploreHighlight.copy(alpha = 0.42f), Color.Transparent),
+            center = planetCenter,
+            radius = planetRadius * 2.1f
+        ),
+        radius = planetRadius * 2.1f,
         center = planetCenter
     )
-    rotate(-22f, pivot = planetCenter) {
+    drawCircle(DiscoveryArtPalette.ExploreHighlight.copy(alpha = 0.72f), planetRadius, planetCenter)
+    rotate(-20f, pivot = planetCenter) {
         drawOval(
-            color = DiscoveryArtPalette.ExploreMint.copy(alpha = 0.72f),
-            topLeft = Offset(planetCenter.x - planetRadius * 1.75f, planetCenter.y - planetRadius * 0.42f),
-            size = Size(planetRadius * 3.50f, planetRadius * 0.84f),
-            style = Stroke(width = 1.6.dp.toPx())
+            color = DiscoveryArtPalette.ExploreHighlight.copy(alpha = 0.55f),
+            topLeft = Offset(planetCenter.x - planetRadius * 1.72f, planetCenter.y - planetRadius * 0.40f),
+            size = Size(planetRadius * 3.44f, planetRadius * 0.80f),
+            style = Stroke(width = 1.2.dp.toPx())
         )
     }
 
-    // 远、中、近三层未知地平线景观
+    // 三层轻透地平线远山雾层
     val ridgeFar = Path().apply {
-        moveTo(0f, h * 0.64f)
-        cubicTo(w * 0.24f, h * 0.50f, w * 0.58f, h * 0.70f, w, h * 0.55f)
+        moveTo(0f, h * 0.66f)
+        cubicTo(w * 0.25f, h * 0.54f, w * 0.58f, h * 0.72f, w, h * 0.58f)
         lineTo(w, h)
         lineTo(0f, h)
         close()
     }
-    drawPath(ridgeFar, DiscoveryArtPalette.ExploreSea.copy(alpha = 0.55f))
+    drawPath(ridgeFar, DiscoveryArtPalette.ExploreHighlight.copy(alpha = 0.16f))
 
     val ridgeMid = Path().apply {
-        moveTo(0f, h * 0.74f)
-        cubicTo(w * 0.30f, h * 0.84f, w * 0.62f, h * 0.62f, w, h * 0.73f)
+        moveTo(0f, h * 0.76f)
+        cubicTo(w * 0.32f, h * 0.84f, w * 0.64f, h * 0.66f, w, h * 0.75f)
         lineTo(w, h)
         lineTo(0f, h)
         close()
     }
-    drawPath(ridgeMid, DiscoveryArtPalette.ExploreDeep.copy(alpha = 0.65f))
+    drawPath(ridgeMid, DiscoveryArtPalette.ExploreDeep.copy(alpha = 0.42f))
 
     val ridgeNear = Path().apply {
-        moveTo(0f, h * 0.84f)
-        cubicTo(w * 0.35f, h * 0.78f, w * 0.70f, h * 0.92f, w, h * 0.82f)
+        moveTo(0f, h * 0.86f)
+        cubicTo(w * 0.35f, h * 0.81f, w * 0.70f, h * 0.92f, w, h * 0.84f)
         lineTo(w, h)
         lineTo(0f, h)
         close()
     }
-    drawPath(ridgeNear, Color(0xFF194246))
+    drawPath(ridgeNear, DiscoveryArtPalette.ExploreDeep.copy(alpha = 0.68f))
 
-    // 探索轨迹与星点
     val trail = Path().apply {
-        moveTo(w * 0.14f, h * 0.78f)
-        cubicTo(w * 0.28f, h * 0.52f, w * 0.42f, h * 0.40f, w * 0.56f, h * 0.34f)
+        moveTo(w * 0.16f, h * 0.78f)
+        cubicTo(w * 0.30f, h * 0.54f, w * 0.42f, h * 0.42f, w * 0.54f, h * 0.37f)
     }
-    drawPath(trail, DiscoveryArtPalette.ExploreWarm.copy(alpha = 0.50f), style = Stroke(1.3.dp.toPx(), cap = StrokeCap.Round))
-    listOf(0.20f to 0.22f, 0.36f to 0.16f, 0.86f to 0.48f).forEach { (sx, sy) ->
-        drawCircle(DiscoveryArtPalette.ExploreWarm.copy(alpha = 0.75f), 1.6.dp.toPx(), Offset(w * sx, h * sy))
-    }
+    drawPath(trail, DiscoveryArtPalette.ExploreHighlight.copy(alpha = 0.38f), style = Stroke(1.1.dp.toPx(), cap = StrokeCap.Round))
+    drawUnifiedGlassSheen(DiscoveryArtPalette.ExploreHighlight)
 }
 
 @Composable
@@ -442,7 +432,7 @@ internal fun DiscoveryHero(section: NativePageSection, modifier: Modifier = Modi
                 )
                 Text(
                     item.subtitle,
-                    color = Color(0xFFE1F3F5),
+                    color = Color(0xFFE1F1F5),
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
                     maxLines = 2,
@@ -450,11 +440,13 @@ internal fun DiscoveryHero(section: NativePageSection, modifier: Modifier = Modi
                     modifier = Modifier.padding(top = 6.dp)
                 )
             }
+            // 轻透磨砂玻璃播放胶囊（与听屿冰川主题一致，不再使用亮黄实心块）
             Row(
                 Modifier
                     .height(40.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (item.disabled) DiscoveryArtPalette.RoamMist.copy(alpha = 0.45f) else DiscoveryArtPalette.RoamSun)
+                    .background(Color.White.copy(alpha = if (item.disabled) 0.35f else 0.88f))
+                    .border(0.8.dp, Color.White.copy(alpha = 0.55f), RoundedCornerShape(20.dp))
                     .chromeClickable(enabled = !item.disabled, corner = 20.dp) { action(item.action, "", 0.0) }
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -477,11 +469,12 @@ internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Mo
     val palette = LocalInterfacePalette.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         section.items.forEach { item ->
+            val canPlay = item.secondary.isNotBlank() && !item.disabled
             Column(
                 Modifier
                     .weight(1f)
                     .testTag("discovery-radar:" + item.id)
-                    .chromeClickable(enabled = !item.disabled, corner = 14.dp) { action(item.action, "", 0.0) }
+                    .chromeClickable(enabled = !item.disabled, role = Role.Button, corner = 14.dp) { action(item.action, "", 0.0) }
             ) {
                 Box(
                     Modifier
@@ -490,31 +483,34 @@ internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Mo
                         .clip(RoundedCornerShape(14.dp))
                 ) {
                     DiscoveryArtCanvas(item.id, Modifier.matchParentSize())
-                    if (item.secondary.isNotBlank()) {
-                        // 视觉 32dp 播放按钮（距右/底 8dp），实际 48dp 触区且拦截点击防止穿透跳转详情页
+                    // 视觉 32dp 播放按钮（距右/底 8dp），仅在有可播歌曲时拦截点击；无数据时保持不可用状态且不拦截卡片详情跳转
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(48.dp)
+                            .then(
+                                if (canPlay) {
+                                    Modifier
+                                        .semantics { contentDescription = "播放" + item.title }
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            role = Role.Button
+                                        ) { action(item.secondary, "", 0.0) }
+                                } else Modifier
+                            )
+                            .padding(end = 8.dp, bottom = 8.dp),
+                        contentAlignment = Alignment.BottomEnd
+                    ) {
                         Box(
                             Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(48.dp)
-                                .semantics { contentDescription = "播放" + item.title }
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    role = Role.Button,
-                                    enabled = !item.disabled
-                                ) { action(item.secondary, "", 0.0) }
-                                .padding(end = 8.dp, bottom = 8.dp),
-                            contentAlignment = Alignment.BottomEnd
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = if (canPlay) 0.56f else 0.24f))
+                                .border(0.6.dp, Color.White.copy(alpha = if (canPlay) 0.28f else 0.14f), CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xE6151C24)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                PageIcon("play", Color.White, Modifier.size(15.dp))
-                            }
+                            PageIcon("play", Color.White.copy(alpha = if (canPlay) 1f else 0.45f), Modifier.size(14.dp))
                         }
                     }
                 }

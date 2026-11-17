@@ -103,7 +103,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     actions.recent = () => openSongs('recent', t('libraryV2.recent'), privateSongs.recent, t('libraryV2.recentScope'));
     sections.splice(3, 0, { id: 'personal-shortcuts', layout: 'quickLinks', items: [
         { id: 'likes', title: t('libraryV2.likes'), subtitle: t('libraryV2.tracks', { count: privateSongs.liked.length }), image: 'heart', action: 'likes' },
-        { id: 'recent', title: t('libraryV2.recent'), subtitle: t('libraryV2.tracks', { count: privateSongs.recent.length }), image: 'history', action: 'recent' },
+        { id: 'recent', title: t('libraryV2.recent'), subtitle: t('libraryV2.tracks', { count: privateSongs.recent.length }), image: 'clock', action: 'recent' },
         { id: 'local', title: t('libraryV2.localMusic'), subtitle: t('libraryV2.tracks', { count: props.localSongs.length }), image: 'smartphone', action: 'local' },
     ] });
     sections.push(...sharedInsights.sections);

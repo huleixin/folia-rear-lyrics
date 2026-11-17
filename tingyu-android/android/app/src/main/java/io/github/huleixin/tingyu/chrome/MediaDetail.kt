@@ -127,9 +127,10 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
     Column(Modifier.padding(horizontal=18.dp)){
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(width<=370)12.dp else 16.dp)){
             val art=if(short)80.dp else (width*.31f).coerceIn(108f,140f).dp
-            Box(Modifier.size(art).liquidCover("",12.dp,destination=true).shadow(8.dp,RoundedCornerShape(12.dp),clip=false).background(LocalInterfacePalette.current.surface)){
-                // 封面阴影与 WebView .ml-playlist-cover（0 8px 24px）对齐。
-                AsyncImage(pageImage(cover.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
+            Box(Modifier.size(art).liquidCover("",12.dp,destination=true).shadow(8.dp,RoundedCornerShape(12.dp),clip=false).background(LocalInterfacePalette.current.surface), contentAlignment = Alignment.Center){
+                // 封面阴影与 WebView .ml-playlist-cover（0 8px 24px）对齐；空封面时展示统一图标兜底。
+                if (cover.image.isBlank()) PageIcon("clock", PageMuted, Modifier.size(36.dp))
+                else AsyncImage(pageImage(cover.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
             }
             Column(Modifier.weight(1f).liquidDetailContent(.12f)){
                 val font=if(short)18f else (width*.048f).coerceIn(18f,22f)

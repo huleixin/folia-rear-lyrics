@@ -33,7 +33,7 @@ import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/UnifiedCollapsingHeader.kt
-// 四个一级页面（推荐、资料库、搜索、设置）共享的统一折叠顶部栏系统与平台筛选栏。
+// 四个一级页面共享的统一折叠顶部栏与平台筛选栏：无硬分界线，单套平台入口平滑交接。
 
 internal object UnifiedHeaderTokens {
     val HorizontalPadding = 20.dp
@@ -53,10 +53,6 @@ internal object UnifiedHeaderTokens {
     val SnapEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 }
 
-/**
- * 监听 LazyListState 的真实滚动偏移量，计算连续折叠进度 [0f, 1f]，
- * 并在手势结束后以 200ms cubic-bezier(0.2, 0, 0, 1) 自动吸附（短列表不强制吸附）。
- */
 @Composable
 internal fun rememberCollapsingProgress(
     listState: LazyListState,
@@ -96,7 +92,6 @@ internal fun rememberCollapsingProgress(
                 wasScrolling = false
                 if (idx == 0 && offset > 0 && offset < rangePx) {
                     val p = offset / rangePx
-                    // 仅当后续内容足以支撑折叠状态时才向 1f 吸附，避免短列表跳动
                     val canCollapse = listState.canScrollForward || p < 0.5f
                     val target = if (canCollapse && (p >= 0.5f || (scrollingUp && p > 0.35f))) rangePx else 0f
                     val delta = target - offset
@@ -134,11 +129,7 @@ internal fun UnifiedHeaderIconButton(
         Modifier
             .size(UnifiedHeaderTokens.HeaderTouchSize)
             .clip(RoundedCornerShape(24.dp))
-            .clickable(
-                enabled = enabled,
-                role = Role.Button,
-                onClick = onClick
-            )
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center
     ) {
@@ -153,36 +144,37 @@ internal fun CompactPlatformDropdown(
     action: PageAction,
 ) {
     if (alpha <= 0.02f || section.items.isEmpty()) return
+    val palette = LocalInterfacePalette.current
     var open by remember { mutableStateOf(false) }
     val selected = section.items.firstOrNull { it.selected } ?: section.items.first()
     val interactive = alpha >= 0.5f
     Box(Modifier.graphicsLayer { this.alpha = alpha }) {
         Row(
             Modifier
-                .heightIn(min = 36.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(LocalInterfacePalette.current.subtle.copy(alpha = 0.85f))
+                .heightIn(min = 34.dp)
+                .clip(RoundedCornerShape(17.dp))
+                .background(palette.directorySelected.copy(alpha = 0.88f))
                 .then(
                     if (interactive) Modifier.clickable(role = Role.Button) { open = true }
                     else Modifier
                 )
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Text(
                 selected.title,
-                color = PageInk,
+                color = palette.accent,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            PageIcon("chevron-down", PageMuted, Modifier.size(14.dp))
+            PageIcon("chevron-down", palette.accent, Modifier.size(14.dp))
         }
         LiquidDropdown(expanded = open && interactive, onDismissRequest = { open = false }) {
-            val menuInk = LocalInterfacePalette.current.menuInk
-            val menuAccent = LocalInterfacePalette.current.accent
+            val menuInk = palette.menuInk
+            val menuAccent = palette.accent
             section.items.forEach { item ->
                 DropdownMenuItem(
                     text = {
@@ -208,9 +200,8 @@ internal fun CompactPlatformDropdown(
 }
 
 /**
- * 统一平台筛选栏（推荐页与资料库共享）：
- * 布局高度 48dp（满足最小触摸区），视觉高度 44dp，选中胶囊 36dp，14sp，字重 600，左右内边距 14dp，间距 8dp。
- * 选中项切换时自动滚动至可见区。
+ * 统一平台筛选栏（轻透冰川风格）：
+ * 选中项使用柔和 directorySelected 胶囊，未选中项保持透明轻盈，避免深色胶囊反客为主。
  */
 @Composable
 internal fun UnifiedPlatformFilterBar(
@@ -253,13 +244,13 @@ internal fun UnifiedPlatformFilterBar(
                     Modifier
                         .height(UnifiedHeaderTokens.PlatformPillHeight)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(if (selected) palette.selected else palette.subtle.copy(alpha = 0.65f))
+                        .background(if (selected) palette.directorySelected else Color.Transparent)
                         .padding(horizontal = UnifiedHeaderTokens.PlatformPillPaddingH),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         item.title,
-                        color = if (selected) palette.accent else PageInk.copy(alpha = 0.86f),
+                        color = if (selected) palette.accent else PageMuted,
                         fontSize = 14.sp,
                         lineHeight = 18.sp,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
@@ -273,8 +264,8 @@ internal fun UnifiedPlatformFilterBar(
 }
 
 /**
- * 统一折叠顶部栏：渲染在页面顶部（含 safeTop），展开/折叠高度连续插值，
- * 折叠态提供 92% 表面背景与 <=1dp 底部分割线（与 TyTopGlass 协同工作）。
+ * 统一折叠顶部栏：同色系自然过渡，无突兀横线；
+ * compactPlatformAlpha 仅在下方完整平台栏完全离开顶部视口后（p >= 0.85f）才平滑显示。
  */
 @Composable
 internal fun UnifiedCollapsingHeader(
@@ -285,6 +276,7 @@ internal fun UnifiedCollapsingHeader(
     collapsedHeightDp: Float,
     progress: Float,
     horizontalPadding: Dp = UnifiedHeaderTokens.HorizontalPadding,
+    headerBackgroundColor: Color = LocalInterfacePalette.current.backgrounds.first(),
     platformSection: NativePageSection? = null,
     action: PageAction,
     trailingActions: @Composable RowScope.() -> Unit = {},
@@ -295,14 +287,14 @@ internal fun UnifiedCollapsingHeader(
     val currentHeightDp = lerp(expandedHeightDp, collapsedHeightDp, p)
     val titleSize = lerp(UnifiedHeaderTokens.TitleExpandedSp, UnifiedHeaderTokens.TitleCollapsedSp, p).sp
     val titleWeight = if (p < 0.5f) FontWeight.Bold else FontWeight(650)
-    val subtitleAlpha = (1f - p / 0.6f).coerceIn(0f, 1f)
-    val compactPlatformAlpha = ((p - 0.6f) / 0.4f).coerceIn(0f, 1f)
-    val collapsedBgAlpha = ((p - 0.15f) / 0.55f).coerceIn(0f, 1f) * 0.92f
+    val subtitleAlpha = (1f - p / 0.55f).coerceIn(0f, 1f)
+    val compactPlatformAlpha = ((p - 0.85f) / 0.15f).coerceIn(0f, 1f)
+    val bgAlpha = if (p <= 0.02f) 0f else (0.75f + p * 0.21f).coerceIn(0f, 0.96f)
 
     Column(
         Modifier
             .fillMaxWidth()
-            .background(palette.surface.copy(alpha = collapsedBgAlpha))
+            .background(headerBackgroundColor.copy(alpha = bgAlpha))
     ) {
         Spacer(Modifier.height(safeTopDp.dp))
         Box(
@@ -363,13 +355,5 @@ internal fun UnifiedCollapsingHeader(
             }
         }
         bottomContent?.invoke(this)
-        if (p > 0.05f) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(0.8.dp)
-                    .background(palette.border.copy(alpha = 0.55f * ((p - 0.05f) / 0.4f).coerceIn(0f, 1f)))
-            )
-        }
     }
 }

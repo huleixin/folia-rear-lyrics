@@ -57,10 +57,10 @@ describe('V2 统一重构与核心修复回归门禁', () => {
         expect(settingsKt).toContain('UnifiedCollapsingHeader(');
 
         // 专属视觉色板与防重复图标
-        expect(artKt).toContain('0xFF193D59');
-        expect(artKt).toContain('0xFF35396F');
-        expect(artKt).toContain('0xFF805A43');
-        expect(artKt).toContain('0xFF245C61');
+        expect(artKt).toContain('0xFF1C3F5A');
+        expect(artKt).toContain('0xFF3B4272');
+        expect(artKt).toContain('0xFF514E4B');
+        expect(artKt).toContain('0xFF215157');
         expect(settingsKt).toContain('"discovery-settings" to "compass"');
         expect(settingsKt).toContain('"search-settings" to "search"');
         expect(settingsKt).toContain('"desktop-lyrics" to "monitor"');

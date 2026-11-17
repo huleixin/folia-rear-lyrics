@@ -388,11 +388,11 @@ internal fun NativeSearchPage(
         if (!pane && !headerOnly) TyTopGlassSurface(glass, colors)
         if (!pane) TyTopGlassForeground {
             val palette = LocalInterfacePalette.current
-            val headerBgAlpha = (collapse * 0.92f).coerceIn(0f, 0.92f)
+            val headerBgAlpha = if (collapse <= 0.02f) 0f else (0.75f + collapse * 0.21f).coerceIn(0f, 0.96f)
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(palette.surface.copy(alpha = headerBgAlpha))
+                    .background(colors.first().copy(alpha = headerBgAlpha))
                     .padding(top = page.safeTop.dp)
                     .onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) }
             ) {
@@ -475,9 +475,6 @@ internal fun NativeSearchPage(
 
                     page.sections.firstOrNull { it.id == "tabs" }?.let { section ->
                         NativeSourceTabs(section, Modifier.height(44.dp).padding(horizontal = horizontalPad), underline = true, action = action)
-                    }
-                    if (collapse > 0.1f) {
-                        Box(Modifier.fillMaxWidth().height(0.8.dp).background(palette.border.copy(alpha = 0.5f * collapse)))
                     }
                 }
             }

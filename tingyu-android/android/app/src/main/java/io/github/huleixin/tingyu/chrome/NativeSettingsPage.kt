@@ -135,6 +135,7 @@ internal fun NativeSettingsPage(page: NativePage, modifier: Modifier, action: Pa
                         collapsedHeightDp = 56f,
                         progress = collapseProgress,
                         horizontalPadding = inset,
+                        headerBackgroundColor = colors.first(),
                         action = action
                     )
                 }

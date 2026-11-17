@@ -108,7 +108,7 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
         val colors = page.surfaceColors()
         val bottomClearance = maxOf((page.bottomClearance + page.safeBottom).dp, with(LocalDensity.current) { LocalNativePageBottomPx.current.toDp() })
         val collapseProgress by if (isUnifiedLibrary && !searchExpanded) {
-            rememberCollapsingProgress(list, 16.dp, reduced)
+            rememberCollapsingProgress(list, 72.dp, reduced)
         } else {
             remember { mutableFloatStateOf(if (searchExpanded) 1f else 0f) }
         }
@@ -130,22 +130,13 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
 
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass, colors, ambientImage = null, ambientViewportHeight = null, modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    Modifier.fillMaxSize(),
-                    state = list,
-                    contentPadding = PaddingValues(
-                        top = if (searchExpanded) (page.safeTop + 56f).dp else contentTop,
-                        bottom = bottomClearance
-                    )
-                ) {
+                val listContent: LazyListScope.() -> Unit = {
                     if (isUnifiedLibrary && !searchExpanded) {
-                        // 第二行：平台筛选（随滚动离开）
                         if (platformSection != null) {
                             item(key = "library-sources") {
                                 UnifiedPlatformFilterBar(platformSection, Modifier.padding(top = 8.dp), horizontalPadding = start, action = action)
                             }
                         }
-                        // 第三行：三个快捷卡片（我喜欢的音乐、最近播放、本地音乐，随滚动离开）
                         if (shortcutsSection != null) {
                             item(key = "personal-shortcuts") {
                                 LibraryShortcutCards(
@@ -155,14 +146,12 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                 )
                             }
                         }
-                        // 第四行：分类及工具栏（滚动后吸顶至折叠标题栏下方，总高 56 + 48 = 104dp）
                         if (categoriesSection != null) {
                             stickyHeader(key = "library-toolbar-sticky") {
-                                val palette = LocalInterfacePalette.current
                                 Column(
                                     Modifier
                                         .fillMaxWidth()
-                                        .background(palette.surface.copy(alpha = 0.94f))
+                                        .background(colors.first())
                                 ) {
                                     LibraryCategoryToolbar(
                                         categories = categoriesSection,
@@ -172,7 +161,6 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                         horizontalPadding = start,
                                         action = action
                                     )
-                                    Box(Modifier.fillMaxWidth().height(0.8.dp).background(palette.border.copy(alpha = 0.45f)))
                                 }
                             }
                         }
@@ -245,74 +233,20 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                         }
                     }
                 }
-            }
-
-            // 顶部栏绘制区
-            if (isUnifiedLibrary) {
-                TyTopGlassForeground {
-                    if (searchExpanded && searchSection != null) {
-                        LibraryInlineSearchBar(
-                            safeTopDp = page.safeTop.toFloat(),
-                            section = searchSection,
-                            horizontalPadding = start,
-                            action = action,
-                            onClose = {
-                                searchExpanded = false
-                                if (searchSection.value.isNotEmpty()) action(searchSection.action, "", 0.0)
-                            }
-                        )
-                    } else if (isLocalLibrary) {
-                TyTopGlassSurface(glass, colors)
-                TyTopGlassForeground {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = (page.safeTop + 36).dp)
-                            .onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) }
-                    ) {
-                        AnimatedVisibility(
-                            visible = !searchExpanded,
-                            enter = expandVertically(tween(if (reduced) 0 else 240)),
-                            exit = shrinkVertically(tween(if (reduced) 0 else 240))
-                        ) {
-                            Column {
-                                Row(Modifier.padding(start = start + 4.dp, end = end + 4.dp, bottom = 16.dp).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    PageHeading(page, Modifier.weight(1f), large = true, action = action)
-                                    page.sections.firstOrNull { it.id == "library-tools" }?.let { tools ->
-                                        ChromeButton(tools.title, size = 40.dp, onClick = { action(tools.action, "", 0.0) }) { PageIcon("ellipsis-vertical", PageInk, Modifier.size(19.dp)) }
-                                    }
+                if (isUnifiedLibrary) {
+                    Column(Modifier.fillMaxSize()) {
+                        if (searchExpanded && searchSection != null) {
+                            LibraryInlineSearchBar(
+                                safeTopDp = page.safeTop.toFloat(),
+                                section = searchSection,
+                                horizontalPadding = start,
+                                action = action,
+                                onClose = {
+                                    searchExpanded = false
+                                    if (searchSection.value.isNotEmpty()) action(searchSection.action, "", 0.0)
                                 }
-                                page.sections.filter { it.layout == "chips" && it.id !in setOf("sort", "song-sort", "groups", "local-sections") }.forEach { section ->
-                                    NativeSourceTabs(section, Modifier.padding(start = start, end = end, bottom = 12.dp), action = action)
-                                }
-                                searchSection?.let { section ->
-                                    val songSort = page.sections.firstOrNull { it.id == "song-sort" }
-                                    Row(Modifier.padding(start = start, end = end, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Box(Modifier.weight(1f).pageAnchor(pageOrigin) { fieldRect = it }.chromeClickable(corner = 18.dp) { searchExpanded = true }) {
-                                            NativePageInput(section, action, passive = true)
-                                        }
-                                        if (songSort != null && songSort.items.isNotEmpty()) LibrarySortMenu(songSort, action)
-                                    }
-                                }
-                                val sort = page.sections.firstOrNull { it.id == "sort" }
-                                if (sort != null) Row(Modifier.fillMaxWidth().padding(start = start, end = end, bottom = 8.dp).heightIn(min = 34.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(sort.title, color = PageInk, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                                    if (sort.items.isNotEmpty()) PageSort(sort, action)
-                                }
-                            }
-                        }
-                    }
-                }
-                if (searchSection != null) NativeSearchOverlay(
-                    visible = searchExpanded,
-                    section = searchSection,
-                    action = action,
-                    safeTop = page.safeTop,
-                    origin = fieldRect,
-                    onRequestClose = { searchExpanded = false }
-                )
-            } else {
-                        Box(Modifier.onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) }) {
+                            )
+                        } else {
                             UnifiedCollapsingHeader(
                                 title = page.title,
                                 safeTopDp = page.safeTop.toFloat(),
@@ -320,6 +254,7 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                 collapsedHeightDp = collapsedHeaderDp,
                                 progress = collapseProgress,
                                 horizontalPadding = start,
+                                headerBackgroundColor = colors.first(),
                                 platformSection = platformSection,
                                 action = action,
                                 trailingActions = {
@@ -338,9 +273,24 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                 }
                             )
                         }
+                        LazyColumn(
+                            Modifier.weight(1f).fillMaxWidth(),
+                            state = list,
+                            contentPadding = PaddingValues(bottom = bottomClearance),
+                            content = listContent
+                        )
                     }
+                } else {
+                    LazyColumn(
+                        Modifier.fillMaxSize(),
+                        state = list,
+                        contentPadding = PaddingValues(top = contentTop, bottom = bottomClearance),
+                        content = listContent
+                    )
                 }
-            } else if (isLocalLibrary) {
+            }
+
+            if (!isUnifiedLibrary && isLocalLibrary) {
                 TyTopGlassSurface(glass, colors)
                 TyTopGlassForeground {
                     Column(
@@ -390,7 +340,7 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                     origin = fieldRect,
                     onRequestClose = { searchExpanded = false }
                 )
-            } else {
+            } else if (!isUnifiedLibrary) {
                 TyTopGlassSurface(glass, colors)
                 TyTopGlassForeground {
                     Column(
@@ -436,7 +386,7 @@ private fun LibraryShortcutCards(section: NativePageSection, modifier: Modifier 
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                PageIcon(item.image.ifBlank { "music2" }, palette.accent, Modifier.size(22.dp))
+                PageIcon(item.image.ifBlank { if (item.id == "recent") "clock" else "music2" }, palette.accent, Modifier.size(22.dp))
                 Spacer(Modifier.height(6.dp))
                 Text(item.title, color = PageInk, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (item.subtitle.isNotBlank()) {

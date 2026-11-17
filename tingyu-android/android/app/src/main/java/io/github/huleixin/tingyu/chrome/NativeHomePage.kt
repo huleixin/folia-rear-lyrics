@@ -53,7 +53,7 @@ import kotlinx.coroutines.launch
         val colors=page.surfaceColors()
         val headerTop=if(short)8 else if(discovery)12 else 36
         val list = rememberLazyListState()
-        val collapseProgress by if (discovery) rememberCollapsingProgress(list, 32.dp, LocalLiquidReduced.current) else remember { mutableFloatStateOf(0f) }
+        val collapseProgress by if (discovery) rememberCollapsingProgress(list, 88.dp, LocalLiquidReduced.current) else remember { mutableFloatStateOf(0f) }
         val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+(if(discovery)88f else headerTop+(if(short)60 else 72)+6f))
         val platformSection = if (discovery) sections.firstOrNull { it.id == "discovery-sources" } else null
         val contentTopPadding = if (discovery) (page.safeTop + 88f).dp else glass.contentTop
@@ -256,6 +256,7 @@ import kotlinx.coroutines.launch
                             collapsedHeightDp = 56f,
                             progress = collapseProgress,
                             horizontalPadding = start,
+                            headerBackgroundColor = colors.first(),
                             platformSection = platformSection,
                             action = action,
                             trailingActions = {
