@@ -63,7 +63,7 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
     val focusManager=androidx.compose.ui.platform.LocalFocusManager.current
     fun closeSearch(){focusManager.clearFocus();searchExpanded=false}
     LaunchedEffect(filterSection!=null){searchExpanded=filterSection!=null}
-    BackHandler(enabled=searchExpanded){closeSearch()}
+    BackHandler(enabled=!LocalWebOverlayActive.current&&searchExpanded){closeSearch()}
     val headerItems=1
     val currentVisible by remember(tracks.activeIndex,headerItems){derivedStateOf{list.layoutInfo.visibleItemsInfo.any{it.index==tracks.activeIndex+headerItems}}}
     val pageDensity=LocalDensity.current

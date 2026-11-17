@@ -29,6 +29,7 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
     const providers = omni.getProviderSummaries();
     const fromIndex = useSettingsModalStore(s => s.settingsModalState.returnToIndex);
     const [closing, setClosing] = useState(false);
+    const closingRef = useRef(false);
     const closedRef = useRef(false);
     const commitBack = useCallback(() => {
         if (closedRef.current) return;
@@ -37,6 +38,8 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
         else onClose();
     }, [fromIndex, onClose]);
     const back = useCallback(() => {
+        if (closingRef.current || closedRef.current) return;
+        closingRef.current = true;
         if (reduced) {
             commitBack();
             return;
@@ -45,6 +48,12 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
     }, [reduced, commitBack]);
     const finishClose = useCallback(() => {
         if (closing) commitBack();
+    }, [closing, commitBack]);
+
+    useEffect(() => {
+        if (!closing) return;
+        const timer = setTimeout(commitBack, Math.round(TY_DURATION.panelExit * 1000) + 80);
+        return () => clearTimeout(timer);
     }, [closing, commitBack]);
 
     const [managingId, setManagingId] = useState<OnlineProviderId | null>(null);

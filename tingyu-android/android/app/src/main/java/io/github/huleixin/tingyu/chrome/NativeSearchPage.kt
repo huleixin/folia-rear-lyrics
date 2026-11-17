@@ -65,7 +65,7 @@ internal fun NativeSearchPage(
     var confirmClearHistory by remember { mutableStateOf(false) }
 
     // 返回键：若处于输入聚焦且无菜单，先退出输入态恢复展开大标题
-    BackHandler(enabled = !menu && inputFocused && !hasQuery) {
+    BackHandler(enabled = !LocalWebOverlayActive.current && !menu && inputFocused && !hasQuery) {
         focusManager.clearFocus()
     }
 

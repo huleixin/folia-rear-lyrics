@@ -83,7 +83,8 @@ internal fun SettingsFlowPage(
     androidx.compose.runtime.SideEffect { if (flow.modal != null) retainedModal.value = flow.modal }
     val colors = page.surfaceColors()
     // 返回：更内层的面板/弹层各自有 BackHandler，会先吃掉；到这里才是退设置分区。
-    BackHandler(enabled = true) { action(if (flow.modal != null) "dismiss" else "back", "", 0.0) }
+    // 当 WebView 覆盖层（如音乐平台账号页）处于前台时，不得拦截系统返回手势。
+    BackHandler(enabled = !LocalWebOverlayActive.current) { action(if (flow.modal != null) "dismiss" else "back", "", 0.0) }
     val density = LocalDensity.current
     val cutouts = remember(flow.key) { SettingsPreviewCutouts() }
     val live = LocalSettingsTraceIdentity.current.liveEnabled

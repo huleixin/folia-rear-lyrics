@@ -62,6 +62,7 @@ import kotlin.math.roundToInt
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
+internal val LocalWebOverlayActive = compositionLocalOf { false }
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
     private val playerStyles = io.github.huleixin.tingyu.minimal.style.PlayerStyleController(web.context)
     var playerStyleListener: ((String) -> Unit)? = null
@@ -1149,7 +1150,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     }else{
                     val coverRoute=NativeMotionPolicy.pageRouteKey(shown.key)
                     val coverDestination=remember(coverRoute){coverSelection.enter(coverRoute,backwards)}
-                    CompositionLocalProvider(LocalCoverScope provides CoverScope(sharedScope,this,coverRoute,coverSelection,coverDestination),LocalDetailReveal provides rememberDetailReveal(this)) {
+                    CompositionLocalProvider(
+                        LocalWebOverlayActive provides webOverlay,
+                        LocalCoverScope provides CoverScope(sharedScope,this,coverRoute,coverSelection,coverDestination),
+                        LocalDetailReveal provides rememberDetailReveal(this)
+                    ) {
                     // 页面实例与保存态都按**路由**归并：同一路由的模型更新只重组，不换实例、
                     // 不丢滚动位置；LRU 记账也按路由，避免模型 key 每次变化都把状态挤出去。
                     val shownRoute=NativeMotionPolicy.pageRouteKey(shown.key)

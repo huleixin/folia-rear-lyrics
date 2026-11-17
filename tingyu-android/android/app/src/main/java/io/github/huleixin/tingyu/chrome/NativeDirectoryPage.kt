@@ -82,7 +82,7 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
     var searchExpanded by remember(page.key) { mutableStateOf(false) }
     val searchSection = if (footprint) null else page.sections.firstOrNull { it.layout == "input" }
 
-    BackHandler(enabled = searchExpanded) {
+    BackHandler(enabled = !LocalWebOverlayActive.current && searchExpanded) {
         searchExpanded = false
         if (searchSection != null && searchSection.value.isNotEmpty()) {
             action(searchSection.action, "", 0.0)
