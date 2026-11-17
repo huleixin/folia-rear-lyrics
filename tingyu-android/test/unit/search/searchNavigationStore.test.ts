@@ -3,6 +3,7 @@ import { resolveCommandPaletteSearchSource, useSearchNavigationStore } from '@/s
 import { neteaseApi } from '@/services/netease';
 import { getNavidromeConfig, navidromeApi } from '@/services/navidromeService';
 import type { LocalLibraryAssignment, LocalLibraryEntity } from '@/types/localLibrary';
+import { useOnlineProviderAccountStore } from '@/stores/useOnlineProviderAccountStore';
 
 vi.mock('@/services/netease', () => ({
     neteaseApi: {
@@ -354,17 +355,29 @@ describe('useSearchNavigationStore', () => {
         expect(useSearchNavigationStore.getState().hasMore).toBe(false);
     });
 
-    it('moves the online source to the active provider without clearing results', () => {
+    it('preserves the selected search source and results when the global provider changes', () => {
         const results = [{ id: 1, name: 'Kept' }] as any;
         useSearchNavigationStore.setState({ searchSourceTab: 'netease', searchResults: results, searchQuery: 'q' });
 
         useSearchNavigationStore.getState().followOnlineProvider('folium.mod-a.source');
 
         expect(useSearchNavigationStore.getState()).toMatchObject({
-            searchSourceTab: 'folium.mod-a.source',
+            searchSourceTab: 'netease',
             searchResults: results,
             searchQuery: 'q',
         });
+    });
+
+    it('invalidates only relevant account access changes, retaining results after collection edits', () => {
+        const account = { user: { id: 1 }, status: 'authenticated', hydration: 'ready', collections: [] } as any;
+        useOnlineProviderAccountStore.setState({ accounts: { netease: account } });
+        const results = [{ id: 1, name: 'Kept' }] as any;
+        useSearchNavigationStore.setState({ searchSourceTab: 'netease', searchResults: results, searchQuery: 'q' });
+        useOnlineProviderAccountStore.setState({ accounts: { netease: { ...account, collections: [{ id: 3 }] }, qq: { ...account, user: { id: 5 } } } as any });
+        expect(useSearchNavigationStore.getState().searchResults).toBe(results);
+        useOnlineProviderAccountStore.setState({ accounts: { netease: { ...account, user: { id: 2 } } } as any });
+        expect(useSearchNavigationStore.getState().searchResults).toBeNull();
+        expect(useSearchNavigationStore.getState().searchCache).toEqual({});
     });
 
     it('leaves a local or Navidrome source alone when the active provider changes', () => {

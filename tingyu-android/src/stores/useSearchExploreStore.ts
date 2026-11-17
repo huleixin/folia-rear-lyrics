@@ -1,4 +1,7 @@
-import { searchRequestBudget } from '../services/search/searchRequestBudget';
+import { searchSources, appendSourceResults, type SourcePages } from '../services/search/aggregateSearch';
+import { aggregateSearchSources } from './useSearchSettingsStore';
+import { providerSearchScopeKey } from '../services/onlineMusic/providerResourceScope';
+import { useOnlineProviderAccountStore } from './useOnlineProviderAccountStore';
 import { create } from 'zustand';
 import type { OnlineProviderId } from '../types/onlineMusic';
 import type { LocalPlaylist } from '../types';
@@ -19,6 +22,7 @@ export type ExploreKind = 'artist' | 'album' | 'playlist';
 export type ExploreStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface ExploreCategory<T> {
+    sourcePages?: SourcePages<T>;
     items: T[];
     status: ExploreStatus;
     hasMore: boolean;
@@ -44,7 +48,6 @@ interface ExploreState {
     loadMore: (kind: ExploreKind, deps: ExploreDeps) => Promise<void>;
 }
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const fetchCategory = async (
     kind: ExploreKind,
@@ -74,6 +77,7 @@ const fetchCategory = async (
 const isExploreKind = (value: string): value is ExploreKind => value === 'artist' || value === 'album' || value === 'playlist';
 
 export const useSearchExploreStore = create<ExploreState>((set, get) => {
+    let controller = new AbortController();
     const apply = (kind: ExploreKind, patch: Partial<ExploreCategory<any>>) => set(state => {
         const key = kind === 'artist' ? 'artists' : kind === 'album' ? 'albums' : 'playlists';
         return { [key]: { ...state[key], ...patch } } as Pick<ExploreState, typeof key>;
@@ -87,19 +91,25 @@ export const useSearchExploreStore = create<ExploreState>((set, get) => {
         if (current.status === 'loading') return;
         if (append && !current.hasMore && current.status !== 'error') return;
         if (current.status === 'error' && current.items.length === 0) append = false;
-        const offset = append ? current.offset : 0;
         apply(kind, { status: 'loading', error: null, ...(append ? {} : { items: [], hasMore: false, offset: 0 }) });
-        try {
-            const page = await searchRequestBudget(signal => fetchCategory(kind, source, query, deps, offset, signal));
-            if (get().generation !== generation) return; // 关键词 / 音源已变，丢弃旧响应
-            const latest = get()[key] as ExploreCategory<any>;
-            const items = append ? [...latest.items, ...page.items] : page.items;
-            apply(kind, { items, status: 'ready', hasMore: page.hasMore, offset: page.nextOffset, error: null });
-        } catch (error) {
-            if (get().generation !== generation) return;
-            console.warn(`[SearchExplore:${source}:${kind}]`, error);
-            apply(kind, { status: 'error', error: errorText(error) });
-        }
+        const sources = (source === 'aggregate' ? aggregateSearchSources() : [source]).filter(id => exploreCapabilities(id)[kind]);
+        const scope = providerSearchScopeKey(sources), signal = controller.signal;
+        await searchSources<SearchArtistHit | SearchAlbumHit | SearchPlaylistHit>({ sources, signal,
+            previous: append ? current.sourcePages : undefined,
+            valid: () => get().generation === generation && providerSearchScopeKey(sources) === scope,
+            key: hit => hit.providerId + ':' + hit.id,
+            fetch: (id, position, child) => fetchCategory(kind, id, query, deps, position, child),
+            publish: pages => {
+                const latest = get()[key] as ExploreCategory<any>;
+                const items = appendSourceResults(latest.items, pages, hit => hit.providerId + ':' + hit.id);
+                const pending = Object.values(pages).some(page => page.status === 'loading');
+                const failed = Object.values(pages).filter(page => page.status === 'error');
+                const error = failed.length === sources.length && failed.length > 0 ? failed[0].error : null;
+                apply(kind, { items, sourcePages: pages, status: pending ? 'loading' : error ? 'error' : 'ready', error,
+                    hasMore: Object.values(pages).some(page => page.hasMore || page.status === 'error'),
+                    offset: Object.values(pages).reduce((sum, page) => sum + page.offset, 0) });
+            },
+        });
     };
 
     return {
@@ -109,11 +119,12 @@ export const useSearchExploreStore = create<ExploreState>((set, get) => {
         albums: idleCategory<SearchAlbumHit>(),
         playlists: idleCategory<SearchPlaylistHit>(),
         generation: 0,
-        reset: () => set(state => ({
+        reset: () => { controller.abort(); controller = new AbortController(); set(state => ({
             query: '', source: null, generation: state.generation + 1,
             artists: idleCategory<SearchArtistHit>(), albums: idleCategory<SearchAlbumHit>(), playlists: idleCategory<SearchPlaylistHit>(),
-        })),
+        })); },
         submit: async ({ query, source, deps }) => {
+            controller.abort(); controller = new AbortController();
             const trimmed = query.trim();
             const generation = get().generation + 1;
             set({
@@ -137,6 +148,10 @@ export const useSearchExploreStore = create<ExploreState>((set, get) => {
 
 /** 每个来源在当前实现里真实支持哪些分类，供分类栏与空状态使用。 */
 export const exploreCapabilities = (source: SearchSource): Record<ExploreKind, boolean> => {
+    if (source === 'aggregate') {
+        const capabilities = aggregateSearchSources().map(exploreCapabilities);
+        return { artist: capabilities.some(c => c.artist), album: capabilities.some(c => c.album), playlist: capabilities.some(c => c.playlist) };
+    }
     // 本地：歌单目录可直接搜；歌手 / 专辑的实体页需要从曲库分配表反查歌曲，本轮没有接，避免打开空页。
     if (source === 'local') return { artist: false, album: false, playlist: true };
     if (source === 'navidrome') return { artist: true, album: true, playlist: false };
@@ -145,5 +160,13 @@ export const exploreCapabilities = (source: SearchSource): Record<ExploreKind, b
 };
 
 export const sourceSupportsSuggestions = (source: SearchSource): boolean => (
-    source !== 'local' && source !== 'navidrome' && omni.getSearchCapabilities(source as OnlineProviderId).suggest
+    source === 'aggregate' ? aggregateSearchSources().some(sourceSupportsSuggestions)
+        : source !== 'local' && source !== 'navidrome' && omni.getSearchCapabilities(source as OnlineProviderId).suggest
 );
+
+useOnlineProviderAccountStore.subscribe((state, before) => {
+    const source = useSearchExploreStore.getState().source;
+    if (!source) return;
+    const sources = source === 'aggregate' ? aggregateSearchSources() : [source];
+    if (providerSearchScopeKey(sources, state.accounts) !== providerSearchScopeKey(sources, before.accounts)) useSearchExploreStore.getState().reset();
+});

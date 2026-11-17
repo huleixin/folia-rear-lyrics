@@ -16,7 +16,7 @@ import { useOnlineProviderAccountStore } from '@/stores/useOnlineProviderAccount
 
 // test/unit/search/searchPresentation.test.ts
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string, args?: { query?: string }) => args?.query ? `${key}:${args.query}` : key }) }));
-vi.mock('@/services/onlineMusic/omni', () => ({ omni: { subscribeProviders:()=>()=>{},getProviderRegistryVersion:()=>0,getProviderSummaries:()=>[],getProviderLabel: () => 'QQ音乐', getSearchCapabilities: () => ({ song: true, artist: true, album: true, playlist: true, suggest: true }), getSearchDiscovery: async () => ({ suggestions: [], hot: Array.from({ length: 16 }, (_, index) => `真实测试样本${index + 1}`) }) } }));
+vi.mock('@/services/onlineMusic/omni', () => ({ omni: { subscribeProviders:()=>()=>{},getProviderRegistryVersion:()=>0,getProviderSummaries:()=>[{providerId:'qq',availability:{configured:true}}],getProviderLabel: () => 'QQ音乐', getSearchCapabilities: () => ({ song: true, artist: true, album: true, playlist: true, suggest: true }), getSearchDiscovery: async () => ({ suggestions: [], hot: Array.from({ length: 16 }, (_, index) => `真实测试样本${index + 1}`) }) } }));
 vi.mock('@/services/onlineMusic/catalogRefs', () => ({ canResolveSongCatalogRef: () => true }));
 vi.mock('framer-motion', async importOriginal => {
     const actual = await importOriginal<typeof import('framer-motion')>();

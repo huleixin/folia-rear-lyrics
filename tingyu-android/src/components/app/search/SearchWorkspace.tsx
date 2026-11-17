@@ -26,7 +26,8 @@ import { useVisualViewport } from './useVisualViewport';
 import { buildSearchCollectionDescriptor } from './searchCollectionOpen';
 import { useCollectionNavigationStore } from '../../../stores/useCollectionNavigationStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
-import { resolveHomeSearchSource, selectHomeSearchSource } from '../../../stores/useHomeSourceStore';
+import { searchableSources } from '../../../stores/useSearchSettingsStore';
+import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
 import type { LibraryAccountController } from '../../../library/core/contracts/account';
 import { useSearchHistoryStore } from '../../../stores/useSearchHistoryStore';
 import { omni } from '../../../services/onlineMusic/omni';
@@ -109,17 +110,13 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const { artists, albums, playlists } = useSearchExploreStore(useShallow(state => ({
         artists: state.artists, albums: state.albums, playlists: state.playlists,
     })));
-    const activeOnlineProviderId = useOnlineProviderAccountStore(state => state.activeProviderId);
+    const localOnly = useHomeSourceStore(state => state.source === 'local');
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
     const registryVersion = useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion, () => 0);
-    const sources = useMemo<SearchSource[]>(() => [...new Set<SearchSource>([
-        activeOnlineProviderId,
-        ...omni.getProviderSummaries().filter(provider => provider.providerId.startsWith('lx-') && provider.availability.configured).map(provider => provider.providerId),
-        'local', 'navidrome',
-    ])], [activeOnlineProviderId, registryVersion]);
+    const sources = useMemo<SearchSource[]>(() => localOnly ? ['local'] : ['aggregate', ...searchableSources(), 'navidrome'], [registryVersion, localOnly]);
     useEffect(() => {
-        if (!sources.includes(searchSourceTab)) useSearchNavigationStore.getState().selectSearchSource(activeOnlineProviderId);
-    }, [sources, searchSourceTab, activeOnlineProviderId]);
+        if (!sources.includes(searchSourceTab)) useSearchNavigationStore.getState().selectSearchSource(localOnly ? 'local' : 'aggregate');
+    }, [sources, searchSourceTab, localOnly]);
     const capabilities = useMemo(() => exploreCapabilities(searchSourceTab), [searchSourceTab, registryVersion]);
     const viewport = useVisualViewport();
     const sourceNeedsSetup = searchSourceTab === 'navidrome' && !getNavidromeConfig();
@@ -135,7 +132,6 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     useEffect(() => {
         if (!isSearchOpen) { useSearchExploreStore.getState().reset(); setFloatingMenuSong(null); return; }
         const snapshot = useSearchNavigationStore.getState();
-        if(!snapshot.searchQuery.trim())selectHomeSearchSource(resolveHomeSearchSource());
         setMode(!snapshot.searchQuery.trim() ? 'landing' : snapshot.searchResults || snapshot.isSearching ? 'results' : 'suggest');
         setTab('overview');
     }, [isSearchOpen]);
@@ -172,29 +168,16 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         inputRef.current?.blur();
     }, [deps, onSubmitSearch, setSearchQuery]);
 
-    const sourceSwitch=useRef(0);
-    useEffect(()=>()=>{sourceSwitch.current++},[]);
-    const switchSource = useCallback(async (source: SearchSource) => {
+    const switchSource = useCallback((source: SearchSource) => {
         if (source === useSearchNavigationStore.getState().searchSourceTab) return;
-        const revision=++sourceSwitch.current;
-        const snapshot=useSearchNavigationStore.getState();
-        const query=snapshot.searchQuery.trim();
-        if(source!=='local'&&source!=='navidrome'&&source!==useOnlineProviderAccountStore.getState().activeProviderId){
-            // Use the existing confirmation/cleanup owner, never mutate provider identity directly.
-            if(!account)return;
-            const result=await account.requestSwitch(source);
-            if(result.status!=='switched'||revision!==sourceSwitch.current)return;
-            useSearchNavigationStore.getState().restoreSearch({query,sourceTab:source,returnView:snapshot.searchReturnView});
-        }
-        selectHomeSearchSource(source);
+        const query = useSearchNavigationStore.getState().searchQuery.trim();
+        useSearchNavigationStore.getState().selectSearchSource(source);
         useSearchExploreStore.getState().reset();
         setTab('overview');
-        if (!query || mode !== 'results') {
-            return;
-        }
+        if (!query || mode !== 'results') return;
         onSubmitSearch(source);
         if (source !== 'navidrome' || getNavidromeConfig()) void useSearchExploreStore.getState().submit({ query, source, deps });
-    }, [account, deps, mode, onSubmitSearch]);
+    }, [deps, mode, onSubmitSearch]);
 
     const openHit = useCallback((kind: 'artist' | 'album' | 'playlist', hit: SearchArtistHit | SearchAlbumHit | SearchPlaylistHit) => {
         const descriptor = buildSearchCollectionDescriptor(kind, hit, localPlaylists);
@@ -202,6 +185,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     }, [localPlaylists, onOpenSearchCollection]);
 
     const getSourceLabel = (source: SearchSource) => {
+        if (source === 'aggregate') return t('search.sourceAggregate', { defaultValue: '综合搜索' });
         if (source === 'local') return t('search.sourceLocal');
         if (source === 'navidrome') return t('search.sourceNavidrome');
         return omni.getProviderLabel(source);

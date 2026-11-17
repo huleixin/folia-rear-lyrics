@@ -1009,7 +1009,8 @@ export function usePlaybackQueueController({
             returnView: searchReturnView,
         });
 
-        if (didSearch) {
+        if (didSearch && useSearchNavigationStore.getState().searchQuery === trimmedQuery
+            && useSearchNavigationStore.getState().searchSourceTab === sourceTab) {
             navigateToSearch({
                 query: trimmedQuery,
                 sourceTab,
