@@ -368,6 +368,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var settingsRootRequested by mutableStateOf(false)
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
+    private var lastPrimaryTab by mutableIntStateOf(0)
     private var collectionDetail by mutableStateOf(false)
     private var browsingFooter by mutableStateOf(NativeFooterRoute())
     private var settingsFromStage by mutableStateOf(false)
@@ -481,7 +482,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             minimalCurrentPage=minimalLastPage
         }
         minimalLyricsKeepOnEnabled=value.optBoolean("minimalLyricsKeepOn")
-        destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        val nextSelectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        lastPrimaryTab=NativeFooterLayout.nextPrimaryTab(next,nextSelectedTab,lastPrimaryTab)
+        destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=nextSelectedTab
         settingsRootRequested=value.optBoolean("settingsRoot",false)
         StartupTrace.detail("route-commit"){
             put("from",from);put("to",next);put("overlay",webOverlay);put("tab",selectedTab)
@@ -1245,14 +1248,21 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 做法：mini 消失后保留它上一帧的数据 170ms 只做透明度收尾；位置仍由
             // chromeFooterRect 算，所以不会上下跳；节点不重建，玻璃图层也不重分配。
             // 只在 settings 生效 —— 舞台/详情/启动期完全走原来的路径，不碰既有的闪烁修复。
+            val resolvedNavSelection = NativeFooterLayout.navSelection(
+                destination = destination,
+                browsingRoute = browsingRoute,
+                primaryTab = lastPrimaryTab,
+                selectedTab = selectedTab,
+                startupSelected = startupSelected,
+            )
             val liveById = visible.associateBy { it.id }.toMutableMap()
             for(id in listOf("nav","mini","stage")) key(id) {
                 val live = liveById[id]
-                val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,selectedTab,startupSelected,firstHomeFrame,destination,webOverlay,collectionDetail) {
+                val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,resolvedNavSelection,firstHomeFrame,destination,webOverlay,collectionDetail) {
                     if(live!=null) null
                     else if(ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome) &&
                         NativeFooterLayout.visible(id,destination,collectionDetail,width,settingsRoot=settingsRoot))
-                        cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=startupSelected?:selectedTab)else it}
+                        cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=resolvedNavSelection)else it}
                     else null
                 }
                 val miniStageOpacity = remember(immersiveStyle,immersiveMorph,minimalMorph,playerReveal) { derivedStateOf {
@@ -1269,7 +1279,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if (original != null) {
                 if(id=="nav"&&live!=null)SideEffect{lastSettingsNav=live;retainedFooter["nav"]=live}
                 if(id=="mini"&&live!=null)SideEffect{retainedFooter["mini"]=live}
-                val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
+                val navSelection = resolvedNavSelection
                 val surface = original.interfacePaint(palette)
                     .let{if(id=="nav")it.copy(vertical=width>=840f,selected=navSelection,disabled=NativeFooterLayout.imeHides(id,width,footerHiddenForIme)||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
@@ -1348,11 +1358,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             }
                             if(surface.id=="nav"&&action=="navigate"){
                                 navigationActionSerial++;clearStartupNavigation()
-                                destination=when(value.toInt()){2->"search";3->"settings";else->"home"}
+                                val nextIdx=value.toInt().coerceIn(0,3)
+                                destination=when(nextIdx){2->"search";3->"settings";else->"home"}
                                 settingsRootRequested=destination=="settings"
                                 syncWebBackground()
-                                if(value.toInt() in 0..1)selectedTab=value.toInt()
-                                pageTarget=if(destination=="settings")"settings:index"else"";entryKey=pageTarget;resolvePage()
+                                if(nextIdx in 0..1)selectedTab=nextIdx
+                                lastPrimaryTab=NativeFooterLayout.nextPrimaryTab(destination,selectedTab,lastPrimaryTab)
+                                pageTarget=if(destination=="settings")"settings:index"else"";entryKey=pageTarget
+                                browsingFooter=browsingFooter.follow(destination,false,pageTarget)
+                                resolvePage()
                             }
                             listener.onAction(surface.id,surface.session,action,value)
                         }

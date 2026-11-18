@@ -55,8 +55,8 @@ flowchart TB
 | **管理中心主入口** | `https://feedback.20262000.xyz/admin` | 桌面端、平板端、手机端响应式后台及可安装 PWA 入口 |
 | **Worker 备用入口** | `https://tingyu-feedback-api.2473297053.workers.dev/admin` | 主自定义域名 DNS 波动时的固定同源回退地址 |
 | **公开实时策略接口** | `https://feedback.20262000.xyz/api/public/update/:channel` | 返回经 ECDSA-P256 签名的最新渠道策略（`stable` / `testing`） |
-| **Worker 服务名称** | `tingyu-feedback-api` | 无服务器边缘路由、PoW 校验、会话鉴权与策略签名 |
-| **D1 数据库** | `tingyu-feedback-db` (Binding: `DB`) | `0001_feedback.sql` + `0002_metrics.sql` + `0003_release_console.sql` |
+| **Worker 服务名称** | `tingyu-feedback-api` | 无服务器边缘路由、PoW 校验、会话鉴权、策略签名与每 30 分钟 Cron 自动巡检 (`*/30 * * * *`) |
+| **D1 数据库** | `tingyu-feedback-db` (Binding: `DB`) | `0001_feedback.sql` + `0002_metrics.sql` + `0003_release_console.sql` + `0004_telemetry_and_downloads.sql` |
 | **私有 R2 存储桶** | `tingyu-feedback` (Binding: `LOGS_BUCKET`) | 仅通过 Worker 鉴权读取并校验 SHA-256 的脱敏诊断日志 |
 | **部署命令** | `python tools/deploy_feedback.py --confirmed-remote-deployment` | 自动执行 D1 增量迁移、通过 `stdin` 注入 DPAPI 密钥并发布 Worker |
 
@@ -122,3 +122,26 @@ flowchart TB
 | **Cloudflare R2** | Free Plan | 10 GB 存储 / 月 | 代码级硬限额 `STORAGE_LIMIT_BYTES = 256MB`（当前仅 ~7.5MB），零超额风险 | **¥0 / 月** |
 | **GitHub Releases** | 公开仓库免费档 | 静态文件与 Release 附件免费 | 仅作为备用下载源与代码托管 | **¥0 / 月** |
 | **AI 自动化能力** | 本地已有 Codex / WorkBuddy | 零云端付费 LLM API 调用 | 后台生成结构化本地 CLI 指令，不调用任何按量计费模型 API | **¥0 / 月** |
+
+---
+
+## 7. 运营数据统计、下载节点巡检与 D1 额度熔断设计（0004 迁移）
+
+### 7.1 新增数据表与存储策略（零无限追加）
+- `release_download_stats`：按版本 Tag 存储官方 Release `.apk` 附件信息与已知下载次数。GitHub 官方 `assets[].download_count` 自动同步；CNB OpenAPI 暂未开放附件 `download_count` 字段时，`cnb_downloads` 诚实保持 `NULL`（管理后台展示「暂无统计数据」，绝不伪造为 `0`），同时单独统计客户端软件内更新经 `cnb-primary` 与 `github-backup` 完成下载的真实次数。
+- `release_download_snapshots`：按日（北京时间 `YYYY-MM-DD`）记录各版本已知累计下载快照（保留近 180 天），用于计算真实今日新增、昨日、近 7 天及近 30 天增量；无前序快照的日期返回 `null`，绝不编造历史曲线。
+- `telemetry_devices`：每台主动开启「匿名使用统计」的设备仅占 **1 行**（主键为服务端加盐不可逆 SHA-256 哈希 `device_hash`，覆盖安装保持同一 UUIDv4 安装编号不变）。
+- `telemetry_device_days`：每台设备每天至多 1 行去重活跃记录，保留近 45 天用于精确计算 7 日/30 日活跃及次日/7 日留存率，超期由 Cron 自动归档清理。
+- `telemetry_daily_rollups` / `telemetry_monthly_rollups` / `telemetry_update_rollups`：永久小体积日度/月度活跃留存聚合表与更新漏斗聚合表（记录下载发起、下载成功、下载失败、SHA-256 校验失败及**覆盖安装后新版实际首次冷启动确认数**）。
+
+### 7.2 下载节点五态巡检机制
+- 巡检触发：部署后首次打开后台自动探测、Worker 每 30 分钟 Cron 自动巡检、新版本签发发布即时回写、后台一键手动立即检测。
+- 探测方式：日常采用 `Range: bytes=0-0` 校验非 HTML 二进制响应、HTTP 200/206 状态码与 `Content-Range` 总字节长度；正式发布前由 `release-cli verify` 执行完整 APK 下载与 SHA-256 硬核验。
+- 标准五态：`正常`、`异常`、`检测中`、`待配置`、`数据过期`（超过 2 小时未刷新）。
+
+### 7.3 不同用户规模下的 Cloudflare Free 额度消耗评估与熔断保护
+- **客户端低功耗模型**：默认关闭（Opt-In）；开启后仅在冷启动上报 1 次，前台使用或后台播放音乐期间默认每 10 分钟上报 1 次（8 分钟内服务端内存级去重零写入），退后台且未播放音乐时立即停止协程。按开启统计的用户日均活跃收听 2 小时估算，单台设备日均仅产生约 `12~14` 次请求、约 `13` 次 D1 行写入。
+- **100 日活开启设备**：约 `1,300` 次请求/天（占 Worker 10万/天免费额度的 **1.3%**），D1 写入约 `1,400` 行/天（占 10万写入/天免费额度的 **1.4%**）。
+- **1,000 日活开启设备**：约 `13,000` 次请求/天（**13%**），D1 写入约 `14,000` 行/天（**14%**）。
+- **5,000 日活开启设备**：原生请求约 `65,000` 次/天；当当日统计写入达到独立预算（默认 `40,000` 次/天，仅为 D1 免费上限的 40%）的 **70%（28,000 次）** 时，服务端自动下发 `nextIntervalSec = 1800`（平滑降频至 30 分钟/次）；达到 **90%（36,000 次）** 时自动熔断暂停当日统计写入，100% 保障软件内更新检查、版本发布、用户反馈与后台鉴权永不受影响。
+- **10,000+ 日活开启设备**：通过 70%/90% 双级自动降频与熔断（或管理员在「运营统计」将基础周期调为 `1800~3600` 秒），D1 写入恒定封顶在预算线以内；若未来长期稳定破万日活，届时再按需评估 Workers Paid（$5/月），当前阶段零付费即可安全承载。

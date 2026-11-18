@@ -14,11 +14,12 @@ https://tingyu-feedback-api.2473297053.workers.dev，两者使用同一个 Worke
 先读取复制的安全错误详情；需要且已授权时用 tools/feedback_tail.py 有界脱敏追踪。
 1.5.44-feedback-test.1是独立预发布，不得自动升为正式版或更新稳定渠道。
 
-软件内更新与开发者管理中心：当涉及版本打包、CNB 分发、候选版本准备、更新策略、紧急解除强制更新或开发者管理中心维护时，先阅读
+软件内更新与开发者管理中心：当涉及版本打包、CNB 分发、候选版本准备、更新策略、紧急解除强制更新、下载节点巡检、官方下载次数同步、轻量化匿名运营统计或开发者管理中心维护时，先阅读
 [docs/DEVELOPER-CONSOLE-ARCHITECTURE.md](docs/DEVELOPER-CONSOLE-ARCHITECTURE.md)、
 [docs/APP-UPDATE-PROTOCOL.md](docs/APP-UPDATE-PROTOCOL.md) 与
 [docs/CNB-AND-AI-RELEASE-GUIDE.md](docs/CNB-AND-AI-RELEASE-GUIDE.md)。
-统一使用 `node tools/release-cli.mjs <build|prepare|upload|verify|status|sync-manifests>` 执行标准化流程；
+统一使用 `node tools/release-cli.mjs <build|prepare|upload|verify|status|sync-manifests>` 执行标准化流程；管理端部署使用 `python tools/deploy_feedback.py --confirmed-remote-deployment`（含 `0001..0004` D1 迁移与每 30 分钟 Cron 自动节点探测/官方下载计数同步/日活聚合归档）。
+匿名运营统计必须严格遵守隐私红线：客户端默认关闭（`TelemetryManager.kt`，需用户在设置页主动开启），仅允许随机匿名安装 ID（服务端单向哈希存储）与基础版本/系统型号/更新漏斗事件，严禁采集手机号、IMEI、OAID、音乐账号、Cookie、歌单或播放曲目；CNB 官方接口未提供下载计数时必须诚实标记为 `null`（后台显示「暂无统计数据」），严禁伪造为 `0` 或编造历史趋势。
 未经开发者明确授权，严禁执行 `publish --channel stable --confirm` 或把正式渠道 `updateEnabled` 置为 `true`，严禁打印或提交任何 DPAPI/CNB/Cloudflare 凭据与私钥。
 
 本仓库不再把项目规则直接堆在 `AGENTS.md` 中，而是改为按 skill 组织。

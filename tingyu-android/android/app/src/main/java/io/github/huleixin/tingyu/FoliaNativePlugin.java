@@ -2544,6 +2544,30 @@ public class FoliaNativePlugin extends Plugin {
         }
     }
 
+    @PluginMethod
+    public void getTelemetryStatus(PluginCall call) {
+        try {
+            io.github.huleixin.tingyu.telemetry.TelemetryManager telemetry =
+                io.github.huleixin.tingyu.telemetry.TelemetryManager.getInstance(getContext());
+            call.resolve(JSObject.fromJSONObject(telemetry.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("读取匿名统计状态失败", error);
+        }
+    }
+
+    @PluginMethod
+    public void setTelemetryEnabled(PluginCall call) {
+        try {
+            boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+            io.github.huleixin.tingyu.telemetry.TelemetryManager telemetry =
+                io.github.huleixin.tingyu.telemetry.TelemetryManager.getInstance(getContext());
+            telemetry.setEnabled(enabled);
+            call.resolve(JSObject.fromJSONObject(telemetry.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("更新匿名统计开关失败", error);
+        }
+    }
+
     /** 只接受 App 自己写出的 imported-* 文件名，挡掉任何路径穿越。 */
     private static File resolveImportedFile(File directory, String ref) {
         if (ref == null || !ref.startsWith("imported-")) return null;

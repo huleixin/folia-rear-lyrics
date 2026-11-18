@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import io.github.huleixin.tingyu.BuildConfig
 import io.github.huleixin.tingyu.CrashDiagnostics
+import io.github.huleixin.tingyu.telemetry.TelemetryManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -304,6 +305,7 @@ class UpdateManager private constructor(private val appContext: Context) {
         }
 
         val preferredId = current.selectedMirrorId
+        val initialMirror = preferredId.ifBlank { manifest.downloadUrls.firstOrNull()?.id.orEmpty() }
         downloadJob = scope.launch {
             _state.update {
                 it.copy(
@@ -314,6 +316,13 @@ class UpdateManager private constructor(private val appContext: Context) {
                     )
                 )
             }
+            TelemetryManager.getInstance(appContext).reportUpdateEvent(
+                event = "download_started",
+                targetVersionCode = manifest.latestVersionCode,
+                targetVersionName = manifest.latestVersionName,
+                channel = manifest.channel,
+                mirrorId = initialMirror,
+            )
 
             when (val dl = downloader.downloadApk(manifest, preferredId) { progressSnap ->
                 _state.update { s -> s.copy(download = progressSnap, selectedMirrorId = progressSnap.activeNodeId.ifBlank { s.selectedMirrorId }) }
@@ -353,6 +362,13 @@ class UpdateManager private constructor(private val appContext: Context) {
                                     )
                                 )
                             }
+                            TelemetryManager.getInstance(appContext).reportUpdateEvent(
+                                event = "download_succeeded",
+                                targetVersionCode = manifest.latestVersionCode,
+                                targetVersionName = manifest.latestVersionName,
+                                channel = manifest.channel,
+                                mirrorId = dl.node.id,
+                            )
                             recordDiagnostic("apk-verified", "vc=${manifest.latestVersionCode} node=${dl.node.id}")
                             launchInstall(activity)
                         }
@@ -368,6 +384,13 @@ class UpdateManager private constructor(private val appContext: Context) {
                                     )
                                 )
                             }
+                            TelemetryManager.getInstance(appContext).reportUpdateEvent(
+                                event = "verify_failed",
+                                targetVersionCode = manifest.latestVersionCode,
+                                targetVersionName = manifest.latestVersionName,
+                                channel = manifest.channel,
+                                mirrorId = dl.node.id,
+                            )
                             recordDiagnostic("apk-verify-rejected", "code=${verifyResult.code}")
                         }
                     }
@@ -383,6 +406,13 @@ class UpdateManager private constructor(private val appContext: Context) {
                             )
                         )
                     }
+                    TelemetryManager.getInstance(appContext).reportUpdateEvent(
+                        event = "download_failed",
+                        targetVersionCode = manifest.latestVersionCode,
+                        targetVersionName = manifest.latestVersionName,
+                        channel = manifest.channel,
+                        mirrorId = initialMirror,
+                    )
                     recordDiagnostic("apk-download-failed", "code=${dl.errorCode}")
                 }
             }

@@ -26,6 +26,8 @@ type FoliaUpdatePlugin = {
     openAppUpdateDialog?: () => Promise<NativeUpdateStatus>;
     openAppReleaseHistory?: () => Promise<NativeUpdateStatus>;
     setAppUpdateChannel?: (options: { channel: 'stable' | 'testing' }) => Promise<NativeUpdateStatus>;
+    getTelemetryStatus?: () => Promise<{ enabled: boolean; intervalSec?: number }>;
+    setTelemetryEnabled?: (options: { enabled: boolean }) => Promise<{ enabled: boolean; intervalSec?: number }>;
 };
 
 function getFoliaPlugin(): FoliaUpdatePlugin | null {
@@ -36,6 +38,7 @@ function getFoliaPlugin(): FoliaUpdatePlugin | null {
 export default function AndroidAppUpdateCard() {
     const [status, setStatus] = useState<NativeUpdateStatus | null>(null);
     const [polling, setPolling] = useState(false);
+    const [telemetryEnabled, setTelemetryEnabledState] = useState(false);
 
     const refreshStatus = useCallback(async () => {
         const plugin = getFoliaPlugin();
@@ -51,7 +54,27 @@ export default function AndroidAppUpdateCard() {
 
     useEffect(() => {
         void refreshStatus();
+        const plugin = getFoliaPlugin();
+        if (plugin?.getTelemetryStatus) {
+            void plugin.getTelemetryStatus().then(res => {
+                setTelemetryEnabledState(Boolean(res?.enabled));
+            }).catch(() => {});
+        }
     }, [refreshStatus]);
+
+    const handleToggleTelemetry = async () => {
+        const nextVal = !telemetryEnabled;
+        setTelemetryEnabledState(nextVal);
+        const plugin = getFoliaPlugin();
+        try {
+            const res = await plugin?.setTelemetryEnabled?.({ enabled: nextVal });
+            if (res && typeof res.enabled === 'boolean') {
+                setTelemetryEnabledState(res.enabled);
+            }
+        } catch {
+            setTelemetryEnabledState(!nextVal);
+        }
+    };
 
     useEffect(() => {
         if (!polling && status?.checkPhase !== 'checking') return;
@@ -285,6 +308,47 @@ export default function AndroidAppUpdateCard() {
                 </span>
                 <ChevronRight size={17} className="shrink-0 opacity-45" aria-hidden="true" />
             </button>
+
+            {/* 5. 匿名使用统计开关（严格默认关闭，可随时开启或立即停止） */}
+            <div
+                data-testid="help-anonymous-telemetry-card"
+                className="flex w-full items-center justify-between gap-4 rounded-2xl p-4"
+                style={{
+                    color: 'var(--text-primary)',
+                    background: 'color-mix(in srgb, currentColor 5%, transparent)',
+                }}
+                data-settings-style='{"align":"between","gap":14,"radius":16,"padding":[16,14,16,14],"fill":true}'
+                data-settings-layout="row"
+            >
+                <div className="min-w-0 flex-1 space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                    <div className="text-sm font-semibold" data-settings-style='{"font":14,"weight":600,"tone":"text"}' data-settings-layout="column">
+                        匿名使用统计
+                    </div>
+                    <div className="text-xs opacity-60" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
+                        默认关闭。开启后仅以随机匿名安装编号低频统计应用版本、系统型号及更新节点成功率，绝不收集音乐账号、Cookie、歌单或播放歌曲；关闭后立即停止上报。
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    role="switch"
+                    data-testid="help-anonymous-telemetry-switch"
+                    aria-checked={telemetryEnabled}
+                    aria-label="匿名使用统计"
+                    onClick={() => void handleToggleTelemetry()}
+                    className="h-6 w-12 shrink-0 rounded-full p-1 transition-colors"
+                    style={{
+                        backgroundColor: telemetryEnabled ? 'var(--accent-primary, #385B73)' : 'color-mix(in srgb, currentColor 16%, transparent)',
+                    }}
+                    data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}'
+                    data-settings-layout="column"
+                >
+                    <div
+                        className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${telemetryEnabled ? 'translate-x-6' : 'translate-x-0'}`}
+                        data-settings-style='{"width":16,"height":16,"radius":64}'
+                        data-settings-layout="column"
+                    />
+                </button>
+            </div>
         </div>
     );
 }

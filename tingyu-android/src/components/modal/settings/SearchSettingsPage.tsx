@@ -24,7 +24,7 @@ export default function SearchSettingsPage({onClose}:{onClose:()=>void}) {
     const back=()=>fromIndex?useSettingsModalStore.getState().returnSettingsToIndex():onClose();
     useEffect(()=>{
         const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented){
-            if(runTopModalBack())return;
+            if(runTopModalBack()){event.preventDefault();event.stopImmediatePropagation();return;}
             event.preventDefault();event.stopImmediatePropagation();back();
         }};
         window.addEventListener('keydown',onKey,true);

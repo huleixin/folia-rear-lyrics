@@ -415,7 +415,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     }).forEach(result => {
         if (result.status === 'login') {
             const loginAction = 'login:' + result.providerId;
-            actions[loginAction] = () => { useSettingsModalStore.getState().openSettingsFromIndex('accounts'); };
+            actions[loginAction] = () => { useSettingsModalStore.getState().openSettings('options', 'accounts'); };
             visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + '：部分个性化内容需登录后获取。', more: loginAction, moreLabel: '去登录' });
         } else {
             visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + '：暂时加载失败，其他来源仍可使用。' });

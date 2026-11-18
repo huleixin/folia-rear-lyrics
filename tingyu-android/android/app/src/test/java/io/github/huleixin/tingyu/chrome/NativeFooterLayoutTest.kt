@@ -154,4 +154,61 @@ class NativeFooterLayoutTest {
         assertFalse(NativeFooterLayout.targetVisible("nav","settings","settings",settingsRoot=false))
         assertFalse(NativeFooterLayout.targetVisible("mini","settings","settings",settingsRoot=true))
     }
+
+    @Test fun navSelectionPreservesSearchTabAcrossFullPlayerStageAndSettingsRoundTrip() {
+        // 1. 先访问资料库 (selectedTab = 1)
+        var footer = NativeFooterRoute().follow("home", false, "library:main")
+        var primaryTab = NativeFooterLayout.nextPrimaryTab("home", 1, 0)
+        assertEquals(1, primaryTab)
+        assertEquals(1, NativeFooterLayout.navSelection("home", footer.route, primaryTab, 1))
+
+        // 2. 切换到搜索页 (destination = "search", selectedTab 仍记着 1)
+        footer = footer.follow("search", false, "")
+        primaryTab = NativeFooterLayout.nextPrimaryTab("search", 1, primaryTab)
+        assertEquals(2, primaryTab)
+        assertEquals(2, NativeFooterLayout.navSelection("search", footer.route, primaryTab, 1))
+
+        // 3. 在搜索页点击底部迷你播放器打开完整播放器 (destination = "stage")
+        footer = footer.follow("stage", false, "")
+        primaryTab = NativeFooterLayout.nextPrimaryTab("stage", 1, primaryTab)
+        assertEquals("search", footer.route)
+        assertEquals(2, primaryTab)
+        assertEquals(
+            "进入播放器及收起动画期间严禁回退到资料库(1)",
+            2,
+            NativeFooterLayout.navSelection("stage", footer.route, primaryTab, 1),
+        )
+
+        // 4. 在完整播放器内打开播放设置再退回播放器，最终收起返回搜索页
+        footer = footer.follow("settings", false, "settings:document:options:playback:")
+        val settingsTab = NativeFooterLayout.nextPrimaryTab("settings", 1, primaryTab)
+        assertEquals(3, NativeFooterLayout.navSelection("settings", footer.route, settingsTab, 1))
+
+        footer = footer.follow("stage", false, "")
+        val backToStageTab = NativeFooterLayout.nextPrimaryTab("stage", 1, settingsTab)
+        assertEquals(2, NativeFooterLayout.navSelection("stage", footer.route, backToStageTab, 1))
+
+        footer = footer.follow("search", false, "")
+        primaryTab = NativeFooterLayout.nextPrimaryTab("search", 1, backToStageTab)
+        assertEquals(2, NativeFooterLayout.navSelection("search", footer.route, primaryTab, 1))
+    }
+
+    @Test fun navSelectionPreservesSearchContextThroughSearchPlaylistDetailAndGenuineTabSwitches() {
+        var primaryTab = NativeFooterLayout.nextPrimaryTab("search", 1, 1)
+        var footer = NativeFooterRoute().follow("search", false, "")
+        // 从搜索结果点进歌单详情 -> 打开播放器 -> 返回
+        footer = footer.follow("collection", true, "collection:playlist:99")
+        primaryTab = NativeFooterLayout.nextPrimaryTab("collection", 1, primaryTab)
+        assertEquals(2, NativeFooterLayout.navSelection("collection", footer.route, primaryTab, 1))
+        footer = footer.follow("stage", false, "")
+        primaryTab = NativeFooterLayout.nextPrimaryTab("stage", 1, primaryTab)
+        assertEquals(2, NativeFooterLayout.navSelection("stage", footer.route, primaryTab, 1))
+
+        // 真正点击底部一级导航切回推荐(0)与资料库(1)时立即切换选中态
+        primaryTab = NativeFooterLayout.nextPrimaryTab("home", 0, primaryTab)
+        footer = footer.follow("home", false, "")
+        assertEquals(0, NativeFooterLayout.navSelection("home", footer.route, primaryTab, 0))
+        primaryTab = NativeFooterLayout.nextPrimaryTab("home", 1, primaryTab)
+        assertEquals(1, NativeFooterLayout.navSelection("home", footer.route, primaryTab, 1))
+    }
 }

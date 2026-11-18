@@ -303,6 +303,7 @@ public class MainActivity extends BridgeActivity {
         webView.postDelayed(() -> PhoneFitCutout.apply(this), 500);
         webView.postDelayed(() -> PhoneFitCutout.apply(this), 1500);
         io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).onAppColdStart();
+        io.github.huleixin.tingyu.telemetry.TelemetryManager.getInstance(this).onAppColdStart();
     }
 
     /**
@@ -493,6 +494,7 @@ public class MainActivity extends BridgeActivity {
         }
         PhoneFitCutout.apply(this);
         io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).onAppForegroundResume(this);
+        io.github.huleixin.tingyu.telemetry.TelemetryManager.getInstance(this).onForegroundChanged(true);
     }
 
     @Override
@@ -532,6 +534,7 @@ public class MainActivity extends BridgeActivity {
             .put("finishing", isFinishing()).put("changingConfigurations", isChangingConfigurations()));
         if (nativeShell != null) nativeShell.suspend();
         io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).onAppBackgroundPause();
+        io.github.huleixin.tingyu.telemetry.TelemetryManager.getInstance(this).onForegroundChanged(false);
         updateStageActivity(false);
         CrashDiagnostics.recordText(
             getApplicationContext(),

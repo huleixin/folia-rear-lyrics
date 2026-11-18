@@ -37,6 +37,37 @@ internal object NativeFooterLayout {
     fun settingsRoot(route:String,pageTarget:String,requested:Boolean=true):Boolean = requested&&route=="settings"&&pageTarget=="settings:index"
 
     /**
+     * 维护跨二级页与播放器的真实一级导航归属（0=推荐, 1=资料库, 2=搜索, 3=设置）：
+     * - 进入完整播放器（stage）或 Web 覆盖层时不篡改前序一级 Tab；
+     * - 从搜索页进入集合详情时保留搜索归属（2），从推荐/资料库进入集合详情时归属 0/1。
+     */
+    fun nextPrimaryTab(route: String, selectedTab: Int, previousPrimaryTab: Int): Int = when (route) {
+        "home" -> selectedTab.coerceIn(0, 1)
+        "search" -> 2
+        "settings" -> 3
+        "collection" -> if (previousPrimaryTab == 2) 2 else selectedTab.coerceIn(0, 1)
+        else -> previousPrimaryTab.coerceIn(0, 3)
+    }
+
+    fun navSelection(
+        destination: String,
+        browsingRoute: String,
+        primaryTab: Int,
+        selectedTab: Int,
+        startupSelected: Int? = null,
+    ): Int = startupSelected ?: when (destination) {
+        "home" -> selectedTab.coerceIn(0, 1)
+        "search" -> 2
+        "settings" -> 3
+        "collection" -> if (primaryTab == 2) 2 else selectedTab.coerceIn(0, 1)
+        else -> when (browsingRoute) {
+            "search" -> 2
+            "home" -> selectedTab.coerceIn(0, 1)
+            else -> if (primaryTab == 2) 2 else selectedTab.coerceIn(0, 1)
+        }
+    }
+
+    /**
      * 底栏目标可见性（含进入/退出播放页、歌单详情、歌手页及设置页的连续过渡态）。
      * 进入播放页时底栏立即退场；从播放页收起（stageExiting）时按返回目标路由提前进场。
      */

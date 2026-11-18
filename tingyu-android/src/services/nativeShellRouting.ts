@@ -6,15 +6,13 @@ import { useSettingsModalStore } from '../stores/useSettingsModalStore';
 import { useSearchNavigationStore } from '../stores/useSearchNavigationStore';
 import { useCollectionNavigationStore } from '../stores/useCollectionNavigationStore';
 import { useMobileLibraryStore } from '../stores/useMobileLibraryStore';
-import { nativeShellRoute, nativeShellHasWebOverlay } from '../utils/nativeShellState';
-import { resolveInitialSettingsSection } from '../components/modal/settings/navigation/settingsLastSection';
+import { nativeShellRoute, nativeShellHasWebOverlay, resolveSettingsOverlayBacking } from '../utils/nativeShellState';
 import { collectionKey } from '../library/core/model/collectionIdentity';
 import { useMotionSettingsStore, readReducedMotion } from '../stores/useMotionSettingsStore';
 import { useAndroidLayoutSettingsStore } from '../stores/useAndroidLayoutSettingsStore';
 import {setNativeShellPublisher,scheduleNativeShellRoute} from './nativeShellCommit';
 import {canPublishNativeStage} from '../utils/nativeStageCommit';
 import { isStageSurface, usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
-import { rearPageKey } from '../components/modal/settings/rearControlModel';
 import { composeMinimalOwnsSurface } from './nativeMinimalPlayer';
 import { installNativeMotionPreferences } from './nativeMotionPreferences';
 
@@ -32,9 +30,10 @@ export function installNativeShellRouting() {
         const hasStack=!!stack?.length;
         const localMusicSubpage=!hasStack&&mobileLib.localMusicOpen;
         const search=useSearchNavigationStore.getState().isSearchOpen,collection=hasStack||localMusicSubpage;
-        const index=settings.initialTab==='options'&&!settings.initialSubview&&!settings.initialAnchor&&!settings.initialVisualizerSection;
-        const settingsRoot=settings.isOpen&&!settingsState.isSubSettingsViewOpen;
-        const {route,selectedTab}=nativeShellRoute({settingsOpen:settings.isOpen,settingsIndex:index,searchOpen:search,
+        const settingsBacking=resolveSettingsOverlayBacking(settings);
+        const index=settingsBacking.settingsIndex;
+        const settingsRoot=settingsBacking.settingsOwnsRoute&&!settingsState.isSubSettingsViewOpen;
+        const {route,selectedTab}=nativeShellRoute({settingsOpen:settingsBacking.settingsOwnsRoute,settingsIndex:index,searchOpen:search,
             collectionOpen:collection,view:view.view,libraryPage:mobileLib.page});
         if(!canPublishNativeStage(route,document.querySelector('[data-folia-app-shell]'),composeMinimalOwnsSurface()))return;
         // Ownership follows the route, not a document flag removed during React cleanup.
@@ -44,7 +43,7 @@ export function installNativeShellRouting() {
         const webOverlay=settings.isOpen?(settings.initialSubview==='accounts'):
             nativeShellHasWebOverlay([...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
                 .filter(node=>!node.closest('[data-folia-settings-overlay]')));
-        const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):(settings.initialSubview==='discovery'||settings.initialSubview==='search')?`settings:document:${settings.initialSubview}`:`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
+        const pageTarget=route==='settings'?settingsBacking.pageTarget:
             route==='collection'?(hasStack?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'collection:local-music'):'';
         // The mounted document owns nested editor identity. Do not reconstruct its flags here.
         const documentKey=document.querySelector<HTMLElement>('[data-native-document-root]')?.dataset.nativeSettingsKey;

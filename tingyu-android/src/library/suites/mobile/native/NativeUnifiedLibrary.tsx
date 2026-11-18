@@ -213,7 +213,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         'toggle-all-groups': () => organization.setAllGroupsCollapsed(visibleGroupIds, !allCollapsed),
         'platform-order': () => setPlatformOrderOpen(true),
         local: () => useMobileLibraryStore.getState().setLocalMusicOpen(true),
-        'open-accounts': () => useSettingsModalStore.getState().openSettingsFromIndex('accounts'),
+        'open-accounts': () => useSettingsModalStore.getState().openSettings('options', 'accounts'),
     };
 
     const visibleGroupIds = useMemo(() => {

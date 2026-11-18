@@ -266,7 +266,198 @@ function formatReleaseRow(row) {
     };
 }
 
-export async function getConsoleOverview(env) {
+const NODE_STALE_MS = 2 * 3600_000;
+
+export function describeProbeDetail(detail, httpStatus, accessible) {
+    const raw = String(detail || '');
+    if (accessible) {
+        if (raw === 'full_download_sha256_verified') return `完整安装包下载与 SHA-256 校验通过 (HTTP ${httpStatus || 200})`;
+        if (raw === 'range_supported_ok' || httpStatus === 206) return '支持断点续传直链 (HTTP 206)';
+        if (raw === 'direct_stream_ok' || httpStatus === 200) return '直链二进制流正常 (HTTP 200)';
+        return `节点响应正常 (HTTP ${httpStatus || 200})`;
+    }
+    if (!raw || raw === 'pending_probe') return '尚未执行节点探测';
+    if (raw === 'invalid_https_url') return '下载地址无效（必须为 HTTPS 直链）';
+    if (raw === 'html_page_not_binary_apk') return `返回 HTML 网页而非 APK 安装包 (HTTP ${httpStatus})`;
+    if (raw.startsWith('size_mismatch:')) return `安装包字节数与构建元数据不一致 (${raw.slice(14)})`;
+    if (raw.startsWith('http_')) return `源站返回异常状态码 HTTP ${httpStatus || raw.slice(5)}`;
+    if (raw === 'network_unreachable') return '边缘节点连接源站超时或网络不可达';
+    return raw;
+}
+
+function summarizeMirrorNode(nodeType, defaultLabel, activeRelease, allNodes, now) {
+    if (!activeRelease) {
+        return {
+            nodeType,
+            label: defaultLabel,
+            releaseId: '',
+            versionName: '',
+            channel: '',
+            url: '',
+            stateCode: 'unconfigured',
+            stateLabel: '待配置',
+            accessible: false,
+            httpStatus: 0,
+            latencyMs: 0,
+            sizeBytes: 0,
+            sha256Verified: false,
+            lastCheckedAt: 0,
+            reason: '当前暂无已发布的版本节点配置',
+        };
+    }
+    const mirrors = Array.isArray(activeRelease.download_urls) ? activeRelease.download_urls : [];
+    const matchedMirror = mirrors.find(m =>
+        m.id === nodeType
+        || (nodeType === 'cnb-primary' && String(m.id || '').startsWith('cnb'))
+        || (nodeType === 'github-backup' && String(m.id || '').startsWith('github')),
+    );
+    if (!matchedMirror || !matchedMirror.url) {
+        return {
+            nodeType,
+            label: defaultLabel,
+            releaseId: activeRelease.id,
+            versionName: activeRelease.version_name,
+            channel: activeRelease.channel,
+            url: '',
+            stateCode: 'unconfigured',
+            stateLabel: '待配置',
+            accessible: false,
+            httpStatus: 0,
+            latencyMs: 0,
+            sizeBytes: 0,
+            sha256Verified: false,
+            lastCheckedAt: 0,
+            reason: `v${activeRelease.version_name} (${activeRelease.channel === 'stable' ? '正式版' : '测试版'}) 未配置此节点`,
+        };
+    }
+    const row = allNodes.find(n => n.release_id === activeRelease.id && n.node_type === matchedMirror.id)
+        || allNodes.find(n => n.url === matchedMirror.url);
+
+    if (!row || !row.last_checked_at) {
+        return {
+            nodeType,
+            label: matchedMirror.label || defaultLabel,
+            releaseId: activeRelease.id,
+            versionName: activeRelease.version_name,
+            channel: activeRelease.channel,
+            url: matchedMirror.url,
+            stateCode: 'checking',
+            stateLabel: '检测中',
+            accessible: false,
+            httpStatus: 0,
+            latencyMs: 0,
+            sizeBytes: 0,
+            sha256Verified: false,
+            lastCheckedAt: 0,
+            reason: '正在等待首次边缘探测完成',
+        };
+    }
+
+    const isStale = now - Number(row.last_checked_at) > NODE_STALE_MS;
+    const stateCode = !row.accessible ? 'abnormal' : isStale ? 'stale' : 'healthy';
+    const stateLabel = !row.accessible ? '异常' : isStale ? '数据过期' : '正常';
+
+    return {
+        nodeType,
+        label: row.label || matchedMirror.label || defaultLabel,
+        releaseId: activeRelease.id,
+        versionName: activeRelease.version_name,
+        channel: activeRelease.channel,
+        url: row.url || matchedMirror.url,
+        stateCode,
+        stateLabel,
+        accessible: Boolean(row.accessible),
+        httpStatus: Number(row.http_status || 0),
+        latencyMs: Number(row.latency_ms || 0),
+        sizeBytes: Number(row.verified_size_bytes || 0),
+        sha256Verified: Boolean(row.integrity_ok),
+        lastCheckedAt: Number(row.last_checked_at || 0),
+        reason: isStale && row.accessible
+            ? `上次检测距今已超 2 小时 · ${describeProbeDetail(row.detail, row.http_status, true)}`
+            : describeProbeDetail(row.detail, row.http_status, Boolean(row.accessible)),
+    };
+}
+
+/**
+ * 自动或手动巡检当前活跃版本（正式已发布版本、测试已发布版本、待发候选版本）的所有下载节点并持久化。
+ */
+export async function probeAllActiveNodes(env, { force = false } = {}) {
+    const now = Date.now();
+    const targetRows = (await env.DB.prepare(
+        `SELECT * FROM releases
+         WHERE (channel='stable' AND status='published')
+            OR (channel='testing' AND status='published')
+            OR status IN ('candidate','testing_passed','approved')
+         ORDER BY version_code DESC, updated_at DESC
+         LIMIT 6`,
+    ).all()).results;
+
+    // 仅对各渠道最新 published 及最新候选巡检，避免扫描全部历史旧版浪费请求
+    const selected = [];
+    const seenKeys = new Set();
+    for (const r of targetRows) {
+        const key = r.status === 'published' ? `pub:${r.channel}` : `cand:${r.id}`;
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+        selected.push(r);
+    }
+
+    const probedItems = [];
+    for (const rel of selected) {
+        const mirrors = parseJsonSafe(rel.download_urls_json, []);
+        for (const mirror of mirrors) {
+            if (!mirror?.id || !mirror?.url) continue;
+            const nodeId = `${rel.id}:${mirror.id}`;
+            const prev = await env.DB.prepare(
+                'SELECT verified_sha256, integrity_ok, last_checked_at FROM download_nodes WHERE id=?',
+            ).bind(nodeId).first();
+
+            // 非强制模式下，25 分钟内刚探测过的节点跳过重复探测
+            if (!force && prev?.last_checked_at && now - Number(prev.last_checked_at) < 25 * 60_000) {
+                continue;
+            }
+
+            const probe = await probeApkDownloadUrl(mirror.url, rel.apk_size_bytes);
+            const checkedAt = Date.now();
+            const shaOk = Boolean(prev?.integrity_ok) && prev?.verified_sha256 === rel.sha256;
+            await env.DB.prepare(
+                `INSERT OR REPLACE INTO download_nodes(
+                    id, release_id, node_type, label, url, accessible, http_status,
+                    verified_size_bytes, verified_sha256, integrity_ok, latency_ms, last_checked_at, detail
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            ).bind(
+                nodeId,
+                rel.id,
+                mirror.id,
+                mirror.label || mirror.id,
+                mirror.url,
+                probe.accessible ? 1 : 0,
+                probe.httpStatus,
+                probe.sizeBytes,
+                prev?.verified_sha256 || '',
+                shaOk ? 1 : 0,
+                probe.latencyMs,
+                checkedAt,
+                probe.detail,
+            ).run();
+
+            probedItems.push({
+                id: nodeId,
+                releaseId: rel.id,
+                versionName: rel.version_name,
+                channel: rel.channel,
+                nodeType: mirror.id,
+                label: mirror.label || mirror.id,
+                url: mirror.url,
+                ...probe,
+                lastCheckedAt: checkedAt,
+            });
+        }
+    }
+    return probedItems;
+}
+
+export async function getConsoleOverview(env, reqUrl = null) {
     const now = Date.now();
     const dayStart = Math.floor(now / 86400_000) * 86400_000;
     const fbRow = await env.DB.prepare(
@@ -296,8 +487,12 @@ export async function getConsoleOverview(env) {
         "SELECT * FROM releases WHERE channel='stable' AND status='published' ORDER BY version_code DESC, published_at DESC LIMIT 1",
     ).first());
 
+    const testingRelease = formatReleaseRow(await env.DB.prepare(
+        "SELECT * FROM releases WHERE channel='testing' AND status='published' ORDER BY version_code DESC, published_at DESC LIMIT 1",
+    ).first());
+
     const candidateRelease = formatReleaseRow(await env.DB.prepare(
-        "SELECT * FROM releases WHERE channel='stable' AND status IN ('draft','candidate','testing_passed','approved') ORDER BY version_code DESC, updated_at DESC LIMIT 1",
+        "SELECT * FROM releases WHERE status IN ('draft','candidate','testing_passed','approved') ORDER BY updated_at DESC, version_code DESC LIMIT 1",
     ).first());
 
     const testingCandidate = formatReleaseRow(await env.DB.prepare(
@@ -318,13 +513,43 @@ export async function getConsoleOverview(env) {
         updatedAt: p.updated_at,
     }));
 
-    const nodes = (await env.DB.prepare(
-        'SELECT * FROM download_nodes ORDER BY last_checked_at DESC LIMIT 20',
+    let nodes = (await env.DB.prepare(
+        'SELECT * FROM download_nodes ORDER BY last_checked_at DESC LIMIT 30',
     ).all()).results.map(n => ({
         ...n,
         accessible: Boolean(n.accessible),
         integrity_ok: Boolean(n.integrity_ok),
+        reason_zh: describeProbeDetail(n.detail, n.http_status, Boolean(n.accessible)),
     }));
+
+    // 部署后首次打开总览时，若当前已发布版本存在未检测节点（last_checked_at = 0），自动执行一次即时探测
+    const primaryActive = stableRelease || testingRelease || candidateRelease;
+    const isLocalTest = reqUrl && (reqUrl.hostname === 'test.invalid' || reqUrl.hostname === '127.0.0.1');
+    if (primaryActive && !isLocalTest) {
+        const mirrors = Array.isArray(primaryActive.download_urls) ? primaryActive.download_urls : [];
+        const hasUncheckedMirror = mirrors.some(m => {
+            const matched = nodes.find(n => n.release_id === primaryActive.id && n.node_type === m.id);
+            return !matched || !matched.last_checked_at;
+        });
+        if (hasUncheckedMirror) {
+            await probeAllActiveNodes(env, { force: false });
+            nodes = (await env.DB.prepare(
+                'SELECT * FROM download_nodes ORDER BY last_checked_at DESC LIMIT 30',
+            ).all()).results.map(n => ({
+                ...n,
+                accessible: Boolean(n.accessible),
+                integrity_ok: Boolean(n.integrity_ok),
+                reason_zh: describeProbeDetail(n.detail, n.http_status, Boolean(n.accessible)),
+            }));
+        }
+    }
+
+    const refreshedNow = Date.now();
+    const nodeSummary = {
+        cnbPrimary: summarizeMirrorNode('cnb-primary', 'CNB 国内主节点', stableRelease || testingRelease || candidateRelease, nodes, refreshedNow),
+        githubBackup: summarizeMirrorNode('github-backup', 'GitHub 备用节点', stableRelease || testingRelease || candidateRelease, nodes, refreshedNow),
+        probeNote: '检测由 Cloudflare 边缘节点发起轻量字节探测（Range: bytes=0-0），校验 HTTPS 直链状态码、非 HTML 响应与文件字节数；GitHub 节点在海外边缘可达不完全等同于中国大陆直连速度，客户端默认优先使用 CNB 国内节点并在「运营统计」汇总各节点真实下载成功率。',
+    };
 
     const recentAudits = (await env.DB.prepare(
         'SELECT seq, at, actor_role, action, channel, release_id, version_name, version_code, policy_revision, result, detail_json FROM release_audit_logs ORDER BY seq DESC LIMIT 12',
@@ -359,10 +584,12 @@ export async function getConsoleOverview(env) {
             cnbAutoSyncConfigured: cnbSyncConfigured,
         },
         stableRelease,
+        testingRelease,
         candidateRelease,
         testingCandidate,
         policies,
         nodes,
+        nodeSummary,
         recentAudits,
     });
 }
@@ -715,11 +942,35 @@ export async function publishApprovedRelease(req, env, id, role) {
         return json({ error: 'missing_download_urls' }, 400);
     }
 
-    // 正式策略生效前，必须在服务端实时核验至少一个主/备下载节点真实可下载且文件大小一致！
+    // 正式策略生效前，必须在服务端实时核验至少一个主/备下载节点真实可下载且文件大小一致，并将探测结果立即回写持久化！
     let reachableCount = 0;
+    const probeNow = Date.now();
     for (const mirror of downloadUrls) {
         const probe = await probeApkDownloadUrl(mirror.url, release.apk_size_bytes);
         if (probe.accessible) reachableCount++;
+        const nodeId = `${release.id}:${mirror.id}`;
+        const prev = await env.DB.prepare('SELECT verified_sha256, integrity_ok FROM download_nodes WHERE id=?').bind(nodeId).first();
+        const shaOk = Boolean(prev?.integrity_ok) && prev?.verified_sha256 === release.sha256;
+        await env.DB.prepare(
+            `INSERT OR REPLACE INTO download_nodes(
+                id, release_id, node_type, label, url, accessible, http_status,
+                verified_size_bytes, verified_sha256, integrity_ok, latency_ms, last_checked_at, detail
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        ).bind(
+            nodeId,
+            release.id,
+            mirror.id,
+            mirror.label || mirror.id,
+            mirror.url,
+            probe.accessible ? 1 : 0,
+            probe.httpStatus,
+            probe.sizeBytes,
+            prev?.verified_sha256 || '',
+            shaOk ? 1 : 0,
+            probe.latencyMs,
+            probeNow,
+            probe.detail,
+        ).run();
     }
     if (reachableCount === 0) {
         await appendAuditLog(env, {

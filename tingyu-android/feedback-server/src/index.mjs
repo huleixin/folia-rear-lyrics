@@ -9,6 +9,7 @@ import {
   upsertCandidateRelease,
   updateReleaseReview,
   probeReleaseNodes,
+  probeAllActiveNodes,
   publishApprovedRelease,
   mutateChannelPolicy,
   recordExternalNodeSync,
@@ -16,6 +17,15 @@ import {
   updateFeedbackReleaseLink,
   updateIssueReleaseNote,
 } from './releases.mjs';
+import {
+  submitTelemetryHeartbeat,
+  submitTelemetryUpdateEvent,
+  syncOfficialDownloadCounts,
+  rollupAndPruneTelemetry,
+  getAdminTelemetrySummary,
+  updateAdminTelemetryConfig,
+  invalidateTelemetrySummaryCache,
+} from './telemetry.mjs';
 import { adminPage, adminScript, adminStyle } from './ui.mjs';
 import { pwaManifest, pwaIconSvg, pwaServiceWorker } from './pwa.mjs';
 import { tracedEnvironment } from './trace.mjs';
@@ -36,6 +46,8 @@ async function route(req, env, trace) {
   const pubUpd = /^\/api\/public\/update\/([a-z0-9_-]{1,32})$/.exec(p);
   if (pubUpd && req.method === 'GET') return publicUpdatePolicy(req, env, pubUpd[1]);
   if (p === '/api/public/releases/history' && req.method === 'GET') return publicReleaseHistory(req, env, url);
+  if (p === '/api/public/telemetry/heartbeat' && req.method === 'POST') return submitTelemetryHeartbeat(req, env);
+  if (p === '/api/public/telemetry/update-event' && req.method === 'POST') return submitTelemetryUpdateEvent(req, env);
 
   // Unified Developer Console static assets & PWA shell
   if (p === '/admin' || p === '/admin/app.js' || p === '/admin/app.css') {
@@ -94,7 +106,7 @@ async function route(req, env, trace) {
     if (role === 'prepare') {
       if (p === '/api/admin/releases/candidates' && req.method === 'POST') return upsertCandidateRelease(req, env, role);
       if (p === '/api/admin/releases' && req.method === 'GET') return listReleases(url, env);
-      if (p === '/api/admin/overview' && req.method === 'GET') return getConsoleOverview(env);
+      if (p === '/api/admin/overview' && req.method === 'GET') return getConsoleOverview(env, url);
       if (p === '/api/admin/policy/sync-report' && req.method === 'POST') return recordExternalNodeSync(req, env, role);
       return json({ error: 'prepare_role_restricted' }, 403);
     }
@@ -125,8 +137,23 @@ async function route(req, env, trace) {
       return json({ uploadsEnabled: d.uploadsEnabled, configEnabled: env.UPLOADS_ENABLED === 'true' });
     }
 
-    // Console overview, releases, policies, download nodes, and immutable audit logs
-    if (p === '/api/admin/overview' && req.method === 'GET') return getConsoleOverview(env);
+    // Console overview, operations telemetry, releases, policies, download nodes, and immutable audit logs
+    if (p === '/api/admin/overview' && req.method === 'GET') return getConsoleOverview(env, url);
+    if (p === '/api/admin/telemetry/summary' && req.method === 'GET') return getAdminTelemetrySummary(url, env);
+    if (p === '/api/admin/telemetry/config' && req.method === 'PATCH') return updateAdminTelemetryConfig(req, env, role);
+    if (p === '/api/admin/downloads/sync' && req.method === 'POST') {
+      if (role !== 'admin') return json({ error: 'admin_required' }, 403);
+      const syncResult = await syncOfficialDownloadCounts(env, { force: true });
+      invalidateTelemetrySummaryCache();
+      return json({ ok: true, ...syncResult });
+    }
+    if (p === '/api/admin/nodes/probe-all' && req.method === 'POST') {
+      if (role !== 'admin') return json({ error: 'admin_required' }, 403);
+      const probed = await probeAllActiveNodes(env, { force: true });
+      const downloads = await syncOfficialDownloadCounts(env, { force: true });
+      invalidateTelemetrySummaryCache();
+      return json({ ok: true, items: probed, downloads });
+    }
     if (p === '/api/admin/releases' && req.method === 'GET') return listReleases(url, env);
     if (p === '/api/admin/releases/candidates' && req.method === 'POST') return upsertCandidateRelease(req, env, role);
     const relReviewMatch = /^\/api\/admin\/releases\/([a-zA-Z0-9._-]{1,96})$/.exec(p);
@@ -198,6 +225,9 @@ export default {
     return response;
   },
   async scheduled(_controller, env) {
-    await cleanup(env);
+    try { await cleanup(env); } catch (e) { console.error('cleanup_failed', e?.message); }
+    try { await probeAllActiveNodes(env, { force: false }); } catch (e) { console.error('probe_nodes_failed', e?.message); }
+    try { await syncOfficialDownloadCounts(env, { force: false }); } catch (e) { console.error('sync_downloads_failed', e?.message); }
+    try { await rollupAndPruneTelemetry(env); } catch (e) { console.error('telemetry_rollup_failed', e?.message); }
   },
 };
