@@ -23,7 +23,7 @@ export type NativeSettingsDocument={paints:SettingsPaint[];controls:SettingsCont
 /** 语义化设置页模型。见 chrome/TySettingsModel.kt 的同名契约。 */
 export type NativeSettingsFlowNode={
     id:string;
-    kind:'group'|'action'|'switch'|'checkbox'|'select'|'slider'|'input'|'note'|'color'|'preview'|'image'|'reorder'|'source'|'moduleOrder';
+    kind:'group'|'action'|'switch'|'checkbox'|'select'|'slider'|'input'|'note'|'color'|'preview'|'image'|'reorder'|'source'|'sourceOrder'|'moduleOrder';
     title:string;hint?:string;value?:string;icon?:string;disabled?:boolean;detail?:string;
     min?:number;max?:number;step?:number;unit?:string;
     placeholder?:string;confirmLabel?:string;multiline?:boolean;

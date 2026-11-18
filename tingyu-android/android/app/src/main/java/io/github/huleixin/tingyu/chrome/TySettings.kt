@@ -612,6 +612,8 @@ private fun DialogButton(
  * 一次只呈现一个设置分区（与 WebView 侧"打开一个 section"等价），滚动、键盘、深浅色
  * 由本函数负责。相邻同类条目之间自动画分隔线，分组之间留 14dp。
  */
+internal val LocalSettingsScrollState = androidx.compose.runtime.compositionLocalOf<androidx.compose.foundation.ScrollState?> { null }
+
 @Composable
 internal fun TySettingsPageView(
     page: TySettingsPage,
@@ -624,18 +626,21 @@ internal fun TySettingsPageView(
 ) {
     // 标题由页面外框（SettingsFlowPage 的固定顶栏）绘制，这里只出内容 ——
     // 两级都画标题会在滚动时出现两个。
-    Column(modifier.fillMaxSize().imePadding()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(start = if(page.layout==null)16.dp else 0.dp, end = if(page.layout==null)16.dp else 0.dp, top = contentTop)
-                .padding(bottom = bottomPadding),
-        ) {
-            // 分组切分：group 节点开一张卡片，其后的普通节点都装进这张卡片，
-            // 直到遇到下一个 group。语义化模型的顺序即排版顺序，不需要 rect。
-            TySettingsContent(page, theme, onAction)
+    val scrollState = rememberScrollState()
+    androidx.compose.runtime.CompositionLocalProvider(LocalSettingsScrollState provides scrollState) {
+        Column(modifier.fillMaxSize().imePadding()) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(scrollState)
+                    .padding(start = if(page.layout==null)16.dp else 0.dp, end = if(page.layout==null)16.dp else 0.dp, top = contentTop)
+                    .padding(bottom = bottomPadding),
+            ) {
+                // 分组切分：group 节点开一张卡片，其后的普通节点都装进这张卡片，
+                // 直到遇到下一个 group。语义化模型的顺序即排版顺序，不需要 rect。
+                TySettingsContent(page, theme, onAction)
+            }
         }
     }
 }
@@ -719,6 +724,7 @@ private fun TySettingItemView(
         "checkbox" -> SettingsCheckbox(theme, node, onAction)
         "reorder" -> SettingsOrder(theme, node, onAction)
         "source" -> DiscoverySourceSetting(theme, node, onAction)
+        "sourceOrder" -> DiscoverySourceOrder(theme, node, onAction)
         "moduleOrder" -> DiscoveryModuleOrder(theme, node, onAction)
         "preview" -> SettingsPreview(node, onAction)
         "image" -> SettingsImage(node)

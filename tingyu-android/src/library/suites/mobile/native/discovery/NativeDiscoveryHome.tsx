@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { NativeHomeProps } from '../NativeHomeOverview';
 import { useNativePage } from '../../../../../hooks/useNativePage';
 import { useDiscoveryFeed } from '../../../../../hooks/useDiscoveryFeed';
-import { useDiscoverySettingsStore } from '../../../../../stores/useDiscoverySettingsStore';
+import {
+    useDiscoverySettingsStore,
+    useDiscoverySettingsHydrated,
+    resolveEffectiveDiscoverySource,
+} from '../../../../../stores/useDiscoverySettingsStore';
 import { useDiscoveryPreferences } from '../../../../../services/discovery/preferences';
 import {
     rankDiscovery,
@@ -38,8 +42,19 @@ const radarNames: Record<RadarKind, string> = { heart: '心动雷达', style: '�
 export default function NativeDiscoveryHome({ root, props, sources, onReady, onSources }: NativeHomeProps) {
     const { t } = useTranslation();
     const settings = useDiscoverySettingsStore(), preferences = useDiscoveryPreferences();
+    const settingsHydrated = useDiscoverySettingsHydrated();
+    const effectiveSource = resolveEffectiveDiscoverySource(settings);
+    const effectiveSettings = useMemo(
+        () => effectiveSource === settings.source ? settings : { ...settings, source: effectiveSource },
+        [settings, effectiveSource],
+    );
+    useEffect(() => {
+        if (settingsHydrated && effectiveSource !== settings.source) {
+            settings.patch({ source: effectiveSource });
+        }
+    }, [settingsHydrated, effectiveSource, settings.source]);
     const feed = useDiscoveryFeed(props.isInteractive), controls = useDiscoveryActions(props);
-    const insightsData = useLibraryInsightsData(props, props.isInteractive, settings.source);
+    const insightsData = useLibraryInsightsData(props, props.isInteractive, effectiveSource);
     const recent = useMobileLibraryStore(state => state.recentTracks);
     const roaming = useDiscoveryRoaming();
     const [batch, setBatch] = useState(0);
@@ -49,22 +64,22 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     useEffect(() => {
         chartRequest.current++;setChartBusy(false);setChartError('');setShortcut(null);
         return () => { chartRequest.current++; };
-    }, [feed.owner, settings.source, props.isInteractive]);
+    }, [feed.owner, effectiveSource, props.isInteractive]);
     const openSettings = () => useSettingsModalStore.getState().openSettings('options','discovery');
     useEffect(() => {
         if (!props.isInteractive) return;
         const open = openSettings; document.addEventListener('tingyu-discovery-settings', open);
         return () => document.removeEventListener('tingyu-discovery-settings', open);
     }, [props.isInteractive]);
-    const local = useMemo(() => settings.includeLocal && settings.source === 'all' ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : [], [props.localSongs, props.localLibraryCatalog, settings.includeLocal, settings.source]);
-    const scopedResults = useMemo(() => feed.results.filter(result => settings.source === 'all' ? settings.enabled[result.providerId] !== false : result.providerId === settings.source), [feed.results, settings.source, settings.enabled]);
+    const local = useMemo(() => settings.includeLocal && effectiveSource === 'all' ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : [], [props.localSongs, props.localLibraryCatalog, settings.includeLocal, effectiveSource]);
+    const scopedResults = useMemo(() => feed.results.filter(result => effectiveSource === 'all' ? settings.enabled[result.providerId] !== false : result.providerId === effectiveSource), [feed.results, effectiveSource, settings.enabled]);
     const candidates = useMemo(() => [...scopedResults.flatMap(result => result.songs), ...recent.filter(song => {
-        const source = getPlaybackSourceRef(song); return source.kind === 'online' && (settings.source === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === settings.source);
-    }), ...local], [scopedResults, recent, local, settings.source, settings.enabled]);
+        const source = getPlaybackSourceRef(song); return source.kind === 'online' && (effectiveSource === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === effectiveSource);
+    }), ...local], [scopedResults, recent, local, effectiveSource, settings.enabled]);
     // Day and batch keep the snapshot stable; preference revision only re-ranks after a real
     // feedback event, so ordinary playback progress does not reshuffle the page.
     const seed = discoveryDay() + ':' + batch;
-    const ranked = useMemo(() => rankDiscovery(candidates, preferences.values, settings, 'heart', seed, Date.now(), 100), [candidates, preferences.values, settings, seed]);
+    const ranked = useMemo(() => rankDiscovery(candidates, preferences.values, effectiveSettings, 'heart', seed, Date.now(), 100), [candidates, preferences.values, effectiveSettings, seed]);
     const songs = controls.withoutHidden(ranked.map(item => item.song));
     const timeRadarContext = useMemo<TimeRadarContext>(() => {
         const likedKeys = new Set<string>();
@@ -109,20 +124,20 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     );
 
     useEffect(() => {
-        const diag = diagnoseTimeRadar(timeRadarPool, preferences.values, settings, Date.now(), 30, timeRadarContext);
+        const diag = diagnoseTimeRadar(timeRadarPool, preferences.values, effectiveSettings, Date.now(), 30, timeRadarContext);
         setLatestTimeRadarDiagnostics(diag);
-    }, [timeRadarPool, preferences.values, settings, timeRadarContext]);
+    }, [timeRadarPool, preferences.values, effectiveSettings, timeRadarContext]);
 
     // Local radar reads the local library even while the selected recommendation source is online.
     // Time radar merges complete listening sessions, platform/local likes, and recent history.
     const radar = (kind: RadarKind) => {
         if (kind === 'time') {
-            return rankDiscovery(timeRadarPool, preferences.values, settings, 'time', seed, Date.now(), 30, timeRadarContext).map(item => item.song);
+            return rankDiscovery(timeRadarPool, preferences.values, effectiveSettings, 'time', seed, Date.now(), 30, timeRadarContext).map(item => item.song);
         }
         const pool = kind === 'local'
             ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE)
             : candidates;
-        return rankDiscovery(pool, preferences.values, settings, kind, seed).map(item => item.song);
+        return rankDiscovery(pool, preferences.values, effectiveSettings, kind, seed).map(item => item.song);
     };
     const openRadar = (kind: RadarKind) => {
         const list = radar(kind);
@@ -149,11 +164,11 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         recentAll: () => controls.openSongs('最近播放', recent), library: () => useMobileLibraryStore.getState().setPage('library') };
     const [radarOpen, setRadarOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false), [collectionsOpen, setCollectionsOpen] = useState(false);
-    const sourceItems = [{ providerId: 'all', displayName: '综合推荐' }, ...feed.sources].map(source => {
+    const sourceItems = [{ providerId: 'all', displayName: '综合推荐' }, ...feed.visibleSources].map(source => {
         const action = 'source:' + source.providerId; actions[action] = () => settings.patch({ source: source.providerId });
-        return { id: action, title: source.providerId==='all'?'综合推荐':omni.getProviderLabel(source.providerId), selected: settings.source === source.providerId, action };
+        return { id: action, title: source.providerId==='all'?'综合推荐':omni.getProviderLabel(source.providerId), selected: effectiveSource === source.providerId, action };
     });
-    const activePlatformLabel = settings.source === 'all' ? '' : omni.getProviderLabel(settings.source);
+    const activePlatformLabel = effectiveSource === 'all' ? '' : omni.getProviderLabel(effectiveSource);
     const rows = (list: SongResult[], prefix: string) => list.map(song => {
         const key = prefix + getPlaybackSongKey(song), source = getPlaybackSourceRef(song);
         const reason = ranked.find(item => getPlaybackSongKey(item.song) === getPlaybackSongKey(song))?.reason;
@@ -161,7 +176,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         return { id: key, title: song.name, subtitle: getSongArtistLabel(song) + ' · ' + (source.kind === 'online' ? omni.getProviderLabel(source.providerId) : '本地'),
             image: absolutePageImage(getSongCoverUrl(song)), action: key, secondary: key + ':menu', secondaryLabel: '⋮', ...catalogBadgePageFields(song, t) };
     });
-    const selectedSources = feed.sources.filter(source => settings.source === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === settings.source);
+    const selectedSources = effectiveSource === 'all' ? feed.visibleSources : feed.visibleSources.filter(source => source.providerId === effectiveSource);
     const capableSources = (kind:'daily'|'fm'|'charts') => selectedSources.filter(source => kind==='charts'
         ? ['netease','qq'].includes(source.providerId) : omni.getRecommendationCapabilities(source.providerId)[kind]);
     const openChartFor = (providerId: string) => {
@@ -176,7 +191,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         actions[action]=()=>{
             if(kind==='heart'){actions.roamFamiliar({});return;}
             if(!available){controls.setNotice((activePlatformLabel||'当前启用平台')+'暂不支持'+({daily:'每日推荐',fm:'私人 FM',charts:'排行榜'}[kind])+'。');return;}
-            if(settings.source!=='all' && targets.length===1 && kind!=='daily'){
+            if(effectiveSource!=='all' && targets.length===1 && kind!=='daily'){
                 if(kind==='charts') openChartFor(targets[0].providerId);
                 else void controls.load(targets[0].providerId, kind);
                 return;
@@ -214,24 +229,30 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         return [sections[id]];
     }),{id:'discovery-refresh',layout:'textActions',items:[{id:'refresh',title:'刷新推荐',image:'refresh-cw',action:'refresh',disabled:feed.busy}]}];
     if (feed.busy) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
-    if (!feed.busy && !songs.length) visible.push({ id: 'discovery-empty', layout: 'message', text: '暂时没有可用推荐。可登录音乐平台或将本地音乐纳入综合推荐。' });
-    const hideUnloggedIn = settings.hideUnloggedInPrompts !== false && settings.source === 'all';
-    feed.results.filter(result => {
+    if (!feed.busy && !songs.length) {
+        const emptyText = feed.visibleSources.length === 0
+            ? '已关闭所有在线推荐来源。可在推荐设置中开启平台来源，或导入本地音乐。'
+            : '暂时没有可用推荐。可登录音乐平台或将本地音乐纳入综合推荐。';
+        visible.push({ id: 'discovery-empty', layout: 'message', text: emptyText });
+    }
+    const hideUnloggedIn = settings.hideUnloggedInPrompts !== false && effectiveSource === 'all';
+    scopedResults.filter(result => {
         if (result.status === 'login') return !hideUnloggedIn;
         return result.status === 'error';
     }).forEach(result => {
         if (result.status === 'login') {
             const loginAction = 'login:' + result.providerId;
-            actions[loginAction] = () => { void props.account.startLogin(result.providerId); };
+            actions[loginAction] = () => { useSettingsModalStore.getState().openSettingsFromIndex('accounts'); };
             visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + '：部分个性化内容需登录后获取。', more: loginAction, moreLabel: '去登录' });
         } else {
             visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + '：暂时加载失败，其他来源仍可使用。' });
         }
     });
     if (controls.notice) visible.push({ id: 'notice', layout: 'message', text: controls.notice });
-    const model: NativePageModel = { key: 'home:discovery:' + feed.owner, title: '推荐', subtitle: '发现属于你的下一首', trailing: 'settings', trailingLabel: '推荐设置', trailingIcon: 'settings', background: 'home', bottomClearance: 152, sections: visible };
+    const orderTag = feed.visibleSources.map(s => s.providerId).join(',');
+    const model: NativePageModel = { key: `home:discovery:${effectiveSource}:${orderTag}:${feed.owner}`, title: '推荐', subtitle: '发现属于你的下一首', trailing: 'settings', trailingLabel: '推荐设置', trailingIcon: 'settings', background: 'home', bottomClearance: 152, sections: visible };
     // Keep the existing account/bootstrap gate: never replace a retained native page with a false empty state.
-    useNativePage(root, 'home', props.isInteractive, sources.online.accountView === 'resolving' || !preferences.ready ? null : model, actions, onReady);
+    useNativePage(root, 'home', props.isInteractive, sources.online.accountView === 'resolving' || !preferences.ready || !settingsHydrated ? null : model, actions, onReady);
     return <>
         <OperationPanel id="discovery-shortcut" panel={shortcut?{title:{daily:'每日推荐',fm:'私人 FM',charts:'排行榜'}[shortcut],blocks:[
             {id:'providers',kind:'actions',items:capableSources(shortcut).map(source=>({id:source.providerId,label:omni.getProviderLabel(source.providerId,false),hint:shortcut==='charts'?'新歌榜 · 平台真实榜单':undefined,disabled:controls.busy||chartBusy}))},
@@ -248,8 +269,8 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         }}/>
         <OperationPanel id="discovery-radars" panel={radarOpen ? { title: '听屿雷达', blocks: [{ kind: 'actions', id: 'radars', items: (['heart','style','explore','time','local'] as RadarKind[]).map(kind => ({ id: kind, label: radarNames[kind], hint: kind === 'local' ? '离线曲库' : '最多30首 · 真实推荐依据' })) }] } : null} onClose={() => setRadarOpen(false)} onAction={id => { setRadarOpen(false); openRadar(id as RadarKind); }}/>
         <DiscoveryHistoryPanel open={historyOpen} sources={selectedSources} onClose={() => setHistoryOpen(false)} onSongs={(title, list) => { setHistoryOpen(false); controls.openSongs(title, list); }}/>
-        <OperationPanel id="discovery-collections" panel={collectionsOpen ? { title: '全部推荐歌单', blocks: [{ kind: 'actions', id: 'collections', items: feed.results.flatMap(result => result.collections).map(collection => ({ id: 'pick:' + collection.providerId + ':' + collection.id, label: collection.name, hint: omni.getProviderLabel(collection.providerId) })) }] } : null} onClose={() => setCollectionsOpen(false)} onAction={id => {
-            const collection = feed.results.flatMap(result => result.collections).find(item => id === 'pick:' + item.providerId + ':' + item.id);
+        <OperationPanel id="discovery-collections" panel={collectionsOpen ? { title: '全部推荐歌单', blocks: [{ kind: 'actions', id: 'collections', items: scopedResults.flatMap(result => result.collections).map(collection => ({ id: 'pick:' + collection.providerId + ':' + collection.id, label: collection.name, hint: omni.getProviderLabel(collection.providerId) })) }] } : null} onClose={() => setCollectionsOpen(false)} onAction={id => {
+            const collection = scopedResults.flatMap(result => result.collections).find(item => id === 'pick:' + item.providerId + ':' + item.id);
             setCollectionsOpen(false); if (collection) controls.openCollection(collection);
         }}/>
         <OperationPanel id="discovery-track" panel={controls.menu ? { title: controls.menu.song.name, subtitle: controls.menu.reason, blocks: [{ kind: 'actions', id: 'track', items: [{ id: 'play', label: '播放', icon: 'play' }, { id: 'enqueue', label: '添加到队列', icon: 'plus' }, ...(getPlaybackSourceRef(controls.menu.song).kind === 'online' ? [{ id: 'like', label: omni.isSongLiked(controls.menu.song) ? '取消收藏' : '收藏', icon: 'heart' }] : []), { id: 'dislike', label: '不感兴趣' }] }] } : null} onClose={() => controls.setMenu(null)} onAction={id => { void controls.menuAction(id); }}/>
