@@ -50,13 +50,19 @@ it.each(['online','local','navidrome'] as const)('retains source selection and e
         if(source==='navidrome')expect(model.sections.find(section=>section.id==='connection')?.text).toBe('连接状态');
     }finally{await act(()=>root.unmount())}
 });
-it('offers local and Navidrome globally and permits returning from either to QQ',async()=>{
+it('offers local subpage entry and Navidrome without locking global homeSource to local',async()=>{
+    const { useMobileLibraryStore } = await import('@/stores/useMobileLibraryStore');
+    useMobileLibraryStore.setState({ localMusicOpen: false });
     const root=createRoot(document.createElement('div'));
     try{
         await act(()=>root.render(createElement(MobileSourceSheet,{account:{} as never,onClose:vi.fn(),localSongCount:0,navidromeEnabled:true})));
         const block=panel.blocks[0];expect(block.kind).toBe('actions');
         if(block.kind==='actions')expect(block.items.map(item=>item.id)).toEqual(expect.arrayContaining(['source:local','source:navidrome','source:qq']));
-        for(const source of ['local','navidrome','qq']){
+        await act(async()=>panelAction('source:local'));
+        expect(useMobileLibraryStore.getState().localMusicOpen).toBe(true);
+        expect(useHomeSourceStore.getState().source).toBe('online');
+        expect(resolveHomeSearchSource()).toBe('qq');
+        for(const source of ['navidrome','qq']){
             await act(async()=>panelAction(`source:${source}`));expect(resolveHomeSearchSource()).toBe(source);
         }
     }finally{await act(()=>root.unmount())}

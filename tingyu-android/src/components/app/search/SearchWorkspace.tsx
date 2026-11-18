@@ -30,7 +30,6 @@ import { buildSearchCollectionDescriptor } from './searchCollectionOpen';
 import { useCollectionNavigationStore } from '../../../stores/useCollectionNavigationStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { searchableSources } from '../../../stores/useSearchSettingsStore';
-import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
 import type { LibraryAccountController } from '../../../library/core/contracts/account';
 import { useSearchHistoryStore } from '../../../stores/useSearchHistoryStore';
 import { omni } from '../../../services/onlineMusic/omni';
@@ -123,13 +122,12 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const { artists, albums, playlists } = useSearchExploreStore(useShallow(state => ({
         artists: state.artists, albums: state.albums, playlists: state.playlists,
     })));
-    const localOnly = useHomeSourceStore(state => state.source === 'local');
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
     const registryVersion = useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion, () => 0);
-    const sources = useMemo<SearchSource[]>(() => localOnly ? ['local'] : ['aggregate', ...searchableSources(), 'navidrome'], [registryVersion, localOnly]);
+    const sources = useMemo<SearchSource[]>(() => ['aggregate', ...searchableSources(), 'navidrome'], [registryVersion]);
     useEffect(() => {
-        if (!sources.includes(searchSourceTab)) useSearchNavigationStore.getState().selectSearchSource(localOnly ? 'local' : 'aggregate');
-    }, [sources, searchSourceTab, localOnly]);
+        if (!sources.includes(searchSourceTab)) useSearchNavigationStore.getState().selectSearchSource('aggregate');
+    }, [sources, searchSourceTab]);
     const capabilities = useMemo(() => exploreCapabilities(searchSourceTab), [searchSourceTab, registryVersion]);
     const viewport = useVisualViewport();
     const sourceNeedsSetup = searchSourceTab === 'navidrome' && !getNavidromeConfig();

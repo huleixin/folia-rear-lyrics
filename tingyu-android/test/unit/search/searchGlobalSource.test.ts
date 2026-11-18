@@ -56,12 +56,14 @@ it('does not request a global account switch and retains the keyword',async()=>{
         expect(value.onSubmitSearch).toHaveBeenCalledExactlyOnceWith('lx-test');
     }finally{await act(()=>root.unmount())}
 });
-it('restricts pure local mode to offline search when opened',async()=>{
+it('keeps all search sources available even if legacy local state was present',async()=>{
     const root=createRoot(document.createElement('div'));
     useHomeSourceStore.setState({source:'local'});
+    useSearchNavigationStore.setState({searchSourceTab:'local'});
     try{
         await act(()=>root.render(createElement(SearchWorkspace,props())));
-        expect(native.source).toBe('local'); expect(native.sources).toEqual(['local']);
-        expect(resolveHomeSearchSource()).toBe('local');
+        expect(native.source).toBe('local');
+        expect(native.sources).toEqual(['aggregate','qq','lx-test','local','navidrome']);
+        expect(resolveHomeSearchSource()).toBe('qq');
     }finally{await act(()=>root.unmount())}
 });

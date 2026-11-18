@@ -26,6 +26,7 @@ import '../../../styles/composeChrome.css';
 function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const { t } = useTranslation();
     const page = useMobileLibraryStore((state) => state.page);
+    const localMusicOpen = useMobileLibraryStore((state) => state.localMusicOpen);
     const searchOpen = useSearchNavigationStore((state) => state.isSearchOpen);
     const settingsOpen = useSettingsModalStore((state) => state.settingsModalState.isOpen);
     // 设置二/三级页：底部导航也要收起来（只有设置主页保留）。
@@ -34,9 +35,8 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const libraryActive = !searchOpen && !settingsOpen && page === 'library';
     const artistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'artist';
     const wide = useMediaQuery('(min-width:840px)');
-    // 集合详情（非歌手）按页面层级判定，不再按数据类型：歌单/专辑/每日推荐等
-    // 详情页都隐藏一级导航、保留迷你播放器；宽屏保留侧边导航。
-    const collectionDetail = props.navigation.depth > 0 && props.navigation.activeType !== 'artist';
+    // 集合详情（非歌手）与独立二级页（本地音乐）按页面层级判定：隐藏一级导航、保留迷你播放器；宽屏保留侧边导航。
+    const collectionDetail = (props.navigation.depth > 0 && props.navigation.activeType !== 'artist') || localMusicOpen;
     // 两个玻璃节点持续挂载；切页只改变位置和透明度，不重建透镜或播放器。
     const navRef = useRef<HTMLElement>(null);
     const footerRef = useRef<HTMLElement>(null);
@@ -63,6 +63,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
             else if(index===2){
                 // Search may still be open underneath a collection. Always leave that collection
                 // through the host; changing only the search store keeps the native collection route.
+                useMobileLibraryStore.getState().setLocalMusicOpen(false);
                 props.onSearchCommitted?.('',resolveHomeSearchSource());
             }
         }

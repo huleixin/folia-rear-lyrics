@@ -20,8 +20,8 @@ export function installNativeBackPolicy(plugin: BackPolicyPlugin, canNavigateBac
         void plugin.setBackHandlerState!({ handledInWeb, revision: ++revision }).catch(() => undefined);
     };
     const update = () => {
-        const app = useAppViewStore.getState(), settings = useSettingsModalStore.getState();
-        send(canNavigateBack() || useMobileLibraryStore.getState().page === 'library' || app.isPanelOpen || settings.settingsModalState.isOpen
+        const app = useAppViewStore.getState(), settings = useSettingsModalStore.getState(), mobileLib = useMobileLibraryStore.getState();
+        send(canNavigateBack() || mobileLib.localMusicOpen || mobileLib.page === 'library' || app.isPanelOpen || settings.settingsModalState.isOpen
             || settings.isUserGuideModalOpen || hasNativeBackOverlay());
     };
     const subscriptions = [useMobileLibraryStore.subscribe(update), useAppViewStore.subscribe(update), useCollectionNavigationStore.subscribe(update),

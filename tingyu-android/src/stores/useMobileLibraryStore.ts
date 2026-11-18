@@ -63,6 +63,8 @@ type MobileLibraryState = {
     cancelCollectionPlay: (key: string) => void;
     page: 'home' | 'library';
     setPage: (page: 'home' | 'library') => void;
+    localMusicOpen: boolean;
+    setLocalMusicOpen: (open: boolean) => void;
     recentTracks: SongResult[];
     remember: (song: SongResult) => void;
 };
@@ -78,7 +80,9 @@ export const useMobileLibraryStore = create<MobileLibraryState>((set, get) => ({
         if (get().pendingCollectionPlay?.key === key) set({ pendingCollectionPlay: null });
     },
     page: 'home',
-    setPage: (page) => set({ page }),
+    setPage: (page) => set({ page, localMusicOpen: false }),
+    localMusicOpen: false,
+    setLocalMusicOpen: (localMusicOpen) => set({ localMusicOpen }),
     recentTracks: readHistory(),
     remember: (song) => {
         const previous = get().recentTracks;

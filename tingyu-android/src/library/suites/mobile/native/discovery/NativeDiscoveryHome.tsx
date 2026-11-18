@@ -31,7 +31,16 @@ import type { NativePageModel, PageActions, PageSection } from '../../../../../t
 import type { SongResult } from '../../../../../types';
 import OperationPanel from '../../../../../components/shared/OperationPanel';
 import { useSettingsModalStore } from '../../../../../stores/useSettingsModalStore';
-import { useHomeSourceStore } from '../../../../../stores/useHomeSourceStore';
+import { useLibraryHomeLocal } from '../../../../core/bindings/useLibraryHomeLocal';
+import { LOCAL_MUSIC_UPDATED_EVENT } from '../../../../../services/localMusicService';
+import {
+    LOCAL_PLAY_HISTORY_UPDATED_EVENT,
+    localDailySeed,
+    pickDailyLocalSongs,
+    pickLeastRecentlyPlayed,
+    resolveLocalPlayHistory,
+    type ResolvedLocalPlay,
+} from '../../../../../services/localPlayHistory';
 import { loadNewReleaseChart } from '../../../../../services/onlineMusic/newReleaseCharts';
 import DiscoveryHistoryPanel from './DiscoveryHistoryPanel';
 import { useDiscoveryActions } from './useDiscoveryActions';
@@ -71,11 +80,75 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         const open = openSettings; document.addEventListener('tingyu-discovery-settings', open);
         return () => document.removeEventListener('tingyu-discovery-settings', open);
     }, [props.isInteractive]);
-    const local = useMemo(() => settings.includeLocal && effectiveSource === 'all' ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : [], [props.localSongs, props.localLibraryCatalog, settings.includeLocal, effectiveSource]);
-    const scopedResults = useMemo(() => feed.results.filter(result => effectiveSource === 'all' ? settings.enabled[result.providerId] !== false : result.providerId === effectiveSource), [feed.results, effectiveSource, settings.enabled]);
-    const candidates = useMemo(() => [...scopedResults.flatMap(result => result.songs), ...recent.filter(song => {
-        const source = getPlaybackSourceRef(song); return source.kind === 'online' && (effectiveSource === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === effectiveSource);
-    }), ...local], [scopedResults, recent, local, effectiveSource, settings.enabled]);
+    const isLocalSource = effectiveSource === 'local';
+    const localHome = useLibraryHomeLocal({
+        localSongs: props.localSongs,
+        localPlaylists: props.localPlaylists,
+        catalog: props.localLibraryCatalog,
+        activeRow: props.localMusicState.activeRow,
+    });
+    const [localPlays, setLocalPlays] = useState<ResolvedLocalPlay[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        const reloadLocalPlays = () => {
+            void resolveLocalPlayHistory(props.localSongs).then(items => {
+                if (!cancelled) setLocalPlays(items);
+            }).catch(() => {});
+        };
+        reloadLocalPlays();
+        window.addEventListener(LOCAL_PLAY_HISTORY_UPDATED_EVENT, reloadLocalPlays);
+        window.addEventListener(LOCAL_MUSIC_UPDATED_EVENT, reloadLocalPlays);
+        return () => {
+            cancelled = true;
+            window.removeEventListener(LOCAL_PLAY_HISTORY_UPDATED_EVENT, reloadLocalPlays);
+            window.removeEventListener(LOCAL_MUSIC_UPDATED_EVENT, reloadLocalPlays);
+        };
+    }, [props.localSongs]);
+
+    const localAllTracks = useMemo(
+        () => buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE),
+        [props.localSongs, props.localLibraryCatalog],
+    );
+    const localDailyTracks = useMemo(
+        () => buildLocalQueue(pickDailyLocalSongs(props.localSongs, localDailySeed(), 30), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE),
+        [props.localSongs, props.localLibraryCatalog],
+    );
+    const localMostPlayedTracks = useMemo(() => {
+        const ordered = [...localPlays].sort((a, b) => b.playCount - a.playCount || b.lastPlayedAt - a.lastPlayedAt).map(p => p.song);
+        return buildLocalQueue(ordered.slice(0, 30), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE);
+    }, [localPlays, props.localLibraryCatalog]);
+    const localRecentTracks = useMemo(
+        () => buildLocalQueue(localPlays.slice(0, 24).map(p => p.song), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE),
+        [localPlays, props.localLibraryCatalog],
+    );
+    const localForgottenTracks = useMemo(
+        () => buildLocalQueue(pickLeastRecentlyPlayed(localPlays, 30).map(p => p.song), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE),
+        [localPlays, props.localLibraryCatalog],
+    );
+
+    const local = useMemo(
+        () => isLocalSource
+            ? localAllTracks
+            : (settings.includeLocal && effectiveSource === 'all' && settings.enabled.local !== false ? localAllTracks : []),
+        [isLocalSource, localAllTracks, settings.includeLocal, effectiveSource, settings.enabled.local],
+    );
+    const scopedResults = useMemo(
+        () => isLocalSource ? [] : feed.results.filter(result => effectiveSource === 'all' ? settings.enabled[result.providerId] !== false : result.providerId === effectiveSource),
+        [isLocalSource, feed.results, effectiveSource, settings.enabled],
+    );
+    const candidates = useMemo(() => {
+        if (isLocalSource) {
+            return [...localMostPlayedTracks, ...localDailyTracks, ...localAllTracks];
+        }
+        return [
+            ...scopedResults.flatMap(result => result.songs),
+            ...recent.filter(song => {
+                const source = getPlaybackSourceRef(song);
+                return source.kind === 'online' && (effectiveSource === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === effectiveSource);
+            }),
+            ...local,
+        ];
+    }, [isLocalSource, localMostPlayedTracks, localDailyTracks, localAllTracks, scopedResults, recent, local, effectiveSource, settings.enabled]);
     // Day and batch keep the snapshot stable; preference revision only re-ranks after a real
     // feedback event, so ordinary playback progress does not reshuffle the page.
     const seed = discoveryDay() + ':' + batch;
@@ -159,16 +232,26 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         next: () => setBatch(value => value + 1), roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs),
         roamFamiliar: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'familiar'),
         roamExplore: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'explore'),
-        allSongs: () => controls.openSongs('猜你想听', songs), allRadar: () => setRadarOpen(true),
+        allSongs: () => controls.openSongs(isLocalSource ? '常听精选与本地推荐' : '猜你想听', songs), allRadar: () => setRadarOpen(true),
         history: () => setHistoryOpen(true), allCollections: () => setCollectionsOpen(true),
-        recentAll: () => controls.openSongs('最近播放', recent), library: () => useMobileLibraryStore.getState().setPage('library') };
+        recentAll: () => controls.openSongs('最近播放', isLocalSource ? localRecentTracks : recent),
+        library: () => {
+            useMobileLibraryStore.getState().setPage('library');
+            if (isLocalSource) useMobileLibraryStore.getState().setLocalMusicOpen(true);
+        },
+        openLocalSubpage: () => {
+            useMobileLibraryStore.getState().setPage('library');
+            useMobileLibraryStore.getState().setLocalMusicOpen(true);
+        },
+    };
     const [radarOpen, setRadarOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false), [collectionsOpen, setCollectionsOpen] = useState(false);
-    const sourceItems = [{ providerId: 'all', displayName: '综合推荐' }, ...feed.visibleSources].map(source => {
+    const sourceItems = [{ providerId: 'all', displayName: '综合推荐' }, ...feed.visibleSourceTabs].map(source => {
         const action = 'source:' + source.providerId; actions[action] = () => settings.patch({ source: source.providerId });
-        return { id: action, title: source.providerId==='all'?'综合推荐':omni.getProviderLabel(source.providerId), selected: effectiveSource === source.providerId, action };
+        const title = source.providerId === 'all' ? '综合推荐' : source.providerId === 'local' ? '本地音乐' : omni.getProviderLabel(source.providerId);
+        return { id: action, title, selected: effectiveSource === source.providerId, action };
     });
-    const activePlatformLabel = effectiveSource === 'all' ? '' : omni.getProviderLabel(effectiveSource);
+    const activePlatformLabel = effectiveSource === 'all' ? '' : effectiveSource === 'local' ? '本地音乐' : omni.getProviderLabel(effectiveSource);
     const rows = (list: SongResult[], prefix: string) => list.map(song => {
         const key = prefix + getPlaybackSongKey(song), source = getPlaybackSourceRef(song);
         const reason = ranked.find(item => getPlaybackSongKey(item.song) === getPlaybackSongKey(song))?.reason;
@@ -184,24 +267,69 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         setChartBusy(true);setChartError('');void loadNewReleaseChart(providerId).then(collection=>{if(request===chartRequest.current){setShortcut(null);controls.openCollection(collection);}})
             .catch(()=>{if(request===chartRequest.current){setChartError('榜单暂时无法加载，请重试。');controls.setNotice('榜单暂时无法加载，请重试。');}}).finally(()=>{if(request===chartRequest.current)setChartBusy(false);});
     };
-    const shortcuts = (['daily','heart','fm','charts'] as const).map(kind=>{
-        const targets = kind==='heart' ? [] : capableSources(kind);
-        const available = kind==='heart' ? songs.length>0 : targets.length>0;
-        const action='quick:'+kind;
-        actions[action]=()=>{
-            if(kind==='heart'){actions.roamFamiliar({});return;}
-            if(!available){controls.setNotice((activePlatformLabel||'当前启用平台')+'暂不支持'+({daily:'每日推荐',fm:'私人 FM',charts:'排行榜'}[kind])+'。');return;}
-            if(effectiveSource!=='all' && targets.length===1 && kind!=='daily'){
-                if(kind==='charts') openChartFor(targets[0].providerId);
-                else void controls.load(targets[0].providerId, kind);
-                return;
-            }
-            setShortcut(kind);
-        };
-        return {id:action,title:{daily:'每日推荐',heart:'心动模式',fm:'私人 FM',charts:'排行榜'}[kind],action,
-            image:{daily:'calendar',heart:'heart',fm:'radio',charts:'chart-no-axes-column'}[kind],disabled:controls.busy||!available};
-    });
+    const shortcuts = isLocalSource
+        ? [
+            {
+                id: 'quick:local-daily',
+                title: '本地日推',
+                image: 'calendar',
+                disabled: localDailyTracks.length === 0,
+                run: () => controls.openSongs('本地每日推荐', localDailyTracks, '依据本机曲库每日稳定精选30首，跨天自动更新。'),
+            },
+            {
+                id: 'quick:local-heart',
+                title: '心动模式',
+                image: 'heart',
+                disabled: songs.length === 0,
+                run: () => actions.roamFamiliar({}),
+            },
+            {
+                id: 'quick:local-frequent',
+                title: '常听精选',
+                image: 'flame',
+                disabled: localMostPlayedTracks.length === 0 && localDailyTracks.length === 0,
+                run: () => controls.openSongs(
+                    '常听精选',
+                    localMostPlayedTracks.length > 0 ? localMostPlayedTracks : localDailyTracks,
+                    localMostPlayedTracks.length > 0 ? '依据本机真实播放次数排序。' : '尚无常听记录，先为你展示今日精选本地歌曲。',
+                ),
+            },
+            {
+                id: 'quick:local-forgotten',
+                title: '好久不见',
+                image: 'clock',
+                disabled: localForgottenTracks.length === 0 && songs.length === 0,
+                run: () => controls.openSongs(
+                    '好久不见',
+                    localForgottenTracks.length > 0 ? localForgottenTracks : songs.slice(0, 30),
+                    localForgottenTracks.length > 0 ? '曾经听过但近期未播的本机歌曲。' : '从本机曲库中为你探索更多歌曲。',
+                ),
+            },
+        ].map(entry => {
+            actions[entry.id] = entry.run;
+            return { id: entry.id, title: entry.title, action: entry.id, image: entry.image, disabled: entry.disabled };
+        })
+        : (['daily','heart','fm','charts'] as const).map(kind=>{
+            const targets = kind==='heart' ? [] : capableSources(kind);
+            const available = kind==='heart' ? songs.length>0 : targets.length>0;
+            const action='quick:'+kind;
+            actions[action]=()=>{
+                if(kind==='heart'){actions.roamFamiliar({});return;}
+                if(!available){controls.setNotice((activePlatformLabel||'当前启用平台')+'暂不支持'+({daily:'每日推荐',fm:'私人 FM',charts:'排行榜'}[kind])+'。');return;}
+                if(effectiveSource!=='all' && targets.length===1 && kind!=='daily'){
+                    if(kind==='charts') openChartFor(targets[0].providerId);
+                    else void controls.load(targets[0].providerId, kind);
+                    return;
+                }
+                setShortcut(kind);
+            };
+            return {id:action,title:{daily:'每日推荐',heart:'心动模式',fm:'私人 FM',charts:'排行榜'}[kind],action,
+                image:{daily:'calendar',heart:'heart',fm:'radio',charts:'chart-no-axes-column'}[kind],disabled:controls.busy||!available};
+        });
     const roamIdleSubtitle = activePlatformLabel ? `在${activePlatformLabel}发现属于你的下一首` : '让熟悉与未知，在下一首相遇';
+    const localAlbums = localHome.sections.find(s => s.key === 'albums')?.groups ?? [];
+    const localPlaylists = localHome.sections.find(s => s.key === 'playlists')?.groups ?? [];
+    const radarCardKinds: RadarKind[] = isLocalSource ? ['local', 'time', 'style'] : ['style', 'time', 'explore'];
     const sections: Record<string, PageSection> = {
         roam: { id: 'discovery-brand', layout: 'discoveryHero', items: [{ id: 'roam', title: '听屿漫游', subtitle: roaming.active ? (roaming.exhausted ? '本批已全部加入' : '正在漫游 · 下一首继续发现') : roamIdleSubtitle, action: 'roam', secondaryLabel:roaming.active?'退出漫游':'立即漫游',disabled:!roaming.active&&!songs.length }] },
         roamModes: { id: 'discovery-roam-modes', layout: 'chips', items: [
@@ -209,31 +337,76 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             { id: 'roam-explore', title: '多探索', action: 'roamExplore' },
         ] },
         shortcuts: { id: 'shortcuts', layout: 'quickLinks', items: shortcuts },
-        radars: { id: 'discovery-radars', title: '你的专属雷达', layout: 'radarCards', more: 'allRadar', moreLabel: '全部', items: (['style','time','explore'] as RadarKind[]).map(kind => {
+        radars: { id: 'discovery-radars', title: '你的专属雷达', layout: 'radarCards', more: 'allRadar', moreLabel: '全部', items: radarCardKinds.map(kind => {
             const action = 'radar:' + kind, list = radar(kind);
             actions[action] = () => openRadar(kind);
             actions[action+':play'] = () => { if(list.length)props.onPlaySong(list[0],list); };
-            return { id: kind, title: radarNames[kind], subtitle: kind === 'style' ? '歌手与音乐的关联' : kind === 'time' ? (insightsData.loading && !list.length ? '正在整理收听记忆…' : '重逢旧日旋律') : '发现未听过的音乐', action, secondary:list.length?action+':play':'' };
+            return { id: kind, title: radarNames[kind], subtitle: kind === 'local' ? '离线本机曲库' : kind === 'style' ? '歌手与音乐的关联' : kind === 'time' ? (insightsData.loading && !list.length ? '正在整理收听记忆…' : '重逢旧日旋律') : '发现未听过的音乐', action, secondary:list.length?action+':play':'' };
         }) },
-        songs: { id: 'discovery-songs', title: '猜你想听', layout: 'rows', more: 'next', moreLabel: '换一批', items: rows(songs.slice(0, 6), 'song:') },
-        collections: { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: scopedResults.flatMap(result => result.collections).slice(0, 24).map(collection => {
-            const action = 'collection:' + collection.providerId + ':' + collection.id; actions[action] = () => controls.openCollection(collection);
-            return { id: action, title: collection.name, subtitle: omni.getProviderLabel(collection.providerId) + (collection.trackCount != null ? ' · ' + collection.trackCount + '首' : ''), image: absolutePageImage(collection.coverUrl), action };
-        }), more: 'allCollections', moreLabel: '查看更多' },
-        recent: { id: 'recent', title: t('mobileLibrary.recent'), layout: 'cards', more: 'recentAll', moreLabel: '全部', items: rows(recent.slice(0, 12), 'recent:') },
-        playlists: { id: 'playlists', title: '我的歌单', layout: 'cards', more: 'library', moreLabel: '全部', items: sources.online.collections.slice(0, 8).map(collection => { const action = 'mine:' + collection.id; actions[action] = () => controls.openCollection(collection); return { id: action, title: collection.name, image: absolutePageImage(collection.coverUrl), action }; }) },
+        songs: { id: 'discovery-songs', title: isLocalSource ? '常听精选' : '猜你想听', layout: 'rows', more: 'next', moreLabel: '换一批', items: rows(songs.slice(0, 6), 'song:') },
+        collections: isLocalSource
+            ? {
+                id: 'discovery-collections',
+                title: '本地专辑精选',
+                layout: 'cards',
+                items: localAlbums.slice(0, 16).map((group, idx) => {
+                    const action = `local-album:${idx}:${group.id}`;
+                    actions[action] = () => props.homeResources.actions.openLocalGroup(group, props.onOpenGridView);
+                    return {
+                        id: action,
+                        title: group.name,
+                        subtitle: `${group.description ? `${group.description} · ` : ''}${group.trackCount ?? group.songs.length}首`,
+                        image: typeof group.coverUrl === 'string' ? absolutePageImage(group.coverUrl) : undefined,
+                        action,
+                    };
+                }),
+                more: 'openLocalSubpage',
+                moreLabel: '全部',
+            }
+            : { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: scopedResults.flatMap(result => result.collections).slice(0, 24).map(collection => {
+                const action = 'collection:' + collection.providerId + ':' + collection.id; actions[action] = () => controls.openCollection(collection);
+                return { id: action, title: collection.name, subtitle: omni.getProviderLabel(collection.providerId) + (collection.trackCount != null ? ' · ' + collection.trackCount + '首' : ''), image: absolutePageImage(collection.coverUrl), action };
+            }), more: 'allCollections', moreLabel: '查看更多' },
+        recent: { id: 'recent', title: t('mobileLibrary.recent'), layout: 'cards', more: 'recentAll', moreLabel: '全部', items: rows((isLocalSource ? localRecentTracks : recent).slice(0, 12), 'recent:') },
+        playlists: isLocalSource
+            ? {
+                id: 'playlists',
+                title: '本地歌单',
+                layout: 'cards',
+                more: 'openLocalSubpage',
+                moreLabel: '全部',
+                items: localPlaylists.slice(0, 12).map((group, idx) => {
+                    const action = `local-pl:${idx}:${group.id}`;
+                    actions[action] = () => props.homeResources.actions.openLocalGroup(group, props.onOpenGridView);
+                    return {
+                        id: action,
+                        title: group.name,
+                        subtitle: `${group.trackCount ?? group.songs.length}首`,
+                        image: typeof group.coverUrl === 'string' ? absolutePageImage(group.coverUrl) : undefined,
+                        action,
+                    };
+                }),
+            }
+            : { id: 'playlists', title: '我的歌单', layout: 'cards', more: 'library', moreLabel: '全部', items: sources.online.collections.slice(0, 8).map(collection => { const action = 'mine:' + collection.id; actions[action] = () => controls.openCollection(collection); return { id: action, title: collection.name, image: absolutePageImage(collection.coverUrl), action }; }) },
     };
     const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id]).flatMap(id => {
         if(id==='roam'&&roaming.active)return [sections[id],sections.roamModes];
         if(id==='songs')return [sections[id],{id:'discovery-song-actions',layout:'textActions' as const,items:[{id:'allSongs',title:'全部推荐歌曲',action:'allSongs'}]}];
         return [sections[id]];
-    }),{id:'discovery-refresh',layout:'textActions',items:[{id:'refresh',title:'刷新推荐',image:'refresh-cw',action:'refresh',disabled:feed.busy}]}];
-    if (feed.busy) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
+    }),...(isLocalSource ? [] : [{id:'discovery-refresh',layout:'textActions' as const,items:[{id:'refresh',title:'刷新推荐',image:'refresh-cw',action:'refresh',disabled:feed.busy}]}])];
+    if (feed.busy && !isLocalSource) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
     if (!feed.busy && !songs.length) {
-        const emptyText = feed.visibleSources.length === 0
-            ? '已关闭所有在线推荐来源。可在推荐设置中开启平台来源，或导入本地音乐。'
-            : '暂时没有可用推荐。可登录音乐平台或将本地音乐纳入综合推荐。';
-        visible.push({ id: 'discovery-empty', layout: 'message', text: emptyText });
+        const emptyText = isLocalSource
+            ? '暂无本地音乐，可进入「本地音乐」扫描或导入手机音频目录。'
+            : feed.visibleSources.length === 0
+                ? '已关闭所有在线推荐来源。可在推荐设置中开启平台来源，或导入本地音乐。'
+                : '暂时没有可用推荐。可登录音乐平台或将本地音乐纳入综合推荐。';
+        visible.push({
+            id: 'discovery-empty',
+            layout: 'message',
+            text: emptyText,
+            ...(isLocalSource ? { more: 'openLocalSubpage', moreLabel: '进入本地音乐' } : {}),
+        });
     }
     const hideUnloggedIn = settings.hideUnloggedInPrompts !== false && effectiveSource === 'all';
     scopedResults.filter(result => {
@@ -249,7 +422,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         }
     });
     if (controls.notice) visible.push({ id: 'notice', layout: 'message', text: controls.notice });
-    const orderTag = feed.visibleSources.map(s => s.providerId).join(',');
+    const orderTag = feed.visibleSourceTabs.map(s => s.providerId).join(',');
     const model: NativePageModel = { key: `home:discovery:${effectiveSource}:${orderTag}:${feed.owner}`, title: '推荐', subtitle: '发现属于你的下一首', trailing: 'settings', trailingLabel: '推荐设置', trailingIcon: 'settings', background: 'home', bottomClearance: 152, sections: visible };
     // Keep the existing account/bootstrap gate: never replace a retained native page with a false empty state.
     useNativePage(root, 'home', props.isInteractive, sources.online.accountView === 'resolving' || !preferences.ready || !settingsHydrated ? null : model, actions, onReady);

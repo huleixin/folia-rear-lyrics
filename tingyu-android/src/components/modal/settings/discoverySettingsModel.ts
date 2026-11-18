@@ -23,6 +23,7 @@ export type DiscoverySourceOption = {
     providerId: string;
     displayName: string;
     loggedIn?: boolean;
+    statusText?: string;
 };
 
 export function discoverySettingsModel(settings: DiscoverySettings, sources: DiscoverySourceOption[]): NativeSettingsFlow {
@@ -37,14 +38,19 @@ export function discoverySettingsModel(settings: DiscoverySettings, sources: Dis
         const enabled = settings.enabled[source.providerId] !== false;
         const status = !enabled
             ? '已隐藏'
-            : source.loggedIn === true
-                ? '已登录'
-                : source.loggedIn === false
-                    ? '未登录'
-                    : '可用';
+            : source.statusText
+                ? source.statusText
+                : source.loggedIn === true
+                    ? '已登录'
+                    : source.loggedIn === false
+                        ? '未登录'
+                        : '可用';
+        const label = source.providerId === 'local'
+            ? '本地音乐'
+            : providerLabel(source.providerId, false, source.displayName);
         return {
             id: source.providerId,
-            label: providerLabel(source.providerId, false, source.displayName),
+            label,
             status,
             enabled,
             weight: String(settings.weights[source.providerId] ?? 1),

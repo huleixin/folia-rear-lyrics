@@ -28,11 +28,14 @@ export function installNativeShellRouting() {
     const publish=()=>{
         const view=useAppViewStore.getState(),settingsState=useSettingsModalStore.getState(),settings=settingsState.settingsModalState;
         const stack=useCollectionNavigationStore.getState().snapshot?.stack;
-        const search=useSearchNavigationStore.getState().isSearchOpen,collection=!!stack?.length;
+        const mobileLib=useMobileLibraryStore.getState();
+        const hasStack=!!stack?.length;
+        const localMusicSubpage=!hasStack&&mobileLib.localMusicOpen;
+        const search=useSearchNavigationStore.getState().isSearchOpen,collection=hasStack||localMusicSubpage;
         const index=settings.initialTab==='options'&&!settings.initialSubview&&!settings.initialAnchor&&!settings.initialVisualizerSection;
         const settingsRoot=settings.isOpen&&!settingsState.isSubSettingsViewOpen;
         const {route,selectedTab}=nativeShellRoute({settingsOpen:settings.isOpen,settingsIndex:index,searchOpen:search,
-            collectionOpen:collection,view:view.view,libraryPage:useMobileLibraryStore.getState().page});
+            collectionOpen:collection,view:view.view,libraryPage:mobileLib.page});
         if(!canPublishNativeStage(route,document.querySelector('[data-folia-app-shell]'),composeMinimalOwnsSurface()))return;
         // Ownership follows the route, not a document flag removed during React cleanup.
         // Settings portals are captured into the same native document.
@@ -42,7 +45,7 @@ export function installNativeShellRouting() {
             nativeShellHasWebOverlay([...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
                 .filter(node=>!node.closest('[data-folia-settings-overlay]')));
         const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):(settings.initialSubview==='discovery'||settings.initialSubview==='search')?`settings:document:${settings.initialSubview}`:`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
-            route==='collection'?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'';
+            route==='collection'?(hasStack?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'collection:local-music'):'';
         // The mounted document owns nested editor identity. Do not reconstruct its flags here.
         const documentKey=document.querySelector<HTMLElement>('[data-native-document-root]')?.dataset.nativeSettingsKey;
         const entryKey=route==='settings'&&!index&&documentKey?.startsWith(pageTarget)?documentKey:pageTarget;

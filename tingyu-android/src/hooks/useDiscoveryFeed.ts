@@ -13,6 +13,14 @@ export function useDiscoveryFeed(active: boolean) {
     const registry = useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion);
     const settings = useDiscoverySettingsStore();
     const sources = useMemo(() => discoverySources(), [accounts, registry]);
+    const allSourceTabs = useMemo(
+        () => [...sources, { providerId: 'local', displayName: '本地音乐' }],
+        [sources],
+    );
+    const visibleSourceTabs = useMemo(
+        () => computeVisibleDiscoverySources(allSourceTabs, settings),
+        [allSourceTabs, settings.sourceOrder, settings.enabled],
+    );
     const visibleSources = useMemo(
         () => computeVisibleDiscoverySources(sources, settings),
         [sources, settings.sourceOrder, settings.enabled],
@@ -94,8 +102,9 @@ export function useDiscoveryFeed(active: boolean) {
     return {
         sources,
         visibleSources,
+        visibleSourceTabs,
         results: orderedResults,
-        busy: state.owner !== owner || state.busy,
+        busy: effectiveSource === 'local' ? false : (state.owner !== owner || state.busy),
         retry: () => setRefresh(value => value + 1),
         owner,
     };

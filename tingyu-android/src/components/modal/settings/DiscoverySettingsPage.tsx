@@ -40,10 +40,17 @@ export default function DiscoverySettingsPage({ onClose }: { onClose: () => void
         return () => window.removeEventListener('keydown', onKey, true);
     }, [fromIndex, onClose]);
 
-    const currentSources = discoverySources().map(s => ({
-        ...s,
-        loggedIn: Boolean(accounts[s.providerId]?.user),
-    }));
+    const currentSources = [
+        ...discoverySources().map(s => ({
+            ...s,
+            loggedIn: Boolean(accounts[s.providerId]?.user),
+        })),
+        {
+            providerId: 'local',
+            displayName: '本地音乐',
+            statusText: '本机曲库',
+        },
+    ];
     const knownSourceIds = currentSources.map(s => s.providerId);
 
     useNativeSettingsDocument(

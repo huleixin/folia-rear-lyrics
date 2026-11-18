@@ -5,6 +5,7 @@ import type { LibraryHomeSurfaceProps } from '../../core/contracts/suite';
 import { useLibraryAccountProviders } from '../../core/bindings/useLibraryAccount';
 import { useLibraryHomeActions } from '../../core/bindings/useLibraryHomeActions';
 import { useHomeSourceStore, selectHomeSearchSource } from '../../../stores/useHomeSourceStore';
+import { useMobileLibraryStore } from '../../../stores/useMobileLibraryStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import OperationPanel from '../../../components/shared/OperationPanel';
 import type { NativePanelActionRow } from '../../../types/nativePanels';
@@ -42,14 +43,15 @@ export function MobileSourceSheet({
     };
     const items: NativePanelActionRow[] = [];
     const handlers: Record<string, () => void> = {};
+    const localMusicOpen = useMobileLibraryStore((state) => state.localMusicOpen);
     if (localSongCount !== undefined) {
         items.push({
             id: 'source:local', icon: 'smartphone',
             label: t('mobileLibrary.localMusicSource'),
             hint: t('mobileLibrary.localMusicSourceHint', { count: localSongCount }),
-            selected: homeSource === 'local',
+            selected: localMusicOpen,
         });
-        handlers['source:local'] = () => setHomeSource('local');
+        handlers['source:local'] = () => useMobileLibraryStore.getState().setLocalMusicOpen(true);
     }
     if(navidromeEnabled||navidrome){
         items.push({id:'source:navidrome',label:'Navidrome',selected:navidrome});

@@ -77,7 +77,7 @@ export function computeVisibleDiscoverySources<T extends { providerId: string }>
 export function resolveEffectiveDiscoverySource(
     settings: Pick<DiscoverySettings, 'source' | 'enabled'>,
 ): string {
-    if (settings.source === 'all' || settings.source === 'local') return settings.source;
+    if (settings.source === 'all') return 'all';
     if (settings.enabled[settings.source] === false) return 'all';
     return settings.source;
 }

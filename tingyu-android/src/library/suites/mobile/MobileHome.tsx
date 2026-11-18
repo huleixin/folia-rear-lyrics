@@ -17,6 +17,7 @@ import { MobileSourceSheet } from './MobileHomeSources';
 import { useMobileCollectionPreload } from './useMobileCollectionPreload';
 import { useNativePagesAvailable } from '../../../hooks/useNativePage';
 import NativeHomePage from './native/NativeHomePage';
+import NativeLocalMusicSubpage from './native/NativeLocalMusicSubpage';
 import { NATIVE_FIRST } from '../../../services/nativePages';
 import './mobileLibrary.css';
 import './mobileLibraryPage.css';
@@ -51,10 +52,14 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
         getState: () => ({ active: sources.tab, tabs: sources.tabs }),
         setTab: (tab) => {
             if (!sources.tabs.some((entry) => entry.key === tab && !entry.disabledReason)) return false;
+            if (tab === 'local') {
+                useMobileLibraryStore.getState().setPage('library');
+                useMobileLibraryStore.getState().setLocalMusicOpen(true);
+                props.onNativeTabSelected?.();
+                return true;
+            }
             sources.setTab(tab);
-            // 页签与全局音源是同一件事：命令面板 / 原生页签也要走统一入口，
-            // 否则资料库停在「本地」而推荐页还是在线（或反过来）。
-            useHomeSourceStore.getState().setSource(tab === 'local' ? 'local' : 'online');
+            useHomeSourceStore.getState().setSource('online');
             useMobileLibraryStore.getState().setPage('library');
             props.onNativeTabSelected?.();
             return true;
@@ -68,6 +73,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
     }, []);
     const homeSource = useHomeSourceStore((state) => state.source);
     const setHomeSource = useHomeSourceStore((state) => state.setSource);
+    const localMusicOpen = useMobileLibraryStore((state) => state.localMusicOpen);
     const rootRef=React.useRef<HTMLElement>(null);
     const nativeAvailable=useNativePagesAvailable();
     // 首页 DOM 已改为编译期剔除（NATIVE_FIRST 恒真），ready 回调不再驱动任何渲染分支，
@@ -80,6 +86,8 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
             {/* homeSource 参与 key：切换音源时整页重挂，Compose 侧拿到的是干净的新模型。 */}
             {nativeAvailable&&<NativeHomePage key={`${page}:${sources.tab}:${sources.online.providerId}:${homeSource}`} root={rootRef} page={page} props={props} sources={sources}
                 onReady={setNativeReady} onSources={()=>setShowSources(true)}/>}
+            {nativeAvailable&&<NativeLocalMusicSubpage props={props} open={localMusicOpen}
+                onClose={()=>useMobileLibraryStore.getState().setLocalMusicOpen(false)}/>}
             {/* 模块常量门控（docs/ANDROID-PAGE-OWNERSHIP.md §2）：NATIVE_FIRST 在 Android
                 启动时即为 true、且本会话内不再变化，因此这段旧 DOM 在 Android 上不可达；
                 网页端 NATIVE_FIRST=false，仍由它渲染。接管失败时由原生

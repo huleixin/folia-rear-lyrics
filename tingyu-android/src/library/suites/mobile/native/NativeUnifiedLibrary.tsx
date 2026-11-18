@@ -16,7 +16,7 @@ import {
 } from '../../../core/state/useLibraryOrganization';
 import { omni } from '../../../../services/onlineMusic/omni';
 import { absolutePageImage } from '../../../../services/nativePages';
-import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
+import { useMobileLibraryStore } from '../../../../stores/useMobileLibraryStore';
 import { useSettingsModalStore } from '../../../../stores/useSettingsModalStore';
 import type { NativeHomeProps } from './NativeHomeOverview';
 import type { PageActions, PageSection } from '../../../../types/nativePages';
@@ -179,7 +179,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         'toggle-platform-group': () => organization.patch({ groupByPlatform: !organization.groupByPlatform }),
         'toggle-all-groups': () => organization.setAllGroupsCollapsed(visibleGroupIds, !allCollapsed),
         'platform-order': () => setPlatformOrderOpen(true),
-        local: () => useHomeSourceStore.getState().setSource('local'),
+        local: () => useMobileLibraryStore.getState().setLocalMusicOpen(true),
         'open-accounts': () => useSettingsModalStore.getState().openSettingsFromIndex('accounts'),
     };
 
