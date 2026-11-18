@@ -7,7 +7,9 @@ async function hmac(v,secret){const key=await crypto.subtle.importKey('raw',new 
 export async function signed(d,secret){const p=btoa(JSON.stringify(d));return p+'.'+await hmac(p,secret);}
 export async function verified(token,secret){try{if(typeof token!=='string'||token.length>2048)return null;const parts=token.split('.');if(parts.length!==2)return null;const [p,s]=parts;if(!await equal(s,await hmac(p,secret)))return null;const d=JSON.parse(atob(p));return d.exp>Date.now()?d:null;}catch{return null;}}
 export async function identity(req,env){const token=req.headers.get('Authorization')?.replace(/^Bearer /,'');
-  if(await equal(token,env.FEEDBACK_ADMIN_TOKEN))return 'admin';if(await equal(token,env.FEEDBACK_READ_TOKEN))return 'read';
+  if(await equal(token,env.FEEDBACK_ADMIN_TOKEN))return 'admin';
+  if(env.RELEASE_PREPARE_TOKEN&&await equal(token,env.RELEASE_PREPARE_TOKEN))return 'prepare';
+  if(await equal(token,env.FEEDBACK_READ_TOKEN))return 'read';
   const session=/(?:^|; )ty_session=([^;]+)/.exec(req.headers.get('Cookie')??'')?.[1];const c=await verified(session??'',env.FEEDBACK_ADMIN_TOKEN);
   return c?.kind==='session'&&['read','admin'].includes(c.role)?c.role:null;}
 export async function limitedJson(req,limit){if(!req.headers.get('Content-Type')?.startsWith('application/json'))throw new Error('json_only_archives_rejected');

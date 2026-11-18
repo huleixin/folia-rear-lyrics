@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "appId": "io.github.huleixin.tingyu",
+  "channel": "testing",
+  "policyRevision": 2,
+  "policyAction": "emergency_unlock",
+  "updateEnabled": false,
+  "latestVersionName": "1.5.77-test",
+  "latestVersionCode": 292,
+  "minSupportedVersionCode": 1,
+  "releaseId": "rel-testing-e2e-1.5.77-292",
+  "gitCommit": "934b4e69",
+  "releaseNotes": "手机端远程演练：紧急解除测试渠道强制更新限制",
+  "publishedAt": "2026-11-18T03:13:56.374Z",
+  "publishedAtEpochMs": 1794971636374,
+  "policyExpiresAt": "2026-12-18T03:13:56.374Z",
+  "policyExpiresAtEpochMs": 1797563636374,
+  "offlineGraceHours": 168,
+  "apkSizeBytes": 58485998,
+  "sha256": "e26b0812b3d6da734c2af0c2f7816ecdaa6a31127618d141a814af164c7d1469",
+  "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
+  "minSdk": 24,
+  "supportedAbis": [
+    "arm64-v8a",
+    "armeabi-v7a"
+  ],
+  "downloadUrls": [
+    {
+      "id": "cnb-primary",
+      "label": "CNB 国内高速主节点",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/distribution-test-01/tingyu-1.5.77-release.apk",
+      "priority": 1
+    }
+  ],
+  "signatureAlgorithm": "ECDSA-P256-SHA256",
+  "keyId": "tingyu-policy-2026-k1",
+  "signature": "MEQCIAziX3+ArIWcLDZ7uNNcKGrUzNDdIu9WpyOFQ3i0nhW9AiAPOAiIMZLKca/7CyByq1+G1BK0JBl8c+JTZS0A7h7hqg=="
+}

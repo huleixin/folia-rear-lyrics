@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "activeKeyId": "tingyu-policy-2026-k1",
+  "keys": {
+    "tingyu-policy-2026-k1": {
+      "keyId": "tingyu-policy-2026-k1",
+      "algorithm": "ECDSA-P256-SHA256",
+      "status": "active",
+      "spkiBase64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbVJK6ih4OY2wmjWjgUgPl+8yKOKEbYKDz5xAAMj5+zXIuarUBqLUdPNU1Wmo06AuSssy4cD/ksB/Zhr9nro4dw=="
+    },
+    "tingyu-policy-2026-k2-backup": {
+      "keyId": "tingyu-policy-2026-k2-backup",
+      "algorithm": "ECDSA-P256-SHA256",
+      "status": "backup",
+      "spkiBase64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENCxOfBCUyskXdIV113Y4oCYOKn3fDE4M/+h2CsIygob0nL7oETur+iJpqopBZuz3qXwwmelHczXIDX5noXW0hw=="
+    }
+  }
+}

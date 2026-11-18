@@ -7,7 +7,7 @@ import {signed} from '../src/security.mjs';
 
 // Real SQLite SQL/transactions plus a fault-injectable R2 adapter; not a cloud test.
 export function fixture(){
-  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON;'+readFileSync(new URL('../migrations/0001_feedback.sql',import.meta.url),'utf8')+readFileSync(new URL('../migrations/0002_metrics.sql',import.meta.url),'utf8'));
+  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON;'+readFileSync(new URL('../migrations/0001_feedback.sql',import.meta.url),'utf8')+readFileSync(new URL('../migrations/0002_metrics.sql',import.meta.url),'utf8')+readFileSync(new URL('../migrations/0003_release_console.sql',import.meta.url),'utf8'));
   sql.exec("UPDATE settings SET value='true' WHERE key='uploads_enabled'");
   let failFinalize=false;const objects=new Map();
   const DB={prepare(query){let args=[];return {bind(...a){args=a;return this;},async first(){return sql.prepare(query).get(...args)??null;},async all(){return {results:sql.prepare(query).all(...args)};},async run(){if(failFinalize&&query.includes("SET phase='ready'")){failFinalize=false;throw Error('injected');}const r=sql.prepare(query).run(...args);return {meta:{changes:Number(r.changes)}};}};},async batch(items){sql.exec('BEGIN');try{const out=[];for(const i of items)out.push(await i.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};

@@ -1,4 +1,5 @@
 import StartupDiagnosticsControl from './StartupDiagnosticsControl';
+import AndroidAppUpdateCard from './AndroidAppUpdateCard';
 import {useFeedbackNavigation} from '../../services/feedback/navigation';
 import React, { useState } from 'react';
 import { isAndroidNativeRuntime } from '../../utils/platform';
@@ -172,8 +173,8 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
         </button>
     );
 
-    // Android keeps feedback here; release notes remain available to the desktop updater.
-    if (isAndroidNativeRuntime()) return <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column">{feedbackCard}{feedbackLayer}</div>;
+    // Android keeps update check, release notes, and feedback unified in the existing About page.
+    if (isAndroidNativeRuntime()) return <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column"><AndroidAppUpdateCard onOpenReleaseNotes={onOpenReleaseNotes} />{feedbackCard}{feedbackLayer}</div>;
 
     return (
         <>

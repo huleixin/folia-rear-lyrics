@@ -2483,6 +2483,42 @@ public class FoliaNativePlugin extends Plugin {
         }
     }
 
+    @PluginMethod
+    public void getAppUpdateStatus(PluginCall call) {
+        try {
+            org.json.JSONObject json = io.github.huleixin.tingyu.update.UpdateManager
+                .getInstance(getContext())
+                .toBridgeJson();
+            call.resolve(JSObject.fromJSONObject(json));
+        } catch (Exception error) {
+            call.reject("读取更新状态失败", error);
+        }
+    }
+
+    @PluginMethod
+    public void checkAppUpdate(PluginCall call) {
+        try {
+            io.github.huleixin.tingyu.update.UpdateManager manager =
+                io.github.huleixin.tingyu.update.UpdateManager.getInstance(getContext());
+            manager.checkNowManual();
+            call.resolve(JSObject.fromJSONObject(manager.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("发起更新检查失败", error);
+        }
+    }
+
+    @PluginMethod
+    public void openAppUpdateDialog(PluginCall call) {
+        try {
+            io.github.huleixin.tingyu.update.UpdateManager manager =
+                io.github.huleixin.tingyu.update.UpdateManager.getInstance(getContext());
+            manager.openDialogIfUpdateAvailable();
+            call.resolve(JSObject.fromJSONObject(manager.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("打开更新弹窗失败", error);
+        }
+    }
+
     /** 只接受 App 自己写出的 imported-* 文件名，挡掉任何路径穿越。 */
     private static File resolveImportedFile(File directory, String ref) {
         if (ref == null || !ref.startsWith("imported-")) return null;

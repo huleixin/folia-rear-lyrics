@@ -14,6 +14,13 @@ https://tingyu-feedback-api.2473297053.workers.dev，两者使用同一个 Worke
 先读取复制的安全错误详情；需要且已授权时用 tools/feedback_tail.py 有界脱敏追踪。
 1.5.44-feedback-test.1是独立预发布，不得自动升为正式版或更新稳定渠道。
 
+软件内更新与开发者管理中心：当涉及版本打包、CNB 分发、候选版本准备、更新策略、紧急解除强制更新或开发者管理中心维护时，先阅读
+[docs/DEVELOPER-CONSOLE-ARCHITECTURE.md](docs/DEVELOPER-CONSOLE-ARCHITECTURE.md)、
+[docs/APP-UPDATE-PROTOCOL.md](docs/APP-UPDATE-PROTOCOL.md) 与
+[docs/CNB-AND-AI-RELEASE-GUIDE.md](docs/CNB-AND-AI-RELEASE-GUIDE.md)。
+统一使用 `node tools/release-cli.mjs <build|prepare|upload|verify|status|sync-manifests>` 执行标准化流程；
+未经开发者明确授权，严禁执行 `publish --channel stable --confirm` 或把正式渠道 `updateEnabled` 置为 `true`，严禁打印或提交任何 DPAPI/CNB/Cloudflare 凭据与私钥。
+
 本仓库不再把项目规则直接堆在 `AGENTS.md` 中，而是改为按 skill 组织。
 
 使用方式：

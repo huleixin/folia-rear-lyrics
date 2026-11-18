@@ -8,8 +8,8 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "1.5.78",
-  "androidVersionCode": 293,
+  "version": "1.5.79",
+  "androidVersionCode": 294,
   "playbackTestRevision": 3,
   "motionTestRevision": 1,
   "license": "AGPL-3.0",
@@ -20,6 +20,11 @@
   "scripts": {
     "release:bump": "node dev/build/bumpAndroidVersion.mjs",
     "release:android": "npm run release:bump && npm run build:android:release",
+    "release:cli": "node tools/release-cli.mjs",
+    "release:status": "node tools/release-cli.mjs status",
+    "release:prepare": "node tools/release-cli.mjs prepare",
+    "release:verify": "node tools/release-cli.mjs verify",
+    "release:sync": "node tools/release-cli.mjs sync-manifests",
     "build:playback-test": "node dev/build/buildPlaybackTest.mjs",
     "build:graphics-test": "node dev/build/buildGraphicsTest.mjs",
     "build:motion-test": "node dev/build/buildMotionTest.mjs",

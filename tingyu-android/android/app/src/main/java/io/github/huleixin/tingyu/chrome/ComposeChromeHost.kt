@@ -1579,6 +1579,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             }
             // 二级操作面板：盖在底栏/迷你播放器/极简页之上，任何路由都可呈现。
             TyPanelLayer(panelHost,interfaceLight,Modifier.fillMaxSize().zIndex(9f))
+            // 原生软件内更新弹窗与强制更新业务拦截门（UpdateGate）：独立于 WebView，置于最高层级。
+            io.github.huleixin.tingyu.update.UpdateOverlayHost(
+                manager = remember(web.context) { io.github.huleixin.tingyu.update.UpdateManager.getInstance(web.context) },
+                activity = activity,
+                safeTopDp = safeTop,
+                safeBottomDp = safeBottom,
+                modifier = Modifier.fillMaxSize().zIndex(50f),
+            )
             }
         }
     }

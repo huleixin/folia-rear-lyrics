@@ -94,5 +94,6 @@ dist-runtime/
 $null
 # Private cloud diagnostics, local Worker state and credentials never enter Git.
 .feedback-cache/
+.release-work/
 feedback-server/.wrangler/
 feedback-server/.dev.vars*

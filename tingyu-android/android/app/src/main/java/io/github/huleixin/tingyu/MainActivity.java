@@ -40,6 +40,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent event) {
         if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK
+            && io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).getState().getValue().isForceUpdateActive()) {
+            return true;
+        }
+        if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK
             && getStageOrientation().overridesPhoneFit()) {
             if (event.getAction() == android.view.KeyEvent.ACTION_UP && !event.isCanceled()) getStageOrientation().handleBack();
             return true;
@@ -50,6 +54,9 @@ public class MainActivity extends BridgeActivity {
     @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
+        if (io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).getState().getValue().isForceUpdateActive()) {
+            return;
+        }
         if (!getStageOrientation().handleBack()) super.onBackPressed();
     }
 
@@ -295,6 +302,7 @@ public class MainActivity extends BridgeActivity {
         webView.postDelayed(() -> restoreAdaptiveLayout(webView), 1500);
         webView.postDelayed(() -> PhoneFitCutout.apply(this), 500);
         webView.postDelayed(() -> PhoneFitCutout.apply(this), 1500);
+        io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).onAppColdStart();
     }
 
     /**
@@ -484,6 +492,7 @@ public class MainActivity extends BridgeActivity {
             }
         }
         PhoneFitCutout.apply(this);
+        io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).onAppForegroundResume(this);
     }
 
     @Override
@@ -522,6 +531,7 @@ public class MainActivity extends BridgeActivity {
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("activity-stop", new com.getcapacitor.JSObject()
             .put("finishing", isFinishing()).put("changingConfigurations", isChangingConfigurations()));
         if (nativeShell != null) nativeShell.suspend();
+        io.github.huleixin.tingyu.update.UpdateManager.getInstance(this).onAppBackgroundPause();
         updateStageActivity(false);
         CrashDiagnostics.recordText(
             getApplicationContext(),

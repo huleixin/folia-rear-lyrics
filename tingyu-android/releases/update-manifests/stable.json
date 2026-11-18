@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "appId": "io.github.huleixin.tingyu",
+  "channel": "stable",
+  "policyRevision": 1,
+  "policyAction": "pause",
+  "updateEnabled": false,
+  "latestVersionName": "1.5.78",
+  "latestVersionCode": 293,
+  "minSupportedVersionCode": 1,
+  "releaseId": "policy-control",
+  "gitCommit": "",
+  "releaseNotes": "听屿更新策略调整",
+  "publishedAt": "2026-11-18T03:07:22.881Z",
+  "publishedAtEpochMs": 1794971242881,
+  "policyExpiresAt": "2026-12-18T03:07:22.881Z",
+  "policyExpiresAtEpochMs": 1797563242881,
+  "offlineGraceHours": 168,
+  "apkSizeBytes": 0,
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
+  "minSdk": 24,
+  "supportedAbis": [
+    "arm64-v8a",
+    "armeabi-v7a"
+  ],
+  "downloadUrls": [],
+  "signatureAlgorithm": "ECDSA-P256-SHA256",
+  "keyId": "tingyu-policy-2026-k1",
+  "signature": "MEYCIQDTrEChiA40J1ui80pE8X98Fm5Hc4ew7zTo4Jkzv+b1cwIhAKkC/gN1Z6dSXovXmtT23BTf6AUCXXmS77BCcfJiYxie"
+}
