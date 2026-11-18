@@ -18,6 +18,7 @@ import { useSearchHistoryStore } from './useSearchHistoryStore';
 import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';
+const LAST_SEARCH_SOURCE_KEY = 'tingyu_last_search_source_v1';
 const DEFAULT_SEARCH_LIMIT = 30;
 export type SearchSource = OnlineProviderId | 'local' | 'navidrome';
 export type SearchReturnView = 'home' | 'player';
@@ -193,10 +194,42 @@ const getInitialHomeViewTab = (): HomeViewTab => {
         : 'playlist';
 };
 
+export const hasPersistedSearchSource = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        const raw = localStorage.getItem(LAST_SEARCH_SOURCE_KEY);
+        return typeof raw === 'string' && raw.trim().length > 0;
+    } catch {
+        return false;
+    }
+};
+
+const getInitialSearchSourceTab = (): SearchSource => {
+    if (typeof window === 'undefined') return 'aggregate';
+    try {
+        const saved = localStorage.getItem(LAST_SEARCH_SOURCE_KEY)?.trim();
+        if (saved && saved.length > 0) {
+            return saved as SearchSource;
+        }
+    } catch {
+        /* Ignore storage errors. */
+    }
+    return 'aggregate';
+};
+
+const persistSearchSourceTab = (source: SearchSource): void => {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(LAST_SEARCH_SOURCE_KEY, source);
+    } catch {
+        /* Session state still works. */
+    }
+};
+
 export const useSearchNavigationStore = create<SearchNavigationState>((set, get) => ({
     homeViewTab: getInitialHomeViewTab(),
     searchQuery: '',
-    searchSourceTab: 'netease',
+    searchSourceTab: getInitialSearchSourceTab(),
     searchResults: null,
     searchReturnView: 'home',
     isSearchOpen: false,
@@ -220,11 +253,15 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         isSearching: false, isLoadingMore: false, searchError: null,
         searchResults: null, hasMore: false, offset: 0, scrollTop: 0, sourcePages: {},
     })); },
-    selectSearchSource: (source) => { cancelSearch(); set(state => ({
-        searchSourceTab: source, requestId: state.requestId + 1,
-        searchResults: null, isSearching: false, isLoadingMore: false,
-        searchError: null, offset: 0, hasMore: false, scrollTop: 0, sourcePages: {},
-    })); },
+    selectSearchSource: (source) => {
+        persistSearchSourceTab(source);
+        cancelSearch();
+        set(state => ({
+            searchSourceTab: source, requestId: state.requestId + 1,
+            searchResults: null, isSearching: false, isLoadingMore: false,
+            searchError: null, offset: 0, hasMore: false, scrollTop: 0, sourcePages: {},
+        }));
+    },
     setSearchScrollTop: (scrollTop) => set(state => {
         const cacheKey = getSearchCacheKey(state.searchQuery, state.searchSourceTab);
         const cached = state.searchCache[cacheKey];
@@ -258,7 +295,8 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
     hideSearchOverlay: () => { cancelSearch(); set(state => ({ isSearchOpen: false, searchReturnView: 'home', requestId: state.requestId + 1, isSearching: false, isLoadingMore: false })); },
     resetRuntime: (onlineProviderId) => { cancelSearch(); set(state => ({
         searchQuery: '',
-        searchSourceTab: onlineProviderId ?? state.searchSourceTab,
+        // 用户已手动选择并持久化过搜索来源（如“综合搜索”或指定平台）时，切换账号/浏览平台不得覆盖用户的搜索源记忆。
+        searchSourceTab: hasPersistedSearchSource() ? state.searchSourceTab : (onlineProviderId ?? state.searchSourceTab),
         searchResults: null,
         searchReturnView: 'home',
         isSearchOpen: false,
@@ -270,8 +308,9 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         hasMore: false,
         scrollTop: 0, sourcePages: {}, searchCache: {},
     })); },
-    // Global provider changes only seed an unopened, empty search; browsing results keep their chosen source.
-    followOnlineProvider: (providerId) => set(state => !['local', 'navidrome', 'aggregate'].includes(state.searchSourceTab)
+    // Global provider changes only seed an unopened, empty search when the user has not explicitly saved a search source.
+    followOnlineProvider: (providerId) => set(state => !hasPersistedSearchSource()
+        && !['local', 'navidrome', 'aggregate'].includes(state.searchSourceTab)
         && !state.isSearchOpen && !state.searchQuery && state.searchResults === null
         ? { searchSourceTab: providerId } : state),
     submitSearch: async ({ query, sourceTab, deps, returnView = 'home' }) => {

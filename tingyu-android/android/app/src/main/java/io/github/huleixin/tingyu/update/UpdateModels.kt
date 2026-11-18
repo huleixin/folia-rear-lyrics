@@ -89,6 +89,16 @@ data class DownloadSnapshot(
         } else null
 }
 
+data class ReleaseHistoryEntry(
+    val id: String,
+    val versionName: String,
+    val versionCode: Long,
+    val gitCommit: String = "",
+    val publishedAt: String = "",
+    val releaseNotes: String,
+    val isCurrentInstalled: Boolean = false,
+)
+
 data class UpdateUiState(
     val currentVersionName: String,
     val currentVersionCode: Long,
@@ -100,6 +110,9 @@ data class UpdateUiState(
     val dialogVisible: Boolean = false,
     val selectedMirrorId: String = "",
     val download: DownloadSnapshot = DownloadSnapshot(),
+    val historyVisible: Boolean = false,
+    val historyLoading: Boolean = false,
+    val historyEntries: List<ReleaseHistoryEntry> = emptyList(),
 ) {
     val isForceUpdateActive: Boolean
         get() = decision.mode == UpdateDecisionMode.FORCE_UPDATE && decision.manifest != null

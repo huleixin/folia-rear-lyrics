@@ -110,10 +110,10 @@ internal fun SettingsGroup(
         Column(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(theme.card)
-                .border(1.dp, theme.line, RoundedCornerShape(14.dp))
-                .padding(horizontal = 14.dp, vertical = 2.dp),
+                .border(1.dp, theme.line, RoundedCornerShape(16.dp))
+                .padding(horizontal = 14.dp, vertical = 6.dp),
             content = content,
         )
         if (hint.isNotBlank()) {

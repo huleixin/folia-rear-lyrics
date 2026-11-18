@@ -159,7 +159,7 @@ internal fun NativeSearchPage(
                     }
 
                     when {
-                        section.id == "bestMatch" -> item(key = section.id) {
+                        section.id == "bestMatch" && section.items.isNotEmpty() -> item(key = section.id) {
                             Column(
                                 Modifier
                                     .fillMaxWidth()
@@ -174,7 +174,7 @@ internal fun NativeSearchPage(
                             Spacer(Modifier.height(16.dp))
                         }
 
-                        section.id == "sourceStatus" -> item(key = section.id) {
+                        section.id == "sourceStatus" && section.items.isNotEmpty() -> item(key = section.id) {
                             FlowRow(
                                 Modifier.fillMaxWidth().padding(bottom = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -326,7 +326,7 @@ internal fun NativeSearchPage(
                         section.layout == "rows" ->
                             pagedNativeRows(page, section, caches.getValue(section.id), 60, action)
 
-                        section.layout == "chips" -> item(key = section.id) {
+                        section.layout == "chips" && section.items.isNotEmpty() -> item(key = section.id) {
                             Column {
                                 section.items.forEach { item ->
                                     Row(
@@ -385,10 +385,13 @@ internal fun NativeSearchPage(
             }
         }
 
-        if (!pane && !headerOnly) TyTopGlassSurface(glass, colors)
+        // 仅在未折叠的默认展开浏览态渲染顶部毛玻璃尾带；进入输入态或搜索结果态时顶栏自身已实色不透明，
+        // 禁止在分类 Tab 下方再叠加 32dp Haze 衰减蒙版遮挡首行结果。
+        if (!pane && !headerOnly && collapse < 0.85f && !hasQuery && !inputFocused) {
+            TyTopGlassSurface(glass, colors)
+        }
         if (!pane) TyTopGlassForeground {
-            val palette = LocalInterfacePalette.current
-            val headerBgAlpha = if (collapse <= 0.02f) 0f else if (collapse >= 0.90f) 1f else (0.78f + collapse * 0.24f).coerceIn(0f, 1f)
+            val headerBgAlpha = if (collapse <= 0.02f) 0f else if (collapse >= 0.85f) 1f else (0.78f + collapse * 0.24f).coerceIn(0f, 1f)
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -426,7 +429,7 @@ internal fun NativeSearchPage(
                                 if (page.trailing.isNotBlank() && collapse < 0.5f) {
                                     UnifiedHeaderIconButton(
                                         description = page.trailingLabel.ifBlank { "搜索设置" },
-                                        icon = page.trailingIcon.ifBlank { "settings" },
+                                        icon = page.trailingIcon.ifBlank { "sliders-horizontal" },
                                         tint = PageInk,
                                         onClick = { action(page.trailing, "", 0.0) }
                                     )
@@ -435,19 +438,18 @@ internal fun NativeSearchPage(
                         }
                     }
 
-                    // 搜索框区：展开时间距 8dp，折叠/激活时总高 64dp (8 + 48 + 8) 并右侧并入设置图标
+                    // 搜索输入框：始终占满完整水平宽度（左侧搜索图标 + 中间输入区 + 清空按钮 + 搜索源选择，右侧不留多余空白占位）
                     val focusRequester = remember { FocusRequester() }
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .padding(
                                 start = horizontalPad,
-                                end = if (collapse >= 0.5f && page.trailing.isNotBlank()) (horizontalPad - 12.dp).coerceAtLeast(4.dp) else horizontalPad,
+                                end = horizontalPad,
                                 top = 8.dp,
                                 bottom = 8.dp
                             ),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         if (querySection != null) {
                             BoxWithConstraints(Modifier.weight(1f)) {
@@ -463,17 +465,9 @@ internal fun NativeSearchPage(
                                 )
                             }
                         }
-                        if (collapse >= 0.5f && page.trailing.isNotBlank()) {
-                            UnifiedHeaderIconButton(
-                                description = page.trailingLabel.ifBlank { "搜索设置" },
-                                icon = page.trailingIcon.ifBlank { "settings" },
-                                tint = PageInk,
-                                onClick = { action(page.trailing, "", 0.0) }
-                            )
-                        }
                     }
 
-                    page.sections.firstOrNull { it.id == "tabs" }?.let { section ->
+                    page.sections.firstOrNull { it.id == "tabs" && it.items.isNotEmpty() }?.let { section ->
                         NativeSourceTabs(section, Modifier.height(44.dp).padding(horizontal = horizontalPad), underline = true, action = action)
                     }
                 }

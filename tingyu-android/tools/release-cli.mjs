@@ -227,7 +227,7 @@ function runCnbJson(args) {
     try {
         const parsed = JSON.parse(out);
         if (res.status !== 0 || (parsed.status && parsed.status >= 400)) {
-            throw new Error(`CNB API 返回异常 (status=${parsed.status || res.status})`);
+            throw new Error(`CNB API 返回异常 (status=${parsed.status || res.status}): ${JSON.stringify(parsed.data || parsed).slice(0, 300)}`);
         }
         return parsed.data ?? parsed;
     } catch (e) {
@@ -358,9 +358,11 @@ async function cmdPrepare(flags) {
         ? Number(flags['min-supported'])
         : (forceUpdate ? apk.versionCode : 1);
 
-    const releaseNotes = flags.notes
-        ? String(flags.notes)
-        : `听屿 v${apk.versionName} (${apk.versionCode}) 候选更新说明：\n${commits || '- 日常稳定性与体验优化'}`;
+    const releaseNotes = flags['notes-file']
+        ? readFileSync(path.resolve(String(flags['notes-file'])), 'utf8').trim()
+        : flags.notes
+            ? String(flags.notes)
+            : `听屿 v${apk.versionName} (${apk.versionCode}) 候选更新说明：\n${commits || '- 日常稳定性与体验优化'}`;
 
     const cnbTag = String(flags.tag || (channel === 'stable' ? `v${apk.versionName}` : `candidate-${apk.versionName}-${apk.versionCode}`));
     const downloadUrls = [];
@@ -454,8 +456,10 @@ async function cmdUpload(flags) {
             CNB_REPO,
             '--tag-name',
             tag,
+            '--target-commitish',
+            'main',
             '--name',
-            `听屿 v${draft.versionName} (${channel === 'stable' ? '待审核候选' : '测试候选'})`,
+            `听屿 v${draft.versionName} (${channel === 'stable' ? '正式候选' : '测试通道'})`,
             '--body-file',
             notesFile,
             '--prerelease',
@@ -495,26 +499,30 @@ async function cmdUpload(flags) {
         throw new Error(`上传 APK 二进制流至 CNB 失败: HTTP ${putRes.status}`);
     }
 
-    // Extract upload_token & asset_path from verify_url if present
+    // Extract upload_token & asset_path from verify_url
     if (verifyUrl) {
         const parsedVerify = new URL(verifyUrl, 'https://api.cnb.cool');
-        const tokenParam = parsedVerify.searchParams.get('upload_token') || parsedVerify.searchParams.get('token') || '';
-        const pathMatch = /\/releases\/asset-upload-confirmation\/([^?]+)$/.exec(parsedVerify.pathname);
-        const assetPathParam = parsedVerify.searchParams.get('asset_path') || (pathMatch ? decodeURIComponent(pathMatch[1]) : '');
-        if (tokenParam && assetPathParam) {
-            runCnbJson([
-                'releases',
-                'post-release-asset-upload-confirmation',
-                '--repo',
-                CNB_REPO,
-                '--release-id',
-                String(releaseObj.id),
-                '--upload-token',
-                tokenParam,
-                '--asset-path',
-                assetPathParam,
-            ]);
+        const segMatch = /\/asset-upload-confirmation\/([^/]+)\/(.+)$/.exec(parsedVerify.pathname);
+        const tokenParam = parsedVerify.searchParams.get('upload_token')
+            || parsedVerify.searchParams.get('token')
+            || (segMatch ? decodeURIComponent(segMatch[1]) : '');
+        const assetPathParam = parsedVerify.searchParams.get('asset_path')
+            || (segMatch ? decodeURIComponent(segMatch[2]) : '');
+        if (!tokenParam || !assetPathParam) {
+            throw new Error(`无法从 CNB verify_url 解析确认参数: ${parsedVerify.pathname}`);
         }
+        runCnbJson([
+            'releases',
+            'post-release-asset-upload-confirmation',
+            '--repo',
+            CNB_REPO,
+            '--release-id',
+            String(releaseObj.id),
+            '--upload-token',
+            tokenParam,
+            '--asset-path',
+            assetPathParam,
+        ]);
     }
 
     const refreshed = runCnbJson(['releases', 'get-release-by-tag', '--repo', CNB_REPO, '--tag', tag]);
@@ -692,8 +700,15 @@ async function cmdSyncManifests(flags) {
             throw new Error(`拒绝同步 [${ch}]：云端返回策略未通过本地公钥验签 (${verified.error})`);
         }
         const formatted = JSON.stringify(manifest, null, 2);
-        const relPath = ch === 'stable' ? 'stable.json' : `channels/${ch}.json`;
-        filesToPush[relPath] = formatted;
+        if (ch === 'stable') {
+            filesToPush['stable.json'] = formatted;
+        } else if (ch === 'testing') {
+            // 同时更新仓库根目录 testing.json 与 channels/testing.json，保证所有测试入口直链一致
+            filesToPush['testing.json'] = formatted;
+            filesToPush['channels/testing.json'] = formatted;
+        } else {
+            filesToPush[`channels/${ch}.json`] = formatted;
+        }
 
         const localMirrorDir = path.join(PROJECT_ROOT, 'releases', 'update-manifests');
         mkdirSync(localMirrorDir, { recursive: true });
@@ -712,7 +727,11 @@ async function cmdSyncManifests(flags) {
     );
 
     for (const item of syncedChannels) {
-        const cnbUrl = item.channel === 'stable' ? `${CNB_RAW_BASE}/stable.json` : `${CNB_RAW_BASE}/channels/${item.channel}.json`;
+        const cnbUrl = item.channel === 'stable'
+            ? `${CNB_RAW_BASE}/stable.json`
+            : item.channel === 'testing'
+                ? `${CNB_RAW_BASE}/testing.json`
+                : `${CNB_RAW_BASE}/channels/${item.channel}.json`;
         await consoleRequest('/api/admin/policy/sync-report', {
             method: 'POST',
             slot: 'release_prepare',
@@ -721,6 +740,86 @@ async function cmdSyncManifests(flags) {
     }
 
     console.log(JSON.stringify({ ok: true, cnbPushed: pushRes.changed, syncedChannels }, null, 2));
+}
+
+async function cmdApprove(flags) {
+    if (!flags.confirm) {
+        throw new Error('安全拦截：审核通过候选版本必须显式传入 --confirm 参数确认！');
+    }
+    const id = String(flags.id || '');
+    if (!id) throw new Error('请通过 --id <releaseId> 指定候选版本 ID');
+    const forceUpdate = flags['optional-update'] ? false : true;
+    const body = {
+        reviewAction: 'approve',
+        forceUpdate,
+    };
+    if (flags['min-supported'] !== undefined) {
+        body.minSupportedVersionCode = Number(flags['min-supported']);
+    }
+    const res = await consoleRequest(`/api/admin/releases/${id}`, {
+        method: 'PATCH',
+        slot: 'admin',
+        body,
+    });
+    console.log(JSON.stringify({
+        ok: true,
+        approved: id,
+        status: res.release?.status,
+        forceUpdate: res.release?.force_update,
+        minSupportedVersionCode: res.release?.min_supported_version_code,
+        approvedDigest: res.release?.approved_digest,
+    }, null, 2));
+}
+
+async function cmdUploadExtraAsset(flags) {
+    const releaseId = String(flags['release-id'] || '');
+    const filePath = flags.file ? path.resolve(String(flags.file)) : '';
+    if (!releaseId || !filePath || !existsSync(filePath)) {
+        throw new Error('请通过 --release-id <id> --file <path> 指定目标 Release 与本地文件');
+    }
+    const assetName = flags.name ? String(flags.name) : path.basename(filePath);
+    const bytes = readFileSync(filePath);
+    const uploadMeta = runCnbJson([
+        'releases',
+        'post-release-asset-upload-url',
+        '--repo',
+        CNB_REPO,
+        '--release-id',
+        releaseId,
+        '--asset-name',
+        assetName,
+        '--size',
+        String(bytes.byteLength),
+        '--overwrite',
+    ]);
+    const putRes = await fetch(uploadMeta.upload_url, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/vnd.android.package-archive',
+            'Content-Length': String(bytes.byteLength),
+        },
+        body: bytes,
+    });
+    if (!putRes.ok) throw new Error(`上传附加资产失败: HTTP ${putRes.status}`);
+    if (uploadMeta.verify_url) {
+        const parsedVerify = new URL(uploadMeta.verify_url, 'https://api.cnb.cool');
+        const segMatch = /\/asset-upload-confirmation\/([^/]+)\/(.+)$/.exec(parsedVerify.pathname);
+        const tokenParam = segMatch ? decodeURIComponent(segMatch[1]) : '';
+        const assetPathParam = segMatch ? decodeURIComponent(segMatch[2]) : '';
+        runCnbJson([
+            'releases',
+            'post-release-asset-upload-confirmation',
+            '--repo',
+            CNB_REPO,
+            '--release-id',
+            releaseId,
+            '--upload-token',
+            tokenParam,
+            '--asset-path',
+            assetPathParam,
+        ]);
+    }
+    console.log(JSON.stringify({ ok: true, releaseId, assetName, sizeBytes: bytes.byteLength }, null, 2));
 }
 
 async function cmdPublish(flags) {
@@ -838,6 +937,8 @@ async function main() {
         case 'verify': await cmdVerify(flags); break;
         case 'init-cnb-manifests': await cmdInitCnbManifests(); break;
         case 'sync-manifests': await cmdSyncManifests(flags); break;
+        case 'approve': await cmdApprove(flags); break;
+        case 'upload-extra': await cmdUploadExtraAsset(flags); break;
         case 'publish': await cmdPublish(flags); break;
         case 'pause': await cmdPolicyAction('pause', flags); break;
         case 'unlock': await cmdPolicyAction('unlock', flags); break;

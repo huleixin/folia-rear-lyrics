@@ -217,6 +217,39 @@ export async function publicUpdatePolicy(req, env, channel) {
     });
 }
 
+export async function publicReleaseHistory(req, env, url) {
+    const channel = String(url.searchParams.get('channel') || 'stable');
+    if (!ALLOWED_CHANNELS.includes(channel)) {
+        return json({ error: 'invalid_channel' }, 404);
+    }
+    const rlKey = 'pubhist:' + (await ipKey(req, env)) + ':' + Math.floor(Date.now() / 60_000);
+    if (!(await rate(env, rlKey, 90, 120_000))) {
+        return json({ error: 'rate_limit' }, 429);
+    }
+    const rows = (await env.DB.prepare(
+        `SELECT id, channel, version_name, version_code, git_commit, release_notes, force_update, published_at
+         FROM releases
+         WHERE channel=? AND status='published'
+         ORDER BY version_code DESC, published_at DESC
+         LIMIT 30`,
+    ).bind(channel).all()).results;
+
+    return json({
+        channel,
+        items: rows.map(r => ({
+            id: r.id,
+            channel: r.channel,
+            versionName: r.version_name,
+            versionCode: r.version_code,
+            gitCommit: r.git_commit || '',
+            releaseNotes: r.release_notes || '',
+            forceUpdate: Boolean(r.force_update),
+            publishedAtEpochMs: r.published_at || 0,
+            publishedAt: r.published_at ? new Date(r.published_at).toISOString() : '',
+        })),
+    });
+}
+
 function parseJsonSafe(raw, fallback) {
     try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
 }

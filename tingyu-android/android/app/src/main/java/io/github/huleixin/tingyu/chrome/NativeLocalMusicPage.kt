@@ -121,7 +121,7 @@ internal fun NativeLocalMusicPage(
                         section = overviewSection,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = horizontalMargin, end = horizontalMargin, top = 8.dp, bottom = 16.dp),
+                            .padding(start = horizontalMargin, end = horizontalMargin, top = 6.dp, bottom = 10.dp),
                         action = action,
                     )
                 }
@@ -129,7 +129,7 @@ internal fun NativeLocalMusicPage(
 
             if (categoriesSection != null) {
                 stickyHeader(key = "local-sticky-categories") {
-                    Column(
+                    Box(
                         Modifier
                             .fillMaxWidth()
                             .background(stickyBackdrop.copy(alpha = 0.96f)),
@@ -138,12 +138,6 @@ internal fun NativeLocalMusicPage(
                             section = categoriesSection,
                             horizontalMargin = horizontalMargin,
                             action = action,
-                        )
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(0.6.dp)
-                                .background(palette.border.copy(alpha = 0.45f)),
                         )
                     }
                 }
@@ -317,12 +311,6 @@ private fun LocalMusicTopBar(
                 PageIcon("folder-cog", PageInk, Modifier.size(22.dp))
             }
         }
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(0.6.dp)
-                .background(palette.border.copy(alpha = 0.35f)),
-        )
     }
 }
 
@@ -409,12 +397,6 @@ private fun LocalMusicTopSearchBar(
                 }
             }
         }
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(0.8.dp)
-                .background(palette.border.copy(alpha = 0.45f)),
-        )
     }
 }
 
@@ -425,119 +407,110 @@ private fun LocalMusicOverviewCard(
     action: PageAction,
 ) {
     val palette = LocalInterfacePalette.current
-    val shape = RoundedCornerShape(20.dp)
     val playAllItem = section.items.firstOrNull { it.id == "play-all" }
     val shuffleItem = section.items.firstOrNull { it.id == "shuffle-all" }
     val manageItem = section.items.firstOrNull { it.id == "manage" }
 
     Column(
-        modifier
-            .clip(shape)
-            .background(palette.card)
-            .border(1.dp, palette.border, shape)
-            .padding(16.dp),
+        modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // 轻量无边框柔和概览条：告别厚重“框套框”
         Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom,
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(palette.subtle)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "本地曲库概览",
-                    color = PageMuted,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = section.total.toString(),
+                        text = "${section.total} 首本机歌曲",
                         color = PageInk,
-                        fontSize = 32.sp,
-                        lineHeight = 36.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight(650),
+                        maxLines = 1,
                     )
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(palette.selected)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = "离线直连",
+                            color = PageAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+                if (section.description.isNotBlank()) {
                     Text(
-                        text = "首歌曲",
+                        text = section.description,
                         color = PageMuted,
                         fontSize = 12.sp,
-                        modifier = Modifier.padding(bottom = 5.dp),
+                        lineHeight = 17.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-            if (section.text.isNotBlank()) {
-                Text(
-                    text = section.text,
-                    color = PageMuted,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(bottom = 4.dp, start = 8.dp),
-                )
-            }
         }
 
-        if (section.description.isNotBlank()) {
-            Text(
-                text = section.description,
-                color = PageMuted,
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-
+        // 听屿原生统一胶囊主次操作组（与集合详情页 MediaDetailActionsRow 视觉体系完全一致）
         if (section.total > 0 && playAllItem != null && shuffleItem != null) {
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
                     Modifier
                         .weight(1f)
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(24.dp))
                         .background(palette.button)
                         .clickable(enabled = !playAllItem.disabled) { action(playAllItem.action, "", 0.0) }
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 ) {
-                    PageIcon("play", palette.onAccent, Modifier.size(16.dp), filled = true)
-                    Spacer(Modifier.width(6.dp))
+                    ChromeGlyph("play", palette.onAccent, Modifier.size(19.dp))
                     Text(
                         text = playAllItem.title,
                         color = palette.onAccent,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight(650),
                         maxLines = 1,
                     )
                 }
                 Row(
                     Modifier
                         .weight(1f)
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(palette.selected)
-                        .border(1.dp, palette.selectedBorder, RoundedCornerShape(12.dp))
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(palette.mediaSubtle)
                         .clickable(enabled = !shuffleItem.disabled) { action(shuffleItem.action, "", 0.0) }
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 ) {
-                    LocalShuffleIcon(color = PageAccent, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
+                    LocalShuffleIcon(color = PageInk, modifier = Modifier.size(17.dp))
                     Text(
                         text = shuffleItem.title,
-                        color = PageAccent,
+                        color = PageInk,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight(600),
                         maxLines = 1,
                     )
                 }
@@ -547,20 +520,19 @@ private fun LocalMusicOverviewCard(
                 Modifier
                     .fillMaxWidth()
                     .height(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(24.dp))
                     .background(palette.button)
                     .clickable { action(manageItem.action, "", 0.0) }
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             ) {
-                PageIcon("folder-cog", palette.onAccent, Modifier.size(17.dp))
-                Spacer(Modifier.width(8.dp))
+                PageIcon("folder-cog", palette.onAccent, Modifier.size(18.dp))
                 Text(
                     text = "扫描 / 导入本地音乐",
                     color = palette.onAccent,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight(650),
                 )
             }
         }
@@ -577,7 +549,7 @@ private fun LocalMusicCategoryBar(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(44.dp)
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = horizontalMargin),
         verticalAlignment = Alignment.CenterVertically,
@@ -587,20 +559,16 @@ private fun LocalMusicCategoryBar(
             val pillShape = RoundedCornerShape(18.dp)
             Box(
                 Modifier
-                    .height(36.dp)
+                    .height(34.dp)
                     .clip(pillShape)
                     .background(if (item.selected) palette.selected else Color.Transparent)
-                    .then(
-                        if (item.selected) Modifier.border(1.dp, palette.selectedBorder, pillShape)
-                        else Modifier
-                    )
                     .clickable(role = Role.Tab) { action(item.action, "", 0.0) }
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = item.title,
-                    color = if (item.selected) PageAccent else PageMuted,
+                    color = if (item.selected) PageInk else PageMuted,
                     fontSize = 14.sp,
                     fontWeight = if (item.selected) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 1,

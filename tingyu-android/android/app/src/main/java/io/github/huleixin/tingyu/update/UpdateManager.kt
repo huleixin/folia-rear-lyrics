@@ -37,18 +37,13 @@ class UpdateManager private constructor(private val appContext: Context) {
     val currentVersionCode: Long = BuildConfig.VERSION_CODE.toLong()
 
     /**
-     * 正式 Release 客户端严格锁定 `stable` 渠道，禁止在正式包启用任何 Mock 服务；
-     * 仅 Debug 构建或显式测试渠道包允许通过本地联调开关切换 `testing` 渠道。
+     * 更新渠道选择：默认正式包为 `stable`，测试种子包（版本号含 `test`）默认为 `testing`；
+     * 同时支持开发者在「设置 → 关于听屿」持久化切换正式/测试通道以直接验证软件内更新。
      */
     val activeChannel: String
         get() {
-            if (!BuildConfig.DEBUG && !BuildConfig.VERSION_NAME.contains("test")) {
-                return "stable"
-            }
-            val debugChannel = appContext
-                .getSharedPreferences("tingyu_debug_update_prefs", Context.MODE_PRIVATE)
-                .getString("channel", null)
-            return if (debugChannel == "testing") "testing" else "stable"
+            val defaultCh = if (BuildConfig.DEBUG || BuildConfig.VERSION_NAME.contains("test")) "testing" else "stable"
+            return store.getPreferredChannel(defaultCh)
         }
 
     private val _state = MutableStateFlow(
@@ -464,6 +459,57 @@ class UpdateManager private constructor(private val appContext: Context) {
             ?: manifest.downloadUrls.firstOrNull()
             ?: return
         ApkInstaller.openManualDownloadInBrowser(appContext, chosen.url)
+    }
+
+    fun switchChannel(nextChannel: String) {
+        if (nextChannel != "stable" && nextChannel != "testing") return
+        checkJob?.cancel()
+        store.setPreferredChannel(nextChannel)
+        _state.update {
+            it.copy(
+                channel = nextChannel,
+                checkPhase = CheckPhase.IDLE,
+                checkMessage = "",
+                decision = UpdateDecision(UpdateDecisionMode.NONE, "channel_switched"),
+                dialogVisible = false,
+            )
+        }
+        hydrateFromPersistedPolicy()
+        performCheck(manual = true, reason = "switch-channel-$nextChannel")
+    }
+
+    fun openReleaseHistoryDialog() {
+        val ch = activeChannel
+        _state.update { it.copy(historyVisible = true, historyLoading = true) }
+        scope.launch {
+            val remote = api.fetchPublishedReleaseHistory(ch, currentVersionCode)
+            val merged = if (remote.isNotEmpty()) {
+                remote
+            } else {
+                // 若远端暂无已发布历史列表，仅尝试读取本地已验签缓存策略中的真实听屿公告；无记录则保持空列表展示“暂无更新记录”
+                val cached = store.loadVerifiedPolicy(ch)?.manifest
+                if (cached != null && cached.updateEnabled && cached.releaseNotes.isNotBlank()) {
+                    listOf(
+                        ReleaseHistoryEntry(
+                            id = cached.releaseId,
+                            versionName = cached.latestVersionName,
+                            versionCode = cached.latestVersionCode,
+                            gitCommit = cached.gitCommit,
+                            publishedAt = cached.publishedAt.take(10),
+                            releaseNotes = cached.releaseNotes,
+                            isCurrentInstalled = cached.latestVersionCode == currentVersionCode,
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
+            }
+            _state.update { it.copy(historyLoading = false, historyEntries = merged) }
+        }
+    }
+
+    fun dismissReleaseHistoryDialog() {
+        _state.update { it.copy(historyVisible = false) }
     }
 
     fun toBridgeJson(): JSONObject {

@@ -35,6 +35,7 @@ export function captureSettingsPageLayout(source:HTMLElement,nodes:NativeSetting
     };
     const visit=(element:Element):SettingsLayoutNode[]=>{
         if(excludedSet.has(element)||element.matches(excluded)||getComputedStyle(element).display==='none')return [];
+        if(element instanceof HTMLElement&&element.classList.contains('pointer-events-none')&&/\bblur(?:-\[|-(?:sm|md|lg|xl|2xl|3xl)|\b)/.test(element.className))return [];
         const id=settingId(element),style=styleOf(element);
         if(element.hasAttribute('data-settings-list')&&style.padding)style.padding=[0,...style.padding.slice(1)];
         if(element instanceof SVGSVGElement){

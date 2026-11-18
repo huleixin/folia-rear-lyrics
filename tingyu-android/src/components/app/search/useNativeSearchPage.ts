@@ -173,7 +173,7 @@ export function useNativeSearchPage(p: Props) {
     }
     // Input, suggestions and results are updates to one editable screen. A new
     // route key disposes BasicTextField and its IME composition after the first key.
-    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),trailing:'settings',trailingLabel:t('searchSettings.title'),trailingIcon:'settings',bottomClearance:122,sections};
+    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),trailing:'settings',trailingLabel:t('searchSettings.title'),trailingIcon:'sliders-horizontal',bottomClearance:122,sections};
     const sourceGroup=groups.find(group=>group.key===sourceGroupKey);
     if(sourceGroup){
         model={key:`search:sources:${sourceGroup.key}`,title:t('search.choosePlaybackSource'),leading:'back',bottomClearance:122,

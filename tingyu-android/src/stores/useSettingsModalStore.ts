@@ -25,6 +25,12 @@ export type SettingsSubviewId = 'accounts' | 'search' | 'discovery' | 'appearanc
 export const VISUALIZER_SETTINGS_SECTIONS = ['common', 'background', 'visualizer', 'subtitle'] as const;
 export type VisualizerSettingsSection = typeof VISUALIZER_SETTINGS_SECTIONS[number];
 
+export type SettingsSubviewHistoryEntry = {
+    initialTab: SettingsModalInitialTab;
+    initialSubview: SettingsSubviewId | null;
+    returnToIndex?: boolean;
+};
+
 export type SettingsModalState = {
     isOpen: boolean;
     initialTab: SettingsModalInitialTab;
@@ -37,6 +43,7 @@ export type SettingsModalState = {
      */
     initialAnchor?: { id: SettingsAnchorId; seq: number } | null;
     returnToIndex?: boolean;
+    subviewBackStack?: SettingsSubviewHistoryEntry[];
     rearPage?:RearSettingsPage;
     origin?: { view: AppView; mode: PlayerViewMode; modeRevision:number; page: MinimalPlayerPage; detour: boolean };
 };
@@ -66,6 +73,7 @@ export type SettingsModalUiState = {
     ) => void;
     closeSettings: () => void;
     openSettingsFromIndex: (section: SettingsSubviewId|'help') => void;
+    pushSettingsSubview: (section: SettingsSubviewId) => void;
     returnSettingsToIndex: () => void;
     openRearSettings:(page?:RearSettingsPage)=>void;
     handleSetAppLanguagePreference: (preference: AppLanguagePreference) => Promise<void>;
@@ -115,8 +123,53 @@ export const useSettingsModalStore = create<SettingsModalUiState>((set, get) => 
         flushNativeShellRoute();
     },
     openSettingsFromIndex: (section) => set({isSubSettingsViewOpen:true,settingsModalState:{isOpen:true,initialTab:section==='help'?'help':'options',initialSubview:section==='help'?null:section,
-        initialVisualizerSection:null,initialAnchor:null,returnToIndex:true,origin:get().settingsModalState.isOpen?get().settingsModalState.origin:settingsOrigin()}}),
-    returnSettingsToIndex: () => {get().openSettings('options');},
+        initialVisualizerSection:null,initialAnchor:null,returnToIndex:true,subviewBackStack:[],origin:get().settingsModalState.isOpen?get().settingsModalState.origin:settingsOrigin()}}),
+    pushSettingsSubview: (section) => set(state => {
+        const cur = state.settingsModalState;
+        const nextStack: SettingsSubviewHistoryEntry[] = [
+            ...(cur.subviewBackStack ?? []),
+            {
+                initialTab: cur.initialTab ?? 'options',
+                initialSubview: cur.initialSubview ?? null,
+                returnToIndex: cur.returnToIndex,
+            },
+        ];
+        return {
+            isSubSettingsViewOpen: true,
+            settingsModalState: {
+                isOpen: true,
+                initialTab: 'options',
+                initialSubview: section,
+                initialVisualizerSection: null,
+                initialAnchor: null,
+                returnToIndex: true,
+                subviewBackStack: nextStack,
+                origin: cur.isOpen ? cur.origin : settingsOrigin(),
+            },
+        };
+    }),
+    returnSettingsToIndex: () => {
+        const cur = get().settingsModalState;
+        const stack = cur.subviewBackStack ?? [];
+        if (stack.length > 0) {
+            const prev = stack[stack.length - 1];
+            set({
+                isSubSettingsViewOpen: !(prev.initialTab === 'options' && prev.initialSubview === null),
+                settingsModalState: {
+                    ...cur,
+                    isOpen: true,
+                    initialTab: prev.initialTab,
+                    initialSubview: prev.initialSubview,
+                    initialVisualizerSection: null,
+                    initialAnchor: null,
+                    returnToIndex: prev.returnToIndex,
+                    subviewBackStack: stack.slice(0, -1),
+                },
+            });
+            return;
+        }
+        get().openSettings('options');
+    },
     openRearSettings:(rearPage='control')=>set({isSubSettingsViewOpen:true,settingsModalState:{isOpen:true,initialTab:'options',initialSubview:null,initialAnchor:null,initialVisualizerSection:null,returnToIndex:true,rearPage}}),
     handleSetAppLanguagePreference: async (preference) => {
         await applyAppLanguagePreference(preference);

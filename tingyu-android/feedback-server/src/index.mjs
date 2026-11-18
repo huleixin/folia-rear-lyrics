@@ -3,6 +3,7 @@ import { submit, status, cleanup } from './feedback.mjs';
 import { list, issues, stats, detail } from './admin.mjs';
 import {
   publicUpdatePolicy,
+  publicReleaseHistory,
   getConsoleOverview,
   listReleases,
   upsertCandidateRelease,
@@ -34,6 +35,7 @@ async function route(req, env, trace) {
   if (p === '/api/feedback/status' && req.method === 'GET') return status(req, env);
   const pubUpd = /^\/api\/public\/update\/([a-z0-9_-]{1,32})$/.exec(p);
   if (pubUpd && req.method === 'GET') return publicUpdatePolicy(req, env, pubUpd[1]);
+  if (p === '/api/public/releases/history' && req.method === 'GET') return publicReleaseHistory(req, env, url);
 
   // Unified Developer Console static assets & PWA shell
   if (p === '/admin' || p === '/admin/app.js' || p === '/admin/app.css') {

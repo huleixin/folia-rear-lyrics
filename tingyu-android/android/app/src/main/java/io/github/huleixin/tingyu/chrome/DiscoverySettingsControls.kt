@@ -4,10 +4,10 @@ import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.animateBounds
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -39,10 +40,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
 import org.json.JSONArray
-import org.json.JSONObject
 import kotlin.math.abs
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/DiscoverySettingsControls.kt
+// 推荐设置来源排序与页面模块排序：统一右侧拖拽手柄、1:1 跟手位移、自动让位动画与防文字误选。
 
 private data class DiscoverySourceItem(
     val id: String,
@@ -96,13 +97,13 @@ private fun CompactSourceSwitch(
             val trackH = size.height
             val travel = size.width - knob.toPx() - 4.dp.toPx()
             drawRoundRect(
-                color = if (checked) theme.accent.copy(alpha = 0.78f) else theme.muted.copy(alpha = 0.28f),
+                color = if (checked) theme.accent.copy(alpha = 0.82f) else theme.muted.copy(alpha = 0.28f),
                 cornerRadius = CornerRadius(trackH / 2f),
                 size = Size(size.width, trackH),
             )
             val x = 2.dp.toPx() + travel * progress
             drawCircle(
-                color = theme.knob.copy(alpha = if (checked) 0.96f else 0.86f),
+                color = theme.knob.copy(alpha = if (checked) 0.98f else 0.88f),
                 radius = knob.toPx() / 2f,
                 center = Offset(x + knob.toPx() / 2f, size.height / 2f),
             )
@@ -136,18 +137,16 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
         if (draggingId == null) {
             order = parsed
         } else {
-            // Keep live status/weight/enabled synced while preserving active drag permutation.
             val byId = parsed.associateBy { it.id }
             order = order.mapNotNull { byId[it.id] ?: it }
         }
     }
 
-    // Edge auto-scroll when dragging near top or bottom of the settings scroll viewport.
     LaunchedEffect(draggingId) {
         val id = draggingId ?: return@LaunchedEffect
         val scroll = scrollState ?: return@LaunchedEffect
-        val edgeZonePx = with(density) { 68.dp.toPx() }
-        val maxStepPx = with(density) { 10.dp.toPx() }
+        val edgeZonePx = with(density) { 72.dp.toPx() }
+        val maxStepPx = with(density) { 12.dp.toPx() }
         while (draggingId == id) {
             val fingerY = activeFingerWindowY
             if (fingerY.isFinite() && viewport.height > 0f) {
@@ -160,9 +159,7 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                         maxStepPx * ((edgeZonePx - botDist) / edgeZonePx).coerceIn(0.15f, 1f)
                     else -> 0f
                 }
-                if (delta != 0f) {
-                    scroll.scrollBy(delta)
-                }
+                if (delta != 0f) scroll.scrollBy(delta)
             }
             delay(16L)
         }
@@ -174,6 +171,28 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
         currentAction(TySettingEvent.action(currentNode.action), arr.toString(), 0.0)
     }
 
+    fun onStepDrag(itemId: String, dy: Float, accumulatedRef: FloatArray) {
+        accumulatedRef[0] += dy
+        if (activeFingerWindowY.isFinite()) activeFingerWindowY += dy
+        while (true) {
+            val currentIndex = order.indexOfFirst { it.id == itemId }
+            if (currentIndex < 0) break
+            val dir = if (accumulatedRef[0] > 0f) 1 else -1
+            val targetIndex = currentIndex + dir
+            val neighborHeight = order.getOrNull(targetIndex)?.let { heights[it.id] } ?: fallbackHeight
+            if (targetIndex in order.indices && abs(accumulatedRef[0]) >= neighborHeight * 0.52f) {
+                order = order.toMutableList().apply {
+                    java.util.Collections.swap(this, currentIndex, targetIndex)
+                }
+                accumulatedRef[0] -= dir * neighborHeight
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } else {
+                break
+            }
+        }
+        dragVisualOffset = accumulatedRef[0]
+    }
+
     LookaheadScope {
         Column(Modifier.fillMaxWidth()) {
             if (node.hint.isNotBlank()) {
@@ -182,7 +201,7 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                     color = theme.muted,
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(top = 6.dp, bottom = 8.dp),
                 )
             }
 
@@ -190,27 +209,27 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                 key(item.id) {
                     val isDragging = draggingId == item.id
                     val liftScale by animateFloatAsState(
-                        targetValue = if (isDragging && !reduced) 1.015f else 1f,
-                        animationSpec = tween(if (reduced) 0 else 180),
+                        targetValue = if (isDragging && !reduced) 1.02f else 1f,
+                        animationSpec = tween(if (reduced) 0 else 150),
                         label = "source-drag-scale",
                     )
                     val liftElevation by animateFloatAsState(
-                        targetValue = if (isDragging && !reduced) with(density) { 6.dp.toPx() } else 0f,
-                        animationSpec = tween(if (reduced) 0 else 180),
+                        targetValue = if (isDragging && !reduced) with(density) { 8.dp.toPx() } else 0f,
+                        animationSpec = tween(if (reduced) 0 else 150),
                         label = "source-drag-elevation",
                     )
                     val settleOffset by animateFloatAsState(
                         targetValue = if (isDragging) dragVisualOffset else 0f,
-                        animationSpec = if (isDragging || reduced) tween(0) else tween(180),
+                        animationSpec = if (isDragging || reduced) tween(0) else tween(160),
                         label = "source-drag-offset",
                     )
-                    val placement = if (reduced) {
+                    val placement = if (reduced || isDragging) {
                         Modifier
                     } else {
                         Modifier.animateBounds(
                             this@LookaheadScope,
                             boundsTransform = BoundsTransform { _, _ ->
-                                tween(durationMillis = 200, easing = TingYuMotion.Emphasized)
+                                tween(durationMillis = 190, easing = TingYuMotion.Emphasized)
                             },
                         )
                     }
@@ -219,7 +238,6 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
                                 .height(0.75.dp)
                                 .background(theme.line.copy(alpha = 0.45f)),
                         )
@@ -228,22 +246,49 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                     Row(
                         placement
                             .fillMaxWidth()
-                            .zIndex(if (isDragging) 2f else 0f)
+                            .zIndex(if (isDragging) 4f else 0f)
                             .graphicsLayer {
                                 translationY = settleOffset
                                 scaleX = liftScale
                                 scaleY = liftScale
                                 shadowElevation = liftElevation
                             }
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (isDragging) theme.surface.copy(alpha = 0.96f) else androidx.compose.ui.graphics.Color.Transparent)
-                            .heightIn(min = 64.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isDragging) theme.surface.copy(alpha = 0.98f) else Color.Transparent)
+                            .heightIn(min = 62.dp)
                             .onSizeChanged { heights[item.id] = it.height.toFloat() }
                             .onGloballyPositioned { rowWindowTops[item.id] = it.positionInWindow().y }
-                            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                            .pointerInput(item.id) {
+                                val acc = floatArrayOf(0f)
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { startOffset ->
+                                        draggingId = item.id
+                                        acc[0] = 0f
+                                        dragVisualOffset = 0f
+                                        val rowTop = rowWindowTops[item.id] ?: Float.NaN
+                                        activeFingerWindowY = if (rowTop.isFinite()) rowTop + startOffset.y else Float.NaN
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    },
+                                    onDragEnd = {
+                                        draggingId = null
+                                        dragVisualOffset = 0f
+                                        activeFingerWindowY = Float.NaN
+                                        commitOrder()
+                                    },
+                                    onDragCancel = {
+                                        draggingId = null
+                                        dragVisualOffset = 0f
+                                        activeFingerWindowY = Float.NaN
+                                        order = parseDiscoverySourceItems(currentNode.value)
+                                    },
+                                ) { change, dragAmount ->
+                                    change.consume()
+                                    onStepDrag(item.id, dragAmount.y, acc)
+                                }
+                            }
+                            .padding(top = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // 平台名称及登录状态（上下两行，主副标题间距 4dp）
                         Column(Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 item.label,
@@ -254,7 +299,7 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                                 overflow = TextOverflow.Ellipsis,
                             )
                             if (item.status.isNotBlank()) {
-                                Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(3.dp))
                                 Text(
                                     item.status,
                                     color = when {
@@ -269,7 +314,6 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                             }
                         }
 
-                        // 右侧控件组：推荐权重 ｜ 开关 ｜ 拖拽手柄（间距 8dp）
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -278,7 +322,7 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                             Box(
                                 Modifier
                                     .heightIn(min = 36.dp)
-                                    .widthIn(min = 42.dp)
+                                    .widthIn(min = 40.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .semantics { contentDescription = "${item.label}推荐权重 $weightLabel" }
                                     .chromeClickable(enabled = item.enabled, corner = 8.dp) {
@@ -303,12 +347,12 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                                 currentAction(TySettingEvent.action(currentNode.action), "toggle:${item.id}", 0.0)
                             }
 
-                            // 拖拽手柄：20dp 图标，48×48dp 实际触摸区域，支持无障碍上下移动
+                            // 右侧专属拖拽手柄：按住拖动立即 1:1 跟手响应，无长按迟滞、无文字误选
                             Box(
                                 Modifier
-                                    .size(48.dp)
+                                    .size(width = 40.dp, height = 48.dp)
                                     .semantics {
-                                        contentDescription = "长按拖动排序：${item.label}"
+                                        contentDescription = "拖动排序：${item.label}"
                                         customActions = listOf(-1 to "上移", 1 to "下移").map { (direction, moveLabel) ->
                                             CustomAccessibilityAction(moveLabel) {
                                                 val currentIndex = order.indexOfFirst { it.id == item.id }
@@ -320,18 +364,16 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                                                     order = next
                                                     commitOrder(next)
                                                     true
-                                                } else {
-                                                    false
-                                                }
+                                                } else false
                                             }
                                         }
                                     }
                                     .pointerInput(item.id) {
-                                        var accumulated = 0f
-                                        detectDragGesturesAfterLongPress(
+                                        val acc = floatArrayOf(0f)
+                                        detectDragGestures(
                                             onDragStart = { startOffset ->
                                                 draggingId = item.id
-                                                accumulated = 0f
+                                                acc[0] = 0f
                                                 dragVisualOffset = 0f
                                                 val rowTop = rowWindowTops[item.id] ?: Float.NaN
                                                 activeFingerWindowY = if (rowTop.isFinite()) rowTop + startOffset.y else Float.NaN
@@ -351,26 +393,10 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
                                             },
                                         ) { change, dragAmount ->
                                             change.consume()
-                                            accumulated += dragAmount.y
-                                            if (activeFingerWindowY.isFinite()) {
-                                                activeFingerWindowY += dragAmount.y
-                                            }
-                                            val currentIndex = order.indexOfFirst { it.id == item.id }
-                                            if (currentIndex >= 0) {
-                                                val targetIndex = currentIndex + if (accumulated > 0f) 1 else -1
-                                                val threshold = (order.getOrNull(targetIndex)?.let { heights[it.id] } ?: fallbackHeight) * 0.65f
-                                                if (targetIndex in order.indices && abs(accumulated) >= threshold) {
-                                                    order = order.toMutableList().apply {
-                                                        java.util.Collections.swap(this, currentIndex, targetIndex)
-                                                    }
-                                                    accumulated -= if (accumulated > 0f) threshold else -threshold
-                                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                }
-                                                dragVisualOffset = accumulated.coerceIn(-fallbackHeight * 0.5f, fallbackHeight * 0.5f)
-                                            }
+                                            onStepDrag(item.id, dragAmount.y, acc)
                                         }
                                     },
-                                contentAlignment = Alignment.Center,
+                                contentAlignment = Alignment.CenterEnd,
                             ) {
                                 PageIcon(
                                     "grip-vertical",
@@ -402,71 +428,305 @@ internal fun DiscoverySourceOrder(theme: TyPanelTheme, node: TySettingNode, acti
     }
 }
 
-@Composable internal fun DiscoverySourceSetting(theme:TyPanelTheme,node:TySettingNode,action:PageAction) {
+@Composable
+internal fun DiscoverySourceSetting(theme: TyPanelTheme, node: TySettingNode, action: PageAction) {
     var expanded by remember { mutableStateOf(false) }
-    val enabled=node.value=="1"
-    SettingsItem(theme,node.title,trailing={
-        Row(verticalAlignment=Alignment.CenterVertically) {
-            Box(Modifier.heightIn(min=48.dp).widthIn(min=56.dp).semantics{contentDescription=node.title+"推荐权重"}.chromeClickable(enabled=enabled){expanded=true},contentAlignment=Alignment.Center){
-                Text(node.options.firstOrNull{it.value==node.detail}?.label?:node.detail,color=if(enabled)theme.accent else theme.muted,fontSize=13.sp)
+    val enabled = node.value == "1"
+    SettingsItem(theme, node.title, trailing = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .heightIn(min = 48.dp)
+                    .widthIn(min = 56.dp)
+                    .semantics { contentDescription = node.title + "推荐权重" }
+                    .chromeClickable(enabled = enabled) { expanded = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    node.options.firstOrNull { it.value == node.detail }?.label ?: node.detail,
+                    color = if (enabled) theme.accent else theme.muted,
+                    fontSize = 13.sp,
+                )
             }
-            Switch(checked=enabled,modifier=Modifier.semantics{contentDescription=node.title},onCheckedChange={action(TySettingEvent.set(node.action),if(it)"1" else "0",0.0)},
-                colors=SwitchDefaults.colors(checkedTrackColor=theme.accent,checkedThumbColor=theme.surface))
+            Switch(
+                checked = enabled,
+                modifier = Modifier.semantics { contentDescription = node.title },
+                onCheckedChange = { action(TySettingEvent.set(node.action), if (it) "1" else "0", 0.0) },
+                colors = SwitchDefaults.colors(checkedTrackColor = theme.accent, checkedThumbColor = theme.surface),
+            )
         }
     })
-    SettingsOptionPopup(theme,node.title,node.options,node.detail,visible=expanded,onClose={expanded=false}){
-        expanded=false;action(TySettingEvent.action(node.action),"weight:"+it,0.0)
+    SettingsOptionPopup(theme, node.title, node.options, node.detail, visible = expanded, onClose = { expanded = false }) {
+        expanded = false
+        action(TySettingEvent.action(node.action), "weight:" + it, 0.0)
     }
 }
 
-/** Drag is local while held; one bridge event persists the final permutation on release. */
+/** 页面管理模块排序：统一右侧「开关 + 拖拽手柄」，支持 1:1 跟手位移与邻居平滑让位。 */
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Composable internal fun DiscoveryModuleOrder(theme:TyPanelTheme,node:TySettingNode,action:PageAction) {
+@Composable
+internal fun DiscoveryModuleOrder(theme: TyPanelTheme, node: TySettingNode, action: PageAction) {
     var order by remember { mutableStateOf(node.options) }
-    var dragging by remember { mutableStateOf<String?>(null) }
-    val density=LocalDensity.current
-    val heights=remember { mutableStateMapOf<String,Float>() }
-    val fallbackHeight=with(density){58.dp.toPx()}
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var dragVisualOffset by remember { mutableFloatStateOf(0f) }
+    var activeFingerWindowY by remember { mutableFloatStateOf(Float.NaN) }
+
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val scrollState = LocalSettingsScrollState.current
+    val viewport = LocalSettingsPreviewViewport.current
+    val reduced = LocalLiquidReduced.current
+
+    val heights = remember { mutableStateMapOf<String, Float>() }
+    val rowWindowTops = remember { mutableStateMapOf<String, Float>() }
+    val fallbackHeight = with(density) { 58.dp.toPx() }
     val currentNode by rememberUpdatedState(node)
     val currentAction by rememberUpdatedState(action)
-    val reduced=LocalLiquidReduced.current
-    val hidden=remember(node.value){runCatching{val a=JSONArray(node.value);(0 until a.length()).map{a.getString(it)}.toSet()}.getOrDefault(emptySet())}
-    LaunchedEffect(node.options){if(dragging==null)order=node.options}
-    fun commit(){currentAction(TySettingEvent.action(currentNode.action),JSONArray(order.map{it.value}).toString(),0.0)}
+
+    val hidden = remember(node.value) {
+        runCatching {
+            val a = JSONArray(node.value)
+            (0 until a.length()).map { a.getString(it) }.toSet()
+        }.getOrDefault(emptySet())
+    }
+
+    LaunchedEffect(node.options) {
+        if (draggingId == null) order = node.options
+    }
+
+    LaunchedEffect(draggingId) {
+        val id = draggingId ?: return@LaunchedEffect
+        val scroll = scrollState ?: return@LaunchedEffect
+        val edgeZonePx = with(density) { 72.dp.toPx() }
+        val maxStepPx = with(density) { 12.dp.toPx() }
+        while (draggingId == id) {
+            val fingerY = activeFingerWindowY
+            if (fingerY.isFinite() && viewport.height > 0f) {
+                val topDist = fingerY - viewport.top
+                val botDist = viewport.bottom - fingerY
+                val delta = when {
+                    topDist < edgeZonePx && scroll.value > 0 ->
+                        -maxStepPx * ((edgeZonePx - topDist) / edgeZonePx).coerceIn(0.15f, 1f)
+                    botDist < edgeZonePx && scroll.value < scroll.maxValue ->
+                        maxStepPx * ((edgeZonePx - botDist) / edgeZonePx).coerceIn(0.15f, 1f)
+                    else -> 0f
+                }
+                if (delta != 0f) scroll.scrollBy(delta)
+            }
+            delay(16L)
+        }
+    }
+
+    fun commit(items: List<TySettingOption> = order) {
+        currentAction(
+            TySettingEvent.action(currentNode.action),
+            JSONArray(items.map { it.value }).toString(),
+            0.0,
+        )
+    }
+
+    fun onStepModuleDrag(moduleId: String, dy: Float, accRef: FloatArray) {
+        accRef[0] += dy
+        if (activeFingerWindowY.isFinite()) activeFingerWindowY += dy
+        while (true) {
+            val index = order.indexOfFirst { it.value == moduleId }
+            if (index < 0) break
+            val dir = if (accRef[0] > 0f) 1 else -1
+            val target = index + dir
+            val neighborHeight = order.getOrNull(target)?.let { heights[it.value] } ?: fallbackHeight
+            if (target in order.indices && abs(accRef[0]) >= neighborHeight * 0.52f) {
+                order = order.toMutableList().apply {
+                    java.util.Collections.swap(this, index, target)
+                }
+                accRef[0] -= dir * neighborHeight
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } else {
+                break
+            }
+        }
+        dragVisualOffset = accRef[0]
+    }
+
     LookaheadScope {
-    Column {
-        Text(node.hint,color=theme.muted,fontSize=12.sp,modifier=Modifier.padding(vertical=8.dp))
-        order.forEach { option -> key(option.value) {
-            val placement=if(reduced)Modifier else Modifier.animateBounds(this@LookaheadScope,
-                boundsTransform=BoundsTransform { _,_->
-                    spring(dampingRatio=TingYuMotion.PanelDamping,stiffness=TingYuMotion.PanelStiffness)
-                })
-            Row(placement.fillMaxWidth().heightIn(min=58.dp).onSizeChanged{heights[option.value]=it.height.toFloat()},verticalAlignment=Alignment.CenterVertically){
-                Box(Modifier.size(48.dp).semantics {
-                    contentDescription="拖动排序："+option.label
-                    customActions=listOf(-1 to "上移",1 to "下移").map{(direction,label)->CustomAccessibilityAction(label){
-                        val index=order.indexOfFirst{it.value==option.value};val target=index+direction
-                        if(target in order.indices){order=order.toMutableList().apply{java.util.Collections.swap(this,index,target)};commit();true}else false
-                    }}
-                }.pointerInput(option.value){
-                    var distance=0f
-                    detectDragGesturesAfterLongPress(onDragStart={dragging=option.value;distance=0f},
-                        onDragEnd={dragging=null;commit()},onDragCancel={dragging=null;order=currentNode.options}){change,amount->
-                        change.consume();distance+=amount.y
-                        val index=order.indexOfFirst{it.value==option.value}
-                        val target=index+if(distance>0)1 else -1
-                        val threshold=order.getOrNull(target)?.let{heights[it.value]}?:fallbackHeight
-                        if(target in order.indices&&abs(distance)>=threshold){
-                            order=order.toMutableList().apply{java.util.Collections.swap(this,index,target)}
-                            distance-=if(distance>0)threshold else -threshold
+        Column(Modifier.fillMaxWidth()) {
+            if (node.hint.isNotBlank()) {
+                Text(
+                    node.hint,
+                    color = theme.muted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 8.dp),
+                )
+            }
+
+            order.forEachIndexed { idx, option ->
+                key(option.value) {
+                    val isDragging = draggingId == option.value
+                    val liftScale by animateFloatAsState(
+                        targetValue = if (isDragging && !reduced) 1.02f else 1f,
+                        animationSpec = tween(if (reduced) 0 else 150),
+                        label = "module-drag-scale",
+                    )
+                    val liftElevation by animateFloatAsState(
+                        targetValue = if (isDragging && !reduced) with(density) { 8.dp.toPx() } else 0f,
+                        animationSpec = tween(if (reduced) 0 else 150),
+                        label = "module-drag-elevation",
+                    )
+                    val settleOffset by animateFloatAsState(
+                        targetValue = if (isDragging) dragVisualOffset else 0f,
+                        animationSpec = if (isDragging || reduced) tween(0) else tween(160),
+                        label = "module-drag-offset",
+                    )
+                    val placement = if (reduced || isDragging) {
+                        Modifier
+                    } else {
+                        Modifier.animateBounds(
+                            this@LookaheadScope,
+                            boundsTransform = BoundsTransform { _, _ ->
+                                tween(durationMillis = 190, easing = TingYuMotion.Emphasized)
+                            },
+                        )
+                    }
+
+                    if (idx > 0) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(0.75.dp)
+                                .background(theme.line.copy(alpha = 0.45f)),
+                        )
+                    }
+
+                    Row(
+                        placement
+                            .fillMaxWidth()
+                            .zIndex(if (isDragging) 4f else 0f)
+                            .graphicsLayer {
+                                translationY = settleOffset
+                                scaleX = liftScale
+                                scaleY = liftScale
+                                shadowElevation = liftElevation
+                            }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isDragging) theme.surface.copy(alpha = 0.98f) else Color.Transparent)
+                            .heightIn(min = 58.dp)
+                            .onSizeChanged { heights[option.value] = it.height.toFloat() }
+                            .onGloballyPositioned { rowWindowTops[option.value] = it.positionInWindow().y }
+                            .pointerInput(option.value) {
+                                val acc = floatArrayOf(0f)
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { startOffset ->
+                                        draggingId = option.value
+                                        acc[0] = 0f
+                                        dragVisualOffset = 0f
+                                        val rowTop = rowWindowTops[option.value] ?: Float.NaN
+                                        activeFingerWindowY = if (rowTop.isFinite()) rowTop + startOffset.y else Float.NaN
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    },
+                                    onDragEnd = {
+                                        draggingId = null
+                                        dragVisualOffset = 0f
+                                        activeFingerWindowY = Float.NaN
+                                        commit()
+                                    },
+                                    onDragCancel = {
+                                        draggingId = null
+                                        dragVisualOffset = 0f
+                                        activeFingerWindowY = Float.NaN
+                                        order = currentNode.options
+                                    },
+                                ) { change, dragAmount ->
+                                    change.consume()
+                                    onStepModuleDrag(option.value, dragAmount.y, acc)
+                                }
+                            }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // 左侧：模块标题
+                        Text(
+                            option.label,
+                            color = theme.text,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight(600),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        )
+
+                        // 右侧：统一开关 + 拖拽手柄（与推荐来源列表完全对齐）
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CompactSourceSwitch(
+                                theme = theme,
+                                checked = option.value !in hidden,
+                                contentDesc = "显示${option.label}",
+                            ) {
+                                currentAction(TySettingEvent.action(currentNode.action), "toggle:" + option.value, 0.0)
+                            }
+
+                            Box(
+                                Modifier
+                                    .size(width = 40.dp, height = 48.dp)
+                                    .semantics {
+                                        contentDescription = "拖动排序：${option.label}"
+                                        customActions = listOf(-1 to "上移", 1 to "下移").map { (direction, label) ->
+                                            CustomAccessibilityAction(label) {
+                                                val index = order.indexOfFirst { it.value == option.value }
+                                                val target = index + direction
+                                                if (index >= 0 && target in order.indices) {
+                                                    val next = order.toMutableList().apply {
+                                                        java.util.Collections.swap(this, index, target)
+                                                    }
+                                                    order = next
+                                                    commit(next)
+                                                    true
+                                                } else false
+                                            }
+                                        }
+                                    }
+                                    .pointerInput(option.value) {
+                                        val acc = floatArrayOf(0f)
+                                        detectDragGestures(
+                                            onDragStart = { startOffset ->
+                                                draggingId = option.value
+                                                acc[0] = 0f
+                                                dragVisualOffset = 0f
+                                                val rowTop = rowWindowTops[option.value] ?: Float.NaN
+                                                activeFingerWindowY = if (rowTop.isFinite()) rowTop + startOffset.y else Float.NaN
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            },
+                                            onDragEnd = {
+                                                draggingId = null
+                                                dragVisualOffset = 0f
+                                                activeFingerWindowY = Float.NaN
+                                                commit()
+                                            },
+                                            onDragCancel = {
+                                                draggingId = null
+                                                dragVisualOffset = 0f
+                                                activeFingerWindowY = Float.NaN
+                                                order = currentNode.options
+                                            },
+                                        ) { change, dragAmount ->
+                                            change.consume()
+                                            onStepModuleDrag(option.value, dragAmount.y, acc)
+                                        }
+                                    },
+                                contentAlignment = Alignment.CenterEnd,
+                            ) {
+                                PageIcon(
+                                    "grip-vertical",
+                                    if (isDragging) theme.accent else theme.muted,
+                                    Modifier.size(20.dp),
+                                )
+                            }
                         }
                     }
-                },contentAlignment=Alignment.Center){PageIcon("grip-vertical",if(dragging==option.value)theme.accent else theme.muted,Modifier.size(20.dp))}
-                Text(option.label,color=theme.text,fontSize=14.sp,modifier=Modifier.weight(1f))
-                Switch(checked=option.value !in hidden,modifier=Modifier.semantics{contentDescription="显示"+option.label},onCheckedChange={action(TySettingEvent.action(node.action),"toggle:"+option.value,0.0)},
-                    colors=SwitchDefaults.colors(checkedTrackColor=theme.accent,checkedThumbColor=theme.surface))
+                }
             }
-        }}
-    }
+        }
     }
 }

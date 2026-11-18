@@ -108,10 +108,21 @@ class UpdateStateStore(context: Context) {
             .apply()
     }
 
+    fun getPreferredChannel(defaultChannel: String): String {
+        val saved = prefs.getString(KEY_PREFERRED_CHANNEL, null)
+        return if (saved == "testing" || saved == "stable") saved else defaultChannel
+    }
+
+    fun setPreferredChannel(channel: String) {
+        if (channel != "testing" && channel != "stable") return
+        prefs.edit().putString(KEY_PREFERRED_CHANNEL, channel).apply()
+    }
+
     private fun keyForChannel(base: String, channel: String): String = "$base:$channel"
 
     companion object {
         private const val PREFS_NAME = "tingyu_native_update_state_v1"
+        private const val KEY_PREFERRED_CHANNEL = "preferred_update_channel"
         private const val KEY_VERIFIED_MANIFEST = "verified_manifest_json"
         private const val KEY_VERIFIED_AT_MS = "verified_at_ms"
         private const val KEY_HIGHEST_REVISION = "highest_policy_revision"

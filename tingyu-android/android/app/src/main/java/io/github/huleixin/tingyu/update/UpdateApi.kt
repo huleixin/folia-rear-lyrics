@@ -111,6 +111,58 @@ class UpdateApi(
         }
     }
 
+    /**
+     * 拉取听屿自身真实已发布的历史版本更新记录（严禁请求任何上游 Folia 接口，无记录时返回空列表）。
+     */
+    suspend fun fetchPublishedReleaseHistory(
+        channel: String,
+        currentVersionCode: Long,
+        urls: List<String> = UpdateTrustAnchors.releaseHistoryUrlsForChannel(channel),
+    ): List<ReleaseHistoryEntry> = withContext(Dispatchers.IO) {
+        for (url in urls) {
+            if (!url.startsWith("https://")) continue
+            val req = Request.Builder()
+                .url(url)
+                .cacheControl(CacheControl.FORCE_NETWORK)
+                .header("Accept", "application/json")
+                .header("User-Agent", "Tingyu-Android-Updater/1.0")
+                .get()
+                .build()
+            try {
+                httpClient.newCall(req).execute().use { res ->
+                    if (!res.isSuccessful) return@use
+                    val raw = res.body?.string() ?: return@use
+                    if (raw.length > 262_144) return@use
+                    val root = org.json.JSONObject(raw)
+                    val arr = root.optJSONArray("items") ?: return@use
+                    val parsed = mutableListOf<ReleaseHistoryEntry>()
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.optJSONObject(i) ?: continue
+                        val vName = obj.optString("versionName").trim()
+                        val vCode = obj.optLong("versionCode", 0L)
+                        val notes = obj.optString("releaseNotes").trim()
+                        if (vName.isEmpty() || vCode <= 0L || notes.isEmpty()) continue
+                        parsed.add(
+                            ReleaseHistoryEntry(
+                                id = obj.optString("id", "rel-$vCode"),
+                                versionName = vName,
+                                versionCode = vCode,
+                                gitCommit = obj.optString("gitCommit", ""),
+                                publishedAt = obj.optString("publishedAt", "").take(10),
+                                releaseNotes = notes,
+                                isCurrentInstalled = vCode == currentVersionCode,
+                            )
+                        )
+                    }
+                    return@withContext parsed
+                }
+            } catch (_: Exception) {
+                // 尝试备用同源地址
+            }
+        }
+        emptyList()
+    }
+
     companion object {
         fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(6, TimeUnit.SECONDS)

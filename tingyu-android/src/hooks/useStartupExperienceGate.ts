@@ -3,6 +3,7 @@ import { USER_GUIDE_AUTO_OPEN_VERSION } from '../components/modal/userGuideConte
 import { hasOnboardingLibrarySuiteChoice } from '../library/app/librarySuiteChoice';
 import { requestPlaybackEntryViewPrompt, usePlaybackEntryViewStore } from '../stores/usePlaybackEntryViewStore';
 import { useSettingsModalStore } from '../stores/useSettingsModalStore';
+import { isAndroidNativeRuntime } from '../utils/platform';
 
 // src/hooks/useStartupExperienceGate.ts
 
@@ -83,11 +84,13 @@ export const useStartupExperienceGate = () => {
     const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
     const appVersion = typeof __APP_VERSION__ === 'undefined' ? null : __APP_VERSION__;
 
+    // Android 端版本更新与历史公告由听屿原生更新系统全权接管，严禁在冷启动弹出上游 Folia 更新说明。
+    const isAndroid = isAndroidNativeRuntime();
     const nextStep = resolveStartupExperienceStep({
-        isCurrentRelease: Boolean(appVersion && USER_GUIDE_AUTO_OPEN_VERSION === appVersion),
+        isCurrentRelease: !isAndroid && Boolean(appVersion && USER_GUIDE_AUTO_OPEN_VERSION === appVersion),
         hasSeenPonder: lastSeenPonderVersion !== null,
         hasFinishedThisRelease: Boolean(appVersion && lastSeenPonderVersion === appVersion),
-        hasSeenReleaseNotes: Boolean(appVersion && lastSeenReleaseNotesVersion === appVersion),
+        hasSeenReleaseNotes: isAndroid || Boolean(appVersion && lastSeenReleaseNotesVersion === appVersion),
         isReleaseNotesOpen,
         hasChosenPlaybackEntryView,
         needsLibrarySuitePrompt,

@@ -2519,6 +2519,31 @@ public class FoliaNativePlugin extends Plugin {
         }
     }
 
+    @PluginMethod
+    public void setAppUpdateChannel(PluginCall call) {
+        try {
+            String channel = call.getString("channel", "stable");
+            io.github.huleixin.tingyu.update.UpdateManager manager =
+                io.github.huleixin.tingyu.update.UpdateManager.getInstance(getContext());
+            manager.switchChannel(channel);
+            call.resolve(JSObject.fromJSONObject(manager.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("切换更新通道失败", error);
+        }
+    }
+
+    @PluginMethod
+    public void openAppReleaseHistory(PluginCall call) {
+        try {
+            io.github.huleixin.tingyu.update.UpdateManager manager =
+                io.github.huleixin.tingyu.update.UpdateManager.getInstance(getContext());
+            manager.openReleaseHistoryDialog();
+            call.resolve(JSObject.fromJSONObject(manager.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("打开版本更新日志失败", error);
+        }
+    }
+
     /** 只接受 App 自己写出的 imported-* 文件名，挡掉任何路径穿越。 */
     private static File resolveImportedFile(File directory, String ref) {
         if (ref == null || !ref.startsWith("imported-")) return null;

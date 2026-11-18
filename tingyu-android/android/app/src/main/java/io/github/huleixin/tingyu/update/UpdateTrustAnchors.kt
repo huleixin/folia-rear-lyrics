@@ -29,22 +29,28 @@ object UpdateTrustAnchors {
     fun endpointsForChannel(channel: String): List<UpdateEndpointNode> = when (channel) {
         "testing" -> listOf(
             UpdateEndpointNode(
-                id = "cnb-testing",
-                label = "CNB 国内测试配置节点",
-                url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/channels/testing.json",
+                id = "cnb-testing-root",
+                label = "CNB 国内测试配置主节点",
+                url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/testing.json",
                 priority = 1,
+            ),
+            UpdateEndpointNode(
+                id = "cnb-testing-channel",
+                label = "CNB 测试渠道分支节点",
+                url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/channels/testing.json",
+                priority = 2,
             ),
             UpdateEndpointNode(
                 id = "cf-primary-testing",
                 label = "听屿云端签名策略节点",
                 url = "https://feedback.20262000.xyz/api/public/update/testing",
-                priority = 2,
+                priority = 3,
             ),
             UpdateEndpointNode(
                 id = "cf-backup-testing",
                 label = "听屿备用签名策略节点",
                 url = "https://tingyu-feedback-api.2473297053.workers.dev/api/public/update/testing",
-                priority = 3,
+                priority = 4,
             ),
         )
         "automotive" -> listOf(
@@ -83,9 +89,14 @@ object UpdateTrustAnchors {
             UpdateEndpointNode(
                 id = "github-stable",
                 label = "GitHub 备用节点",
-                url = "https://raw.githubusercontent.com/huleixin/folia-rear-lyrics/feat/library-search-v2/releases/update-manifests/stable.json",
+                url = "https://raw.githubusercontent.com/huleixin/folia-rear-lyrics/feat/library-search-v2/tingyu-android/releases/update-manifests/stable.json",
                 priority = 4,
             ),
         )
     }
+
+    fun releaseHistoryUrlsForChannel(channel: String): List<String> = listOf(
+        "https://feedback.20262000.xyz/api/public/releases/history?channel=$channel",
+        "https://tingyu-feedback-api.2473297053.workers.dev/api/public/releases/history?channel=$channel",
+    )
 }

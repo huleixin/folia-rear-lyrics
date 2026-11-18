@@ -65,12 +65,11 @@ export default function DiscoverySettingsPage({ onClose }: { onClose: () => void
                 return;
             }
             if (id === 'openAccounts') {
-                useSettingsModalStore.getState().openSettingsFromIndex('accounts');
+                useSettingsModalStore.getState().pushSettingsSubview('accounts');
                 return;
             }
             if (id === 'manageSources') {
-                if (fromIndex) useSettingsModalStore.getState().openSettingsFromIndex('integration');
-                else { onClose(); document.dispatchEvent(new Event('tingyu-discovery-sources')); }
+                useSettingsModalStore.getState().pushSettingsSubview('integration');
                 return;
             }
             const patch = discoverySettingsPatch(settings, id, event, knownSourceIds);

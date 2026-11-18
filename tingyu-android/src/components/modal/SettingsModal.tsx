@@ -1626,10 +1626,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
                                 {/* Author Info (Moved from Footer) */}
                                 <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true" data-settings-style='{"center":true,"font":12,"tone":"muted","gap":4}' data-settings-layout="column">
-                                    <p data-settings-layout="column">听屿 · Tingyu {__APP_VERSION__} · 基于 Folia 的独立衍生版本</p>
-                                    <p data-settings-layout="column">AGPL-3.0 · 原作者及第三方署名见下方</p>
+                                    <p data-settings-layout="column">听屿 · Tingyu {__APP_VERSION__}</p>
+                                    {!isAndroidNativeRuntime() && <p data-settings-layout="column">AGPL-3.0 · 基于 Folia 的独立衍生版本 · 原作者及第三方署名见下方</p>}
+                                    {isAndroidNativeRuntime() && (
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyVersionInfo}
+                                            className="opacity-65 hover:opacity-100 transition-opacity cursor-copy"
+                                            style={{ color: 'var(--text-secondary)' }}
+                                            title={versionCopied ? t('status.copied') : t('options.versionCopiedHint')}
+                                            aria-label={t('options.versionCopiedHint')}
+                                            data-settings-style='{"tone":"muted","center":true,"font":11}'
+                                            data-settings-layout="row"
+                                        >
+                                            {versionCopied ? t('status.copied') : `Build ${__COMMIT_HASH__.split('/')[0]} · 点击复制版本信息`}
+                                        </button>
+                                    )}
                                 </div>
-                                <div className="mt-8 pt-6 border-t border-white/10 text-center shrink-0" data-settings-style='{"center":true,"gap":4}' data-settings-layout="column">
+                                {!isAndroidNativeRuntime() && <div className="mt-8 pt-6 border-t border-white/10 text-center shrink-0" data-settings-style='{"center":true,"gap":4}' data-settings-layout="column">
                                     <div className="relative mb-1" data-settings-style='{"margin":[0,0,0,4]}' data-settings-layout="column">
                                         <p className="text-sm opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","center":true,"gap":4}' data-settings-layout="wrap">
                                             <button
@@ -1777,7 +1791,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                             </div>
                                         )}
                                     </div>
-                                </div>
+                                </div>}
                             </motion.div>
                         ) : (
                             <motion.div

@@ -3,7 +3,7 @@ import AndroidAppUpdateCard from './AndroidAppUpdateCard';
 import {useFeedbackNavigation} from '../../services/feedback/navigation';
 import React, { useState } from 'react';
 import { isAndroidNativeRuntime } from '../../utils/platform';
-import { Activity, Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-react';
+import { Activity, Check, ChevronRight, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
     canDeleteExportedDiagnostics,
@@ -139,15 +139,15 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
             className="flex w-full items-center gap-3 rounded-2xl p-4 text-left transition-colors"
             style={{
                 color: 'var(--text-primary)',
-                border: '1px solid color-mix(in srgb, currentColor 22%, transparent)',
-                background: 'color-mix(in srgb, currentColor 7%, transparent)',
+                background: 'color-mix(in srgb, currentColor 5%, transparent)',
             }}
-         data-settings-style='{"align":"center","gap":12,"radius":16,"padding":[16,16,16,16],"tone":"text","border":true,"fill":true}' data-settings-layout="row">
+         data-settings-style='{"align":"center","gap":12,"radius":16,"padding":[16,14,16,14],"tone":"text","fill":true}' data-settings-layout="row">
             <MessageSquarePlus size={19} className="shrink-0 opacity-80" aria-hidden="true" />
-            <span className="min-w-0" data-settings-layout="column">
+            <span className="min-w-0 flex-1" data-settings-style='{"grow":true}' data-settings-layout="column">
                 <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">{t('help.feedback')}</span>
                 <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">{t('help.feedbackDescription')}</span>
             </span>
+            <ChevronRight size={17} className="shrink-0 opacity-45" aria-hidden="true" />
         </button>
     );
 
@@ -173,8 +173,8 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
         </button>
     );
 
-    // Android keeps update check, release notes, and feedback unified in the existing About page.
-    if (isAndroidNativeRuntime()) return <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column"><AndroidAppUpdateCard onOpenReleaseNotes={onOpenReleaseNotes} />{feedbackCard}{feedbackLayer}</div>;
+    // Android keeps update check, release history, open-source licenses, and feedback unified in the About page.
+    if (isAndroidNativeRuntime()) return <div className="space-y-3" data-settings-style='{"gap":10}' data-settings-layout="column"><AndroidAppUpdateCard />{feedbackCard}{feedbackLayer}</div>;
 
     return (
         <>

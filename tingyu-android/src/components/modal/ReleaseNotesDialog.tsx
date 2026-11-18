@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { NewFeaturesIntro } from './NewFeaturesIntro';
 import { resolveReducedMotion, useMotionSettingsStore } from '../../stores/useMotionSettingsStore';
 import { OVERLAY_TRANSITION, OVERLAY_CALM_TRANSITION, overlayBackdropMotion, overlayPanelMotionFor } from '../shared/overlayEntranceMotion';
+import { isAndroidNativeRuntime } from '../../utils/platform';
 import type { Theme } from '../../types';
 
 // src/components/modal/ReleaseNotesDialog.tsx
@@ -21,6 +22,9 @@ type ReleaseNotesDialogProps = {
 const ReleaseNotesDialog: React.FC<ReleaseNotesDialogProps> = ({ isOpen, isDaylight, theme, onClose }) => {
     const { t } = useTranslation();
     const calm = useMotionSettingsStore(state => resolveReducedMotion(state, 'uiMicroMotion'));
+
+    // Android 端统一使用听屿原生更新日志系统，不再渲染上游 Folia 更新弹窗。
+    if (isAndroidNativeRuntime()) return null;
 
     // data-folia-keyboard-window 让全局热键（包括它们的 Esc）让路，所以 Esc 关闭得自己接；写法同 SettingsModal。
     useEffect(() => {

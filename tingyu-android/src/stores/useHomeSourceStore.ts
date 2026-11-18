@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useSearchNavigationStore, type SearchSource } from './useSearchNavigationStore';
+import { hasPersistedSearchSource, useSearchNavigationStore, type SearchSource } from './useSearchNavigationStore';
 import { useOnlineProviderAccountStore } from './useOnlineProviderAccountStore';
 import type { HomeViewTab } from '../types';
 
@@ -66,7 +66,7 @@ export const useHomeSourceStore = create<HomeSourceState>((set) => ({
         set({ source: normalized });
         const navigation = useSearchNavigationStore.getState();
         const searchSource = resolveHomeSearchSource();
-        if (navigation.homeViewTab === 'navidrome' && navigation.searchSourceTab !== searchSource) {
+        if (!hasPersistedSearchSource() && navigation.homeViewTab === 'navidrome' && navigation.searchSourceTab !== searchSource) {
             navigation.selectSearchSource(searchSource);
         }
     },
@@ -74,13 +74,13 @@ export const useHomeSourceStore = create<HomeSourceState>((set) => ({
 
 /**
  * 启动时自愈旧版本残留的全局 local 状态，并恢复 Navidrome 等合法在线页签对齐，
- * 不清空任何本地音乐文件、歌单、收藏或收听历史。
+ * 不清空任何本地音乐文件、歌单、收藏或收听历史，且绝不覆盖用户手动选择的搜索源。
  */
 export const reconcileSourceOnStartup = (): void => {
     const navigation = useSearchNavigationStore.getState();
     const hadLegacyLocal = useHomeSourceStore.getState().source === 'local' || navigation.homeViewTab === 'local';
     useHomeSourceStore.getState().setSource('online');
-    if (hadLegacyLocal && navigation.searchSourceTab === 'local') {
+    if (hadLegacyLocal && !hasPersistedSearchSource() && navigation.searchSourceTab === 'local') {
         navigation.selectSearchSource(resolveHomeSearchSource());
     }
 };

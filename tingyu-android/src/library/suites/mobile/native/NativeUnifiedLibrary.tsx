@@ -18,6 +18,11 @@ import { omni } from '../../../../services/onlineMusic/omni';
 import { absolutePageImage } from '../../../../services/nativePages';
 import { useMobileLibraryStore } from '../../../../stores/useMobileLibraryStore';
 import { useSettingsModalStore } from '../../../../stores/useSettingsModalStore';
+import {
+    useDiscoverySettingsStore,
+    useDiscoverySettingsHydrated,
+    computeDiscoverySourceOrder,
+} from '../../../../stores/useDiscoverySettingsStore';
 import type { NativeHomeProps } from './NativeHomeOverview';
 import type { PageActions, PageSection } from '../../../../types/nativePages';
 import type { ProviderCollection } from '../../../../types/onlineMusic';
@@ -45,6 +50,8 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     const { t } = useTranslation();
     const tokens = useSheetThemeTokens();
     const organization = useLibraryOrganization();
+    const discoverySettings = useDiscoverySettingsStore();
+    const discoveryHydrated = useDiscoverySettingsHydrated();
     const [resource, setResource] = useState<'playlists' | 'albums'>('playlists');
     const [query, setQuery] = useState('');
     const [offset, setOffset] = useState(0);
@@ -57,7 +64,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     // Drag-to-reorder draft state for 平台排序 (never mutates library until 完成)
     const [draftOrder, setDraftOrder] = useState<string[]>([]);
     const [draggingId, setDraggingId] = useState<string | null>(null);
-    const dragTimer = useRef<number | null>(null);
+    const [dragOffsetY, setDragOffsetY] = useState(0);
     const dragStartY = useRef(0);
     const dragListRef = useRef<HTMLDivElement>(null);
 
@@ -98,23 +105,45 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         [feed.providers],
     );
 
-    const orgHydrated = useLibraryOrganizationHydrated();
+    const orgHydrated = useLibraryOrganizationHydrated() && discoveryHydrated;
+
+    // 统一权威来源：资料库顶部平台标签、分区顺序与隐藏状态完全遵循「推荐设置」配置
+    const baseOrderedProviderIds = useMemo(() => {
+        const preferredOrder = discoverySettings.sourceOrder.length > 0
+            ? discoverySettings.sourceOrder
+            : organization.platformOrder;
+        return computeDiscoverySourceOrder(preferredOrder, availableProviderIds);
+    }, [discoverySettings.sourceOrder, organization.platformOrder, availableProviderIds]);
 
     const effectivePlatformOrder = useMemo(
-        () => computeEffectivePlatformOrder(organization.platformOrder, availableProviderIds),
-        [organization.platformOrder, availableProviderIds],
+        () => baseOrderedProviderIds.filter(id => discoverySettings.enabled[id] !== false),
+        [baseOrderedProviderIds, discoverySettings.enabled],
     );
+
+    const visibleProviderSet = useMemo(
+        () => new Set(effectivePlatformOrder),
+        [effectivePlatformOrder],
+    );
+
+    const localVisible = discoverySettings.includeLocal !== false && discoverySettings.enabled.local !== false;
+
+    useEffect(() => {
+        if (organization.source !== 'all' && discoverySettings.enabled[organization.source] === false) {
+            organization.patch({ source: 'all' });
+        }
+    }, [organization.source, discoverySettings.enabled]);
 
     useEffect(() => {
         if (platformOrderOpen) {
             setDraftOrder(effectivePlatformOrder);
             setDraggingId(null);
+            setDragOffsetY(0);
         }
-    }, [platformOrderOpen]);
+    }, [platformOrderOpen, effectivePlatformOrder]);
 
     const providerRank = useMemo(
-        () => computeProviderRank(organization.platformOrder, availableProviderIds),
-        [organization.platformOrder, availableProviderIds],
+        () => computeProviderRank(effectivePlatformOrder, effectivePlatformOrder),
+        [effectivePlatformOrder],
     );
 
     const lastPlayedByProvider = useMemo(() => {
@@ -129,11 +158,15 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     const keyOf = (item: ProviderCollection) =>
         collectionOrganizationKey(item.providerId, feed.accountKey(item.providerId), item.type, item.id);
 
-    const all = feed.pages.flatMap(page => page.items).map((collection, idx) => ({
-        collection,
-        key: keyOf(collection),
-        idx,
-    }));
+    const all = feed.pages
+        .filter(page => !isUnified || visibleProviderSet.has(page.providerId))
+        .flatMap(page => page.items)
+        .filter(collection => !isUnified || visibleProviderSet.has(collection.providerId))
+        .map((collection, idx) => ({
+            collection,
+            key: keyOf(collection),
+            idx,
+        }));
 
     const groups = [...new Set(all.map(item => organization.collections[item.key]?.group).filter(Boolean))] as string[];
     const selected = all.filter(({ collection, key }) =>
@@ -318,13 +351,14 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         }
     }
 
-    // 综合资料库：缓存优先，已有缓存时不插入阻塞性"正在同步"大段文字；隐藏未登录平台与冗余加载提示。
+    // 综合资料库：缓存优先，已有缓存时不插入阻塞性"正在同步"大段文字；隐藏未登录与已关闭平台及冗余加载提示。
     if (isUnified) {
-        const anyLoading = feed.pages.some(p => p.status === 'loading');
+        const visiblePages = feed.pages.filter(p => visibleProviderSet.has(p.providerId));
+        const anyLoading = visiblePages.some(p => p.status === 'loading');
         if (anyLoading && !feed.hasCached && !selected.length) {
             sections.push({ id: 'unified-loading', layout: 'message', text: '正在初始化资料库…' });
         }
-        const failed = feed.pages.filter(p => p.status === 'error');
+        const failed = visiblePages.filter(p => p.status === 'error');
         if (failed.length && !selected.length) {
             sections.push({
                 id: 'unified-error',
@@ -334,7 +368,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
                 moreLabel: '重试',
             });
         }
-        for (const page of feed.pages) {
+        for (const page of visiblePages) {
             if (page.hasMore) {
                 const label = omni.getProviderLabel(page.providerId);
                 const action = 'more:' + page.providerId;
@@ -405,7 +439,9 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         items: [
             { id: 'likes', title: t('libraryV2.likes'), subtitle: t('libraryV2.tracks', { count: privateSongs.liked.length }), image: 'heart', action: 'likes' },
             { id: 'recent', title: t('libraryV2.recent'), subtitle: t('libraryV2.tracks', { count: privateSongs.recent.length }), image: 'clock', action: 'recent' },
-            { id: 'local', title: t('libraryV2.localMusic'), subtitle: t('libraryV2.tracks', { count: props.localSongs.length }), image: 'smartphone', action: 'local' },
+            ...(localVisible
+                ? [{ id: 'local', title: t('libraryV2.localMusic'), subtitle: t('libraryV2.tracks', { count: props.localSongs.length }), image: 'smartphone', action: 'local' }]
+                : []),
         ],
     });
 
@@ -454,26 +490,28 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     };
 
     const handleHandlePointerDown = (providerId: string, clientY: number) => {
-        if (dragTimer.current) window.clearTimeout(dragTimer.current);
         dragStartY.current = clientY;
-        dragTimer.current = window.setTimeout(() => {
-            setDraggingId(providerId);
-            try { navigator.vibrate?.(12); } catch { /* Ignore unsupported vibration. */ }
-        }, 180);
+        setDraggingId(providerId);
+        setDragOffsetY(0);
+        try { navigator.vibrate?.(10); } catch { /* Ignore unsupported vibration. */ }
     };
 
     const handleHandlePointerMove = (clientY: number) => {
         if (!draggingId) return;
-        const delta = clientY - dragStartY.current;
-        const threshold = 56;
-        if (Math.abs(delta) >= threshold) {
+        let delta = clientY - dragStartY.current;
+        const rowStep = 64;
+        if (Math.abs(delta) >= rowStep * 0.52) {
             const idx = draftOrder.indexOf(draggingId);
-            const target = idx + (delta > 0 ? 1 : -1);
-            if (target >= 0 && target < draftOrder.length) {
-                moveDraftPlatform(idx, delta > 0 ? 1 : -1);
-                dragStartY.current += delta > 0 ? threshold : -threshold;
+            const dir: -1 | 1 = delta > 0 ? 1 : -1;
+            const target = idx + dir;
+            if (idx >= 0 && target >= 0 && target < draftOrder.length) {
+                moveDraftPlatform(idx, dir);
+                dragStartY.current += dir * rowStep;
+                delta = clientY - dragStartY.current;
+                try { navigator.vibrate?.(6); } catch { /* Ignore unsupported vibration. */ }
             }
         }
+        setDragOffsetY(Math.max(-44, Math.min(44, delta)));
         const box = dragListRef.current?.getBoundingClientRect();
         if (box) {
             if (clientY < box.top + 48) dragListRef.current?.scrollBy({ top: -12 });
@@ -482,11 +520,8 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     };
 
     const handleHandlePointerUp = () => {
-        if (dragTimer.current) {
-            window.clearTimeout(dragTimer.current);
-            dragTimer.current = null;
-        }
         setDraggingId(null);
+        setDragOffsetY(0);
     };
 
     const manageRows: Array<{ id: string; title: string; subtitle: string; icon: React.ReactNode; onClick: () => void }> = [
@@ -629,8 +664,8 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
                     <div className="flex gap-2.5">
                         <button
                             type="button"
-                            onClick={() => setDraftOrder([...availableProviderIds])}
-                            className="flex-1 flex items-center justify-center"
+                            onClick={() => setDraftOrder(availableProviderIds.filter(id => discoverySettings.enabled[id] !== false))}
+                            className="flex-1 flex items-center justify-center select-none"
                             style={{
                                 height: 48,
                                 borderRadius: 14,
@@ -645,10 +680,27 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
                         <button
                             type="button"
                             onClick={() => {
-                                organization.patch({ platformOrder: draftOrder });
+                                // 将可见平台的新顺序合并回推荐设置的完整 sourceOrder（保留已隐藏平台与 local 的原有相对槽位）
+                                const prevFull = discoverySettings.sourceOrder.length > 0
+                                    ? discoverySettings.sourceOrder
+                                    : [...availableProviderIds, 'local'];
+                                const visibleQueue = [...draftOrder];
+                                const visibleSet = new Set(draftOrder);
+                                const mergedSourceOrder: string[] = [];
+                                for (const id of prevFull) {
+                                    if (visibleSet.has(id)) {
+                                        const nextVis = visibleQueue.shift();
+                                        if (nextVis) mergedSourceOrder.push(nextVis);
+                                    } else {
+                                        mergedSourceOrder.push(id);
+                                    }
+                                }
+                                for (const rem of visibleQueue) mergedSourceOrder.push(rem);
+                                discoverySettings.patch({ sourceOrder: mergedSourceOrder });
+                                organization.patch({ platformOrder: mergedSourceOrder.filter(id => id !== 'local') });
                                 setPlatformOrderOpen(false);
                             }}
-                            className="flex-1 flex items-center justify-center"
+                            className="flex-1 flex items-center justify-center select-none"
                             style={{
                                 height: 48,
                                 borderRadius: 14,
@@ -666,8 +718,9 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
             >
                 <div
                     ref={dragListRef}
-                    className="flex flex-col pb-4"
-                    style={{ gap: 8 }}
+                    className="flex flex-col pb-4 select-none"
+                    style={{ gap: 8, userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as React.CSSProperties}
+                    onContextMenu={e => e.preventDefault()}
                     onPointerMove={e => handleHandlePointerMove(e.clientY)}
                     onPointerUp={handleHandlePointerUp}
                     onPointerCancel={handleHandlePointerUp}
@@ -677,16 +730,21 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
                         return (
                             <div
                                 key={providerId}
-                                className="flex items-center justify-between transition-transform"
+                                className="flex items-center justify-between select-none"
                                 style={{
                                     minHeight: 56,
                                     borderRadius: 12,
                                     padding: '0 8px 0 12px',
                                     background: isDragging ? tokens.accentSoft : tokens.cardBg,
                                     border: `1px solid ${isDragging ? tokens.accent : tokens.border}`,
-                                    transform: isDragging ? 'scale(1.02)' : 'scale(1)',
-                                    boxShadow: isDragging ? '0 8px 20px rgba(0,0,0,0.14)' : 'none',
+                                    transform: isDragging ? `translateY(${dragOffsetY}px) scale(1.02)` : 'translateY(0px) scale(1)',
+                                    transition: isDragging ? 'box-shadow 120ms ease' : 'transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                                    zIndex: isDragging ? 10 : 1,
+                                    position: 'relative',
+                                    boxShadow: isDragging ? '0 10px 24px rgba(0,0,0,0.16)' : 'none',
                                     color: tokens.text,
+                                    userSelect: 'none',
+                                    WebkitUserSelect: 'none',
                                 }}
                             >
                                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -724,15 +782,17 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
                                     <div
                                         role="button"
                                         tabIndex={0}
-                                        aria-label={`长按拖动 ${omni.getProviderLabel(providerId, false)}`}
+                                        aria-label={`拖动排序 ${omni.getProviderLabel(providerId, false)}`}
                                         onPointerDown={e => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
                                             e.currentTarget.setPointerCapture?.(e.pointerId);
                                             handleHandlePointerDown(providerId, e.clientY);
                                         }}
-                                        className="flex items-center justify-center touch-none cursor-grab"
+                                        className="flex items-center justify-center touch-none cursor-grab select-none"
                                         style={{ width: 48, height: 48, color: isDragging ? tokens.accent : tokens.muted }}
                                     >
-                                        <GripVertical size={22} />
+                                        <GripVertical size={20} />
                                     </div>
                                 </div>
                             </div>

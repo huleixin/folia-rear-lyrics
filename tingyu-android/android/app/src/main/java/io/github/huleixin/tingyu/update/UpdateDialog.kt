@@ -21,12 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,7 +36,7 @@ import io.github.huleixin.tingyu.R
 import io.github.huleixin.tingyu.chrome.LocalInterfacePalette
 
 // android/app/src/main/java/io/github/huleixin/tingyu/update/UpdateDialog.kt
-// 听屿原生软件更新弹窗与强制更新拦截门（UpdateGate）：遵循固定设计规范与四套主题语义 Token。
+// 听屿原生软件更新弹窗、强制更新拦截门（UpdateGate）及真实历史版本更新日志弹窗。
 
 internal data class UpdateDialogColors(
     val scrim: Color,
@@ -63,22 +63,21 @@ internal fun rememberUpdateDialogColors(): UpdateDialogColors {
     val isGlacierLight = palette.light && palette.style != "classic"
     return remember(palette) {
         if (isGlacierLight) {
-            // 严格对齐冰川浅色设计规范参考值
             UpdateDialogColors(
                 scrim = Color(0x8810202C),
-                dialogBg = Color(0xFFF3F7FB),
-                cardBg = Color(0xFFE9F0F7),
-                border = Color(0xFFD5E0EA),
-                ink = Color(0xFF203747),
-                muted = Color(0xFF536D80),
+                dialogBg = Color(0xFFF6F9FC),
+                cardBg = Color(0xFFEDF3F8),
+                border = Color(0xFFD9E4EE),
+                ink = Color(0xFF1D3342),
+                muted = Color(0xFF567082),
                 primaryBtnBg = Color(0xFF385B73),
                 primaryBtnText = Color(0xFFFFFFFF),
-                secondaryBtnBg = Color(0xFFCEDDE9),
-                secondaryBtnText = Color(0xFF385B73),
-                badgeForceBg = Color(0xFFFCE8E6),
+                secondaryBtnBg = Color(0xFFDCE7F0),
+                secondaryBtnText = Color(0xFF325268),
+                badgeForceBg = Color(0xFFFDE8E7),
                 badgeForceText = Color(0xFFB3261E),
-                badgeNormalBg = Color(0xFFCEDDE9),
-                badgeNormalText = Color(0xFF385B73),
+                badgeNormalBg = Color(0xFFDCE7F0),
+                badgeNormalText = Color(0xFF325268),
                 errorBg = Color(0xFFFDECEA),
                 errorText = Color(0xFFB3261E),
             )
@@ -94,7 +93,7 @@ internal fun rememberUpdateDialogColors(): UpdateDialogColors {
                 primaryBtnText = palette.onAccent,
                 secondaryBtnBg = palette.selected,
                 secondaryBtnText = palette.accent,
-                badgeForceBg = Color(0xFFFCE8E6),
+                badgeForceBg = Color(0xFFFDE8E7),
                 badgeForceText = Color(0xFFB3261E),
                 badgeNormalBg = palette.selected,
                 badgeNormalText = palette.accent,
@@ -102,9 +101,8 @@ internal fun rememberUpdateDialogColors(): UpdateDialogColors {
                 errorText = Color(0xFFB3261E),
             )
         } else {
-            // 深色主题（冰川深色 / 经典深色）：严格保证深色底搭配高对比浅色文字
             UpdateDialogColors(
-                scrim = Color(0xB8050B10),
+                scrim = Color(0xBE050A0F),
                 dialogBg = palette.panelSurface,
                 cardBg = palette.panelCard,
                 border = palette.border,
@@ -114,14 +112,27 @@ internal fun rememberUpdateDialogColors(): UpdateDialogColors {
                 primaryBtnText = palette.onAccent,
                 secondaryBtnBg = palette.selected,
                 secondaryBtnText = palette.accent,
-                badgeForceBg = Color(0x33FF6B6B),
+                badgeForceBg = Color(0x36FF6B6B),
                 badgeForceText = Color(0xFFFFB4AB),
                 badgeNormalBg = palette.selected,
                 badgeNormalText = palette.accent,
-                errorBg = Color(0x33FF6B6B),
+                errorBg = Color(0x36FF6B6B),
                 errorText = Color(0xFFFFB4AB),
             )
         }
+    }
+}
+
+@Composable
+private fun rememberTingyuLogoBitmap(): ImageBitmap? {
+    val context = LocalContext.current
+    return remember(context) {
+        runCatching {
+            val drawable = ContextCompat.getDrawable(context, R.mipmap.ic_launcher_round)
+                ?: ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
+            (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+                ?: drawable?.toBitmap(192, 192)?.asImageBitmap()
+        }.getOrNull()
     }
 }
 
@@ -135,45 +146,58 @@ fun UpdateOverlayHost(
 ) {
     val uiState by manager.state.collectAsState()
     val manifest = uiState.decision.manifest
-    val shouldShow = manifest != null && (uiState.isForceUpdateActive || uiState.dialogVisible)
-    if (!shouldShow) return
+    val shouldShowUpdate = manifest != null && (uiState.isForceUpdateActive || uiState.dialogVisible)
 
-    // UpdateGate：强制更新激活时拦截系统返回键/侧滑手势；普通更新允许按返回键等同“稍后更新”
-    BackHandler(enabled = true) {
-        if (!uiState.isForceUpdateActive) {
-            manager.dismissOptionalDialog()
+    if (shouldShowUpdate && manifest != null) {
+        BackHandler(enabled = true) {
+            if (!uiState.isForceUpdateActive) {
+                manager.dismissOptionalDialog()
+            }
         }
+        UpdateDialogSurface(
+            state = uiState,
+            manifest = manifest,
+            safeTopDp = safeTopDp,
+            safeBottomDp = safeBottomDp,
+            onPrimaryAction = {
+                when (uiState.download.phase) {
+                    DownloadPhase.READY_TO_INSTALL -> manager.launchInstall(activity)
+                    DownloadPhase.AWAITING_INSTALL_PERMISSION -> {
+                        if (activity != null && !ApkInstaller.canRequestPackageInstalls(activity)) {
+                            ApkInstaller.openInstallPermissionSettings(activity)
+                        } else {
+                            manager.launchInstall(activity)
+                        }
+                    }
+                    DownloadPhase.AWAITING_CELLULAR_CONFIRM -> manager.startOrResumeDownload(activity, userConfirmedCellular = true)
+                    DownloadPhase.DOWNLOADING, DownloadPhase.VERIFYING -> Unit
+                    DownloadPhase.IDLE, DownloadPhase.FAILED -> manager.startOrResumeDownload(activity)
+                }
+            },
+            onCancelDownload = { manager.cancelDownload() },
+            onDismissOptional = { manager.dismissOptionalDialog() },
+            onSwitchMirrorRetry = { manager.switchToNextMirrorAndRetry(activity) },
+            onSelectMirror = { manager.selectDownloadMirror(it) },
+            onRecheck = { manager.checkNowManual() },
+            onManualBrowserDownload = { manager.openManualDownloadFallback() },
+            onExitApp = { activity?.finishAffinity() },
+            modifier = modifier,
+        )
+        return
     }
 
-    UpdateDialogSurface(
-        state = uiState,
-        manifest = manifest,
-        safeTopDp = safeTopDp,
-        safeBottomDp = safeBottomDp,
-        onPrimaryAction = {
-            when (uiState.download.phase) {
-                DownloadPhase.READY_TO_INSTALL -> manager.launchInstall(activity)
-                DownloadPhase.AWAITING_INSTALL_PERMISSION -> {
-                    if (activity != null && !ApkInstaller.canRequestPackageInstalls(activity)) {
-                        ApkInstaller.openInstallPermissionSettings(activity)
-                    } else {
-                        manager.launchInstall(activity)
-                    }
-                }
-                DownloadPhase.AWAITING_CELLULAR_CONFIRM -> manager.startOrResumeDownload(activity, userConfirmedCellular = true)
-                DownloadPhase.DOWNLOADING, DownloadPhase.VERIFYING -> Unit
-                DownloadPhase.IDLE, DownloadPhase.FAILED -> manager.startOrResumeDownload(activity)
-            }
-        },
-        onCancelDownload = { manager.cancelDownload() },
-        onDismissOptional = { manager.dismissOptionalDialog() },
-        onSwitchMirrorRetry = { manager.switchToNextMirrorAndRetry(activity) },
-        onSelectMirror = { manager.selectDownloadMirror(it) },
-        onRecheck = { manager.checkNowManual() },
-        onManualBrowserDownload = { manager.openManualDownloadFallback() },
-        onExitApp = { activity?.finishAffinity() },
-        modifier = modifier,
-    )
+    if (uiState.historyVisible) {
+        BackHandler(enabled = true) {
+            manager.dismissReleaseHistoryDialog()
+        }
+        UpdateHistoryDialogSurface(
+            state = uiState,
+            safeTopDp = safeTopDp,
+            safeBottomDp = safeBottomDp,
+            onClose = { manager.dismissReleaseHistoryDialog() },
+            modifier = modifier,
+        )
+    }
 }
 
 @Composable
@@ -195,19 +219,17 @@ internal fun UpdateDialogSurface(
     val colors = rememberUpdateDialogColors()
     val isForce = state.isForceUpdateActive
     val dl = state.download
-    val context = LocalContext.current
+    val appLogoBitmap = rememberTingyuLogoBitmap()
 
-    val appLogoBitmap = remember(context) {
-        runCatching {
-            val drawable = ContextCompat.getDrawable(context, R.mipmap.ic_launcher_round)
-                ?: ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
-            (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
-                ?: drawable?.toBitmap(192, 192)?.asImageBitmap()
-        }.getOrNull()
+    val noteParagraphs = remember(manifest.releaseNotes) {
+        manifest.releaseNotes
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .ifEmpty { listOf("优化产品体验与稳定性，修复已知问题。") }
     }
 
-    // 全屏模态阻断层（UpdateGate）：吞掉全部穿透手势，强制更新点击外部绝不关闭
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(colors.scrim)
@@ -228,217 +250,213 @@ internal fun UpdateDialogSurface(
                 },
             )
             .padding(
-                start = 24.dp,
-                end = 24.dp,
-                top = (safeTopDp + 16f).dp,
-                bottom = (safeBottomDp + 16f).dp,
+                start = 20.dp,
+                end = 20.dp,
+                top = (safeTopDp + 8f).dp,
+                bottom = (safeBottomDp + 8f).dp,
             ),
         contentAlignment = Alignment.Center,
     ) {
-        val dialogShape = RoundedCornerShape(24.dp)
+        val compactHeight = maxHeight < 460.dp
+        val dialogShape = RoundedCornerShape(if (compactHeight) 20.dp else 24.dp)
         Column(
             modifier = Modifier
-                .widthIn(max = 420.dp)
+                .widthIn(max = if (compactHeight) 520.dp else 420.dp)
                 .fillMaxWidth()
-                .heightIn(max = 768.dp)
-                .shadow(20.dp, dialogShape, clip = false)
+                .heightIn(max = 720.dp)
+                .shadow(22.dp, dialogShape, clip = false)
                 .clip(dialogShape)
                 .background(colors.dialogBg)
-                .border(1.dp, colors.border, dialogShape)
+                .border(0.8.dp, colors.border.copy(alpha = 0.7f), dialogShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = {}, // 消费卡片内部点击，防止冒泡触发背景关闭
+                    onClick = {},
                 )
-                .padding(horizontal = 22.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(horizontal = 20.dp, vertical = if (compactHeight) 12.dp else 20.dp),
         ) {
-            // 可纵向自适应压缩的顶部+公告滚动区，保证短屏/横屏/大字号下底部关键按钮与进度条始终可见
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+            // 1. 紧凑精致水平头部：44dp 正式 Logo + 版本标题/大小 + 右上角更新类型标签（告别大块突兀空白）
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // 1. 听屿正式 Logo (56dp)
+                val logoSize = if (compactHeight) 36.dp else 44.dp
                 if (appLogoBitmap != null) {
                     Image(
                         bitmap = appLogoBitmap,
                         contentDescription = "听屿 Logo",
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(14.dp)),
+                            .size(logoSize)
+                            .clip(RoundedCornerShape(12.dp)),
                     )
                 } else {
                     Box(
                         Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(14.dp))
+                            .size(logoSize)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(colors.primaryBtnBg),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("听屿", color = colors.primaryBtnText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("听屿", color = colors.primaryBtnText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
-                // 2. 标题 & 3. 当前版本及最新版本 & 4. 更新类型及固定文案
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        text = "听屿有新版本啦",
+                        text = "发现新版本 v${manifest.latestVersionName}",
                         color = colors.ink,
-                        fontSize = 21.sp,
-                        lineHeight = 27.sp,
+                        fontSize = if (compactHeight) 16.sp else 18.sp,
+                        lineHeight = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        text = "当前版本 v${state.currentVersionName}  →  最新版本 v${manifest.latestVersionName}",
-                        color = colors.muted,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(if (isForce) colors.badgeForceBg else colors.badgeNormalBg)
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = if (isForce) "强制更新" else "普通更新",
-                            color = if (isForce) colors.badgeForceText else colors.badgeNormalText,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                    val metaParts = buildList {
+                        add("当前 v${state.currentVersionName}")
+                        if (manifest.apkSizeBytes > 0L) add(UpdateManager.formatSizeMb(manifest.apkSizeBytes))
                     }
                     Text(
-                        text = if (isForce) "为保证正常使用，请更新至最新版本。" else "新版本已准备就绪，快来体验吧。",
-                        color = colors.ink,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        textAlign = TextAlign.Center,
+                        text = metaParts.joinToString(" · "),
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
 
-                // 5. 本次更新公告
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.cardBg)
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(if (isForce) colors.badgeForceBg else colors.badgeNormalBg)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                 ) {
                     Text(
-                        text = "本次更新公告",
-                        color = colors.ink,
-                        fontSize = 15.sp,
+                        text = if (isForce) "强制更新" else "版本更新",
+                        color = if (isForce) colors.badgeForceText else colors.badgeNormalText,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
+                }
+            }
+
+            Spacer(Modifier.height(if (compactHeight) 8.dp else 14.dp))
+
+            // 2. 柔和无外框更新公告阅读区（独立自然滚动，行距 22sp、段距清晰）
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .heightIn(min = if (compactHeight) 36.dp else 76.dp, max = 300.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.cardBg)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = if (compactHeight) 10.dp else 14.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compactHeight) 4.dp else 8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        text = manifest.releaseNotes.ifBlank { "优化产品体验与稳定性，修复已知问题。" },
+                        text = "更新内容",
                         color = colors.ink,
-                        fontSize = 13.sp,
-                        lineHeight = 20.sp,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (manifest.publishedAt.length >= 10) {
+                        Text(
+                            text = manifest.publishedAt.take(10),
+                            color = colors.muted,
+                            fontSize = 11.5.sp,
+                        )
+                    }
+                }
+                noteParagraphs.forEach { line ->
+                    Text(
+                        text = line,
+                        color = colors.ink.copy(alpha = 0.92f),
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
                     )
                 }
+            }
 
-                // 6. 安装包大小与下载节点选择
-                Column(
+            // 3. 多节点下载源切换（仅当配置了多下载源时展示，无边框柔和胶囊）
+            if (manifest.downloadUrls.size > 1) {
+                Spacer(Modifier.height(if (compactHeight) 8.dp else 12.dp))
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "安装包大小：${UpdateManager.formatSizeMb(manifest.apkSizeBytes)}",
-                            color = colors.muted,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        if (manifest.publishedAt.isNotBlank()) {
+                    manifest.downloadUrls.forEach { mirror ->
+                        val selected = mirror.id == state.selectedMirrorId
+                        val shape = RoundedCornerShape(10.dp)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = if (compactHeight) 30.dp else 34.dp)
+                                .clip(shape)
+                                .background(if (selected) colors.secondaryBtnBg else colors.cardBg)
+                                .clickable(enabled = dl.phase != DownloadPhase.DOWNLOADING) {
+                                    onSelectMirror(mirror.id)
+                                }
+                                .padding(horizontal = 10.dp, vertical = if (compactHeight) 4.dp else 6.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Text(
-                                text = manifest.publishedAt.take(10),
-                                color = colors.muted,
+                                text = mirror.label,
+                                color = if (selected) colors.secondaryBtnText else colors.muted,
                                 fontSize = 12.sp,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
-
-                    if (manifest.downloadUrls.size > 1) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            manifest.downloadUrls.forEach { mirror ->
-                                val selected = mirror.id == state.selectedMirrorId
-                                val shape = RoundedCornerShape(10.dp)
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .heightIn(min = 36.dp)
-                                        .clip(shape)
-                                        .background(if (selected) colors.secondaryBtnBg else colors.cardBg)
-                                        .border(1.dp, if (selected) colors.primaryBtnBg else colors.border, shape)
-                                        .clickable(enabled = dl.phase != DownloadPhase.DOWNLOADING) {
-                                            onSelectMirror(mirror.id)
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = mirror.label,
-                                        color = if (selected) colors.secondaryBtnText else colors.muted,
-                                        fontSize = 12.sp,
-                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
-
-                // 7. 更新提示
-                Text(
-                    text = "覆盖安装过程会保留本机已有收藏、歌单、账号状态与播放记录；建议对重要本地音频文件保持常规备份。",
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
 
-            // 8. 实时下载进度条 / 校验状态 / 异常提示（固定紧贴主操作按钮上方，无需滚动即可直视）
+            // 4. 实时下载进度条 / 校验状态 / 异常提示（紧贴主按钮上方固定可见）
             if (dl.phase != DownloadPhase.IDLE || !dl.errorMessage.isNullOrBlank()) {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(if (compactHeight) 8.dp else 12.dp))
                 UpdateDownloadStatusBlock(dl = dl, colors = colors)
             }
 
-            Spacer(Modifier.height(12.dp))
+            if (!compactHeight) {
+                Spacer(Modifier.height(10.dp))
 
-            // 9. 固定可见底部关键操作区（主要按钮高度 48dp，圆角 14dp，触摸热区 >=48dp）
+                // 5. 弱化清晰的版本来源与数据保留说明
+                Text(
+                    text = "听屿 Tingyu 官方签名校验 · 覆盖安装完整保留收藏、歌单与账号登录态",
+                    color = colors.muted.copy(alpha = 0.85f),
+                    fontSize = 11.5.sp,
+                    lineHeight = 16.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Spacer(Modifier.height(if (compactHeight) 8.dp else 14.dp))
+
+            // 6. 固定可见底部主次操作栏
+            val btnHeight = if (compactHeight) 40.dp else 46.dp
             val isBusyDownloading = dl.phase == DownloadPhase.DOWNLOADING || dl.phase == DownloadPhase.VERIFYING
             val primaryLabel = when (dl.phase) {
                 DownloadPhase.IDLE -> "立即更新"
-                DownloadPhase.AWAITING_CELLULAR_CONFIRM -> "继续下载（使用移动流量）"
+                DownloadPhase.AWAITING_CELLULAR_CONFIRM -> "继续下载（移动网络）"
                 DownloadPhase.DOWNLOADING -> {
                     val pct = dl.progressFraction?.let { "${(it * 100).toInt()}%" } ?: "下载中"
                     "正在下载 $pct"
                 }
-                DownloadPhase.VERIFYING -> "正在校验安装包签名与完整性…"
+                DownloadPhase.VERIFYING -> "校验安装包签名中…"
                 DownloadPhase.READY_TO_INSTALL -> "立即安装"
-                DownloadPhase.AWAITING_INSTALL_PERMISSION -> "前往授权安装权限"
+                DownloadPhase.AWAITING_INSTALL_PERMISSION -> "授权安装权限"
                 DownloadPhase.FAILED -> "重试下载"
             }
 
@@ -447,12 +465,34 @@ internal fun UpdateDialogSurface(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // 普通更新且未在下载中时：左侧并排提供“稍后”按钮
+                if (!isForce && dl.phase != DownloadPhase.DOWNLOADING && dl.phase != DownloadPhase.VERIFYING) {
+                    Box(
+                        modifier = Modifier
+                            .weight(0.36f)
+                            .height(btnHeight)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(colors.secondaryBtnBg)
+                            .clickable(role = Role.Button, onClick = onDismissOptional)
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "稍后",
+                            color = colors.secondaryBtnText,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
+                        .weight(if (!isForce && dl.phase != DownloadPhase.DOWNLOADING && dl.phase != DownloadPhase.VERIFYING) 0.64f else 1f)
+                        .height(btnHeight)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(colors.primaryBtnBg.copy(alpha = if (isBusyDownloading) 0.82f else 1f))
+                        .background(colors.primaryBtnBg.copy(alpha = if (isBusyDownloading) 0.85f else 1f))
                         .clickable(enabled = !isBusyDownloading, role = Role.Button, onClick = onPrimaryAction)
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center,
@@ -466,13 +506,13 @@ internal fun UpdateDialogSurface(
                             if (btnFrac != null) {
                                 CircularProgressIndicator(
                                     progress = { btnFrac },
-                                    modifier = Modifier.size(18.dp),
+                                    modifier = Modifier.size(17.dp),
                                     color = colors.primaryBtnText,
                                     strokeWidth = 2.dp,
                                 )
                             } else {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
+                                    modifier = Modifier.size(17.dp),
                                     color = colors.primaryBtnText,
                                     strokeWidth = 2.dp,
                                 )
@@ -491,7 +531,7 @@ internal fun UpdateDialogSurface(
                 if (dl.phase == DownloadPhase.DOWNLOADING) {
                     Box(
                         modifier = Modifier
-                            .height(48.dp)
+                            .height(btnHeight)
                             .clip(RoundedCornerShape(14.dp))
                             .background(colors.secondaryBtnBg)
                             .clickable(role = Role.Button, onClick = onCancelDownload)
@@ -508,58 +548,236 @@ internal fun UpdateDialogSurface(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            // 10. 次要操作或强制更新恢复/退出入口（所有热区 >= 48dp）
-            if (!isForce) {
+            // 7. 辅助恢复操作（强制更新下保留重查/浏览器兜底/退出，下载失败时额外显示切源；隐藏“稍后”）
+            if (isForce) {
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (dl.phase == DownloadPhase.FAILED && manifest.downloadUrls.size > 1) {
+                        UpdateCompactAction("切换备用节点", colors.secondaryBtnText, onSwitchMirrorRetry)
+                    }
+                    UpdateCompactAction(
+                        text = if (state.checkPhase == CheckPhase.CHECKING) "检查中…" else "重新检查更新",
+                        color = colors.muted,
+                        onClick = onRecheck,
+                    )
+                    UpdateCompactAction("浏览器手动下载", colors.muted, onManualBrowserDownload)
+                    UpdateCompactAction("退出应用", colors.muted, onExitApp)
+                }
+            } else if (dl.phase == DownloadPhase.FAILED) {
+                Spacer(Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (dl.phase == DownloadPhase.FAILED && manifest.downloadUrls.size > 1) {
-                        UpdateTextButton("切换备用节点", colors.secondaryBtnText, onSwitchMirrorRetry)
+                    if (manifest.downloadUrls.size > 1) {
+                        UpdateCompactAction("切换备用节点", colors.secondaryBtnText, onSwitchMirrorRetry)
                     }
-                    if (dl.phase == DownloadPhase.FAILED) {
-                        UpdateTextButton("浏览器手动下载", colors.muted, onManualBrowserDownload)
-                    }
-                    UpdateTextButton("稍后更新", colors.muted, onDismissOptional)
+                    UpdateCompactAction("浏览器手动下载", colors.muted, onManualBrowserDownload)
                 }
-            } else {
-                // 强制更新：不提供“暂不更新/关闭”，但完整保留切换节点、重新检查更新（用于接收紧急解除）、手动下载与退出应用
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+            }
+        }
+    }
+}
+
+/**
+ * 听屿专属「版本更新日志」原生弹窗：只展示听屿自身真实已发布版本记录，绝不混入任何上游 Folia 更新内容。
+ */
+@Composable
+internal fun UpdateHistoryDialogSurface(
+    state: UpdateUiState,
+    safeTopDp: Float,
+    safeBottomDp: Float,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = rememberUpdateDialogColors()
+    val appLogoBitmap = rememberTingyuLogoBitmap()
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.scrim)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClose,
+            )
+            .padding(
+                start = 20.dp,
+                end = 20.dp,
+                top = (safeTopDp + 16f).dp,
+                bottom = (safeBottomDp + 16f).dp,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        val dialogShape = RoundedCornerShape(24.dp)
+        Column(
+            modifier = Modifier
+                .widthIn(max = 430.dp)
+                .fillMaxWidth()
+                .heightIn(max = 680.dp)
+                .shadow(22.dp, dialogShape, clip = false)
+                .clip(dialogShape)
+                .background(colors.dialogBg)
+                .border(0.8.dp, colors.border.copy(alpha = 0.7f), dialogShape)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(20.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (appLogoBitmap != null) {
+                    Image(
+                        bitmap = appLogoBitmap,
+                        contentDescription = "听屿 Logo",
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(11.dp)),
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "版本更新日志",
+                        color = colors.ink,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "当前安装：听屿 v${state.currentVersionName} (${state.currentVersionCode})",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(colors.cardBg)
+                        .clickable(role = Role.Button, onClick = onClose),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                    Text("✕", color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .heightIn(min = 120.dp, max = 440.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (state.historyLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        if (manifest.downloadUrls.size > 1) {
-                            UpdateTextButton("切换备用节点", colors.secondaryBtnText, onSwitchMirrorRetry)
-                        } else {
-                            UpdateTextButton("重新检查更新", colors.secondaryBtnText, onRecheck)
-                        }
-                        UpdateTextButton("浏览器手动下载", colors.secondaryBtnText, onManualBrowserDownload)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (manifest.downloadUrls.size > 1) {
-                            UpdateTextButton(
-                                text = if (state.checkPhase == CheckPhase.CHECKING) "正在检查…" else "重新检查更新",
-                                color = colors.muted,
-                                onClick = onRecheck,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = colors.primaryBtnBg,
+                                strokeWidth = 2.dp,
                             )
-                        } else {
-                            Spacer(Modifier.width(1.dp))
+                            Text("正在读取听屿历史更新记录…", color = colors.muted, fontSize = 13.sp)
                         }
-                        UpdateTextButton("退出应用", colors.muted, onExitApp)
+                    }
+                } else if (state.historyEntries.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(colors.cardBg)
+                            .padding(horizontal = 16.dp, vertical = 28.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "暂无更新记录",
+                            color = colors.muted,
+                            fontSize = 14.sp,
+                        )
+                    }
+                } else {
+                    state.historyEntries.forEach { entry ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(colors.cardBg)
+                                .padding(15.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "v${entry.versionName}",
+                                    color = colors.ink,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                val rightMeta = buildList {
+                                    if (entry.isCurrentInstalled) add("当前版本")
+                                    if (entry.publishedAt.isNotBlank()) add(entry.publishedAt)
+                                }.joinToString(" · ")
+                                if (rightMeta.isNotBlank()) {
+                                    Text(rightMeta, color = colors.muted, fontSize = 11.5.sp)
+                                }
+                            }
+                            entry.releaseNotes
+                                .lines()
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .forEach { line ->
+                                    Text(
+                                        text = line,
+                                        color = colors.ink.copy(alpha = 0.92f),
+                                        fontSize = 13.5.sp,
+                                        lineHeight = 21.sp,
+                                    )
+                                }
+                        }
                     }
                 }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.secondaryBtnBg)
+                    .clickable(role = Role.Button, onClick = onClose),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "关闭",
+                    color = colors.secondaryBtnText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
@@ -592,7 +810,6 @@ private fun UpdateDownloadStatusBlock(
                         trackColor = colors.border,
                     )
                 } else {
-                    // 未知总长度时使用不确定进度条，绝不伪造百分比
                     LinearProgressIndicator(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -624,16 +841,10 @@ private fun UpdateDownloadStatusBlock(
             }
             DownloadPhase.READY_TO_INSTALL -> {
                 Text(
-                    text = "安装包已准备完成。",
+                    text = "安装包已准备就绪，点击「立即安装」完成覆盖升级。",
                     color = colors.ink,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "已通过 SHA-256、包名、版本号与正式签名证书校验，点击「立即安装」启动系统覆盖安装。",
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
                 )
             }
             DownloadPhase.AWAITING_INSTALL_PERMISSION,
@@ -654,23 +865,23 @@ private fun UpdateDownloadStatusBlock(
 }
 
 @Composable
-private fun UpdateTextButton(
+private fun UpdateCompactAction(
     text: String,
     color: Color,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .heightIn(min = 38.dp)
+            .clip(RoundedCornerShape(10.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 3.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             color = color,
-            fontSize = 13.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
         )
