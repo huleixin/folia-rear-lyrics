@@ -2,22 +2,22 @@
   "schemaVersion": 1,
   "appId": "io.github.huleixin.tingyu",
   "channel": "stable",
-  "policyRevision": 3,
+  "policyRevision": 4,
   "policyAction": "normal",
   "updateEnabled": true,
-  "latestVersionName": "1.5.82",
-  "latestVersionCode": 298,
-  "minSupportedVersionCode": 298,
-  "releaseId": "rel-stable-1.5.82-298",
-  "gitCommit": "9d451a0d",
-  "releaseNotes": "听屿 v1.5.82 正式更新说明\n\n【体验与导航修复】\n1. 修复从推荐设置、设置首页等入口进入「音乐平台账号」页面后，点击左上角返回或侧滑返回时短暂闪现「视觉设置」页面的问题，返回动画直接衔接原上级页面。\n2. 修复在推荐页、资料库点击登录入口完成操作返回后跳转至设置首页的问题，现在直接返回原浏览页面。\n3. 修复从「搜索」页面点击底部迷你播放器进入完整播放页再返回时，底部导航栏选中背景从「资料库」误滑向「搜索」的问题，同时完整保留切换一级导航标签时的液态流动动画。\n\n【隐私与设置优化】\n4. 在「设置 → 关于与使用说明」新增可选的「匿名使用统计」开关（默认关闭），附带清晰的数据范围说明，拒绝开启或随时关闭均不影响音乐播放、歌单同步与软件更新。\n\n【更新与分发保障】\n5. 优化 CNB 国内高速节点与 GitHub 备用节点的定时可用性巡检与覆盖升级稳定性，保留本地音乐、已登录音乐平台凭证、收藏与歌单数据无损升级。",
-  "publishedAt": "2026-11-18T07:09:28.730Z",
-  "publishedAtEpochMs": 1794985768730,
-  "policyExpiresAt": "2026-12-18T07:09:28.730Z",
-  "policyExpiresAtEpochMs": 1797577768730,
+  "latestVersionName": "1.5.83",
+  "latestVersionCode": 299,
+  "minSupportedVersionCode": 299,
+  "releaseId": "rel-stable-1.5.83-299",
+  "gitCommit": "be57d723",
+  "releaseNotes": "1. 彻底修复搜索来源记忆问题：独立持久化保存最后一次主动选择的搜索来源（首次安装默认「综合搜索」），切换页面、切换资料库平台、进出播放器、播放其他平台歌曲、点击热搜/历史及重启升级均不再回退至 QQ 音乐，界面显示与实际搜索请求严格一致。\n2. 优化资料库平台分组展开与收缩动画：采用 300ms 自然柔和缓动曲线，展开箭头旋转、歌单收放与相邻分组补位保持同频连贯过渡，支持快速连续点击中途平滑反转，同时完整保留百首级歌单列表虚拟化流畅度。\n3. 调整匿名使用统计为默认开启：仅收集必要的匿名版本与稳定性统计数据，绝不收集音乐平台账号或歌曲内容等私人信息；设置页支持随时一键关闭并立即停止上报，已主动关闭的用户后续升级绝不重新开启。",
+  "publishedAt": "2026-11-18T08:18:55.877Z",
+  "publishedAtEpochMs": 1794989935877,
+  "policyExpiresAt": "2026-12-18T08:18:55.877Z",
+  "policyExpiresAtEpochMs": 1797581935877,
   "offlineGraceHours": 168,
-  "apkSizeBytes": 58651369,
-  "sha256": "b4176cb3135ce6cb8267436801afb06afd4766a0df56bb6ba0eb302786589375",
+  "apkSizeBytes": 58651379,
+  "sha256": "e89d7313af1e57241c01e3580a8f1d977d307b84d723a5d9bb04aa6ca294fff9",
   "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
   "minSdk": 24,
   "supportedAbis": [
@@ -30,17 +30,17 @@
     {
       "id": "cnb-primary",
       "label": "CNB 国内高速主节点",
-      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.82/tingyu-1.5.82-release.apk",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.83/tingyu-1.5.83-release.apk",
       "priority": 1
     },
     {
       "id": "github-backup",
       "label": "GitHub 备用节点",
-      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.82/tingyu-1.5.82-release.apk",
+      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.83/tingyu-1.5.83-release.apk",
       "priority": 2
     }
   ],
   "signatureAlgorithm": "ECDSA-P256-SHA256",
   "keyId": "tingyu-policy-2026-k1",
-  "signature": "MEYCIQDtQohs63eyu7JWIclnB8RDV+qb5T6m+6xbJ7CevhK0dgIhALeFWknb5IBZxdx8pq747O8aYUUngolBU5CddMO+Jkph"
+  "signature": "MEYCIQDfmzZoZICBJ3uBOZluolYFJUhLLnzWB9LnZNq4/hgxpgIhAKNfaRQBuix9jmYAJiiyCihhAjFxku44fgkIWwFN8K6Q"
 }

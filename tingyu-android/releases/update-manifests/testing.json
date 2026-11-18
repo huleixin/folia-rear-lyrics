@@ -2,22 +2,22 @@
   "schemaVersion": 1,
   "appId": "io.github.huleixin.tingyu",
   "channel": "testing",
-  "policyRevision": 7,
+  "policyRevision": 9,
   "policyAction": "emergency_unlock",
   "updateEnabled": false,
-  "latestVersionName": "1.5.82",
-  "latestVersionCode": 298,
+  "latestVersionName": "1.5.83",
+  "latestVersionCode": 299,
   "minSupportedVersionCode": 1,
-  "releaseId": "rel-testing-1.5.82-298",
-  "gitCommit": "9d451a0d",
-  "releaseNotes": "v1.5.82 正式发布前 testing 通道紧急解除预演验证",
-  "publishedAt": "2026-11-18T07:05:38.956Z",
-  "publishedAtEpochMs": 1794985538956,
-  "policyExpiresAt": "2026-12-18T07:05:38.956Z",
-  "policyExpiresAtEpochMs": 1797577538956,
+  "releaseId": "rel-testing-1.5.83-299",
+  "gitCommit": "be57d723",
+  "releaseNotes": "v1.5.83 testing 验证通过，准备推送正式通道",
+  "publishedAt": "2026-11-18T08:14:53.554Z",
+  "publishedAtEpochMs": 1794989693554,
+  "policyExpiresAt": "2026-12-18T08:14:53.554Z",
+  "policyExpiresAtEpochMs": 1797581693554,
   "offlineGraceHours": 168,
-  "apkSizeBytes": 58651369,
-  "sha256": "b4176cb3135ce6cb8267436801afb06afd4766a0df56bb6ba0eb302786589375",
+  "apkSizeBytes": 58651379,
+  "sha256": "e89d7313af1e57241c01e3580a8f1d977d307b84d723a5d9bb04aa6ca294fff9",
   "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
   "minSdk": 24,
   "supportedAbis": [
@@ -30,11 +30,11 @@
     {
       "id": "cnb-primary",
       "label": "CNB 国内高速主节点",
-      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/candidate-1.5.82-298/tingyu-1.5.82-release.apk",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/candidate-1.5.83-299/tingyu-1.5.83-release.apk",
       "priority": 1
     }
   ],
   "signatureAlgorithm": "ECDSA-P256-SHA256",
   "keyId": "tingyu-policy-2026-k1",
-  "signature": "MEQCHyLIIJwx3c9xva60g0V7VrtNud7NNtgz+wTA5JmF6RgCIQC2YDUhDtKnmb11PTuQXbmBZ9aE7n3+fRg93yRiNbpB3w=="
+  "signature": "MEQCIDQlHfUEG8Dhfy1PSimQTIq+W1gu5cR/7suChll78ptUAiALa3ceBH9BCNTj8p1h+QCd1zs/+pzNA2Q/aT/1N7ax9Q=="
 }
