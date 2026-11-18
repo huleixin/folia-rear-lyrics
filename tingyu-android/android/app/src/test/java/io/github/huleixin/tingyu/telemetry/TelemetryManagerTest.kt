@@ -25,62 +25,39 @@ class TelemetryManagerTest {
     }
 
     @Test
-    fun `telemetry defaults strictly to disabled and sends zero requests when off`() {
+    fun `fresh install and unconfigured upgrade default to enabled while preserving strict privacy whitelist`() {
         val sent = mutableListOf<Pair<String, JSONObject>>()
         val manager = TelemetryManager(
             appContext = context,
-            currentVersionName = "1.5.82",
-            currentVersionCode = 298,
+            currentVersionName = "1.5.83",
+            currentVersionCode = 299,
             transport = { url, body ->
                 sent.add(url to body)
-                JSONObject().put("ok", true)
+                JSONObject().put("ok", true).put("nextIntervalSec", 900)
             },
         )
 
-        assertFalse(manager.isEnabled())
-        assertFalse(manager.sendHeartbeatNowForTest())
-        manager.reportUpdateEvent("download_started", 298, "1.5.82", "stable", "cnb-primary")
-        assertEquals(0, sent.size)
-    }
+        assertTrue(manager.isEnabled())
+        assertFalse(manager.isUserConfigured())
+        assertTrue(manager.sendHeartbeatNowForTest())
+        assertEquals(1, sent.size)
 
-    @Test
-    fun `persists anonymous UUIDv4 across overwrite upgrade and confirms boot upgrade with strict field whitelist`() {
-        val sent = mutableListOf<Pair<String, JSONObject>>()
-
-        // 1. 模拟旧版 1.5.81 (297) 用户主动开启匿名统计并上报一次
-        val oldVerManager = TelemetryManager(
-            appContext = context,
-            currentVersionName = "1.5.81",
-            currentVersionCode = 297,
-            transport = { url, body ->
-                sent.add(url to body)
-                JSONObject().put("ok", true).put("nextIntervalSec", 600)
-            },
-        )
-        val firstInstallId = oldVerManager.getOrCreateInstallId()
-        assertTrue(firstInstallId.matches(Regex("^[0-9a-f-]{36}$", RegexOption.IGNORE_CASE)))
-
-        oldVerManager.setEnabled(true)
-        oldVerManager.onForegroundChanged(true)
-        oldVerManager.sendHeartbeatNowForTest()
-        assertTrue(sent.isNotEmpty())
-        val firstPayload = sent.last().second
-        assertEquals(firstInstallId, firstPayload.getString("installId"))
-        assertEquals(297, firstPayload.getInt("versionCode"))
-        assertFalse(firstPayload.has("previousVersionCode"))
-
-        // 校验严格白名单：不含手机号、IMEI、账号、Cookie、歌单或播放曲目
+        val payload = sent.single().second
         val allowedKeys = setOf(
             "installId", "versionName", "versionCode", "channel",
             "androidVersion", "deviceModel", "isForeground", "isPlaying", "previousVersionCode",
         )
         val actualKeys = mutableSetOf<String>()
-        firstPayload.keys().forEach { actualKeys.add(it) }
+        payload.keys().forEach { actualKeys.add(it) }
         assertTrue(allowedKeys.containsAll(actualKeys))
+    }
 
-        // 2. 模拟覆盖升级到 1.5.82 (298) 后冷启动：同一安装 ID 保持不变，且携带 previousVersionCode=297 确认覆盖升级成功
-        sent.clear()
-        val upgradedManager = TelemetryManager(
+    @Test
+    fun `user explicit opt-out stops reporting immediately and is never re-enabled across future upgrades`() {
+        val sent = mutableListOf<Pair<String, JSONObject>>()
+
+        // 1. 用户在 v1.5.82 (298) 主动关闭了匿名使用统计
+        val v298Manager = TelemetryManager(
             appContext = context,
             currentVersionName = "1.5.82",
             currentVersionCode = 298,
@@ -89,22 +66,78 @@ class TelemetryManagerTest {
                 JSONObject().put("ok", true)
             },
         )
-        assertEquals(firstInstallId, upgradedManager.getOrCreateInstallId())
+        val installId = v298Manager.getOrCreateInstallId()
+        v298Manager.setEnabled(false)
+        assertFalse(v298Manager.isEnabled())
+        assertTrue(v298Manager.isUserConfigured())
+        assertFalse(v298Manager.sendHeartbeatNowForTest())
+        v298Manager.reportUpdateEvent("download_started", 299, "1.5.83", "stable", "cnb-primary")
+        assertEquals(0, sent.size)
+
+        // 2. 覆盖安装升级到默认开启的 v1.5.83 (299)：此前主动关闭的用户绝不得被重新开启！
+        val v299Manager = TelemetryManager(
+            appContext = context,
+            currentVersionName = "1.5.83",
+            currentVersionCode = 299,
+            transport = { url, body ->
+                sent.add(url to body)
+                JSONObject().put("ok", true)
+            },
+        )
+        assertFalse(v299Manager.isEnabled())
+        assertTrue(v299Manager.isUserConfigured())
+        assertFalse(v299Manager.sendHeartbeatNowForTest())
+        v299Manager.reportUpdateEvent("download_succeeded", 299, "1.5.83", "stable", "cnb-primary")
+        assertEquals(0, sent.size)
+        assertEquals(installId, v299Manager.getOrCreateInstallId())
+
+        // 3. 继续升级到未来版本 v1.5.84 (300)：依然严格保持关闭
+        val v300Manager = TelemetryManager(
+            appContext = context,
+            currentVersionName = "1.5.84",
+            currentVersionCode = 300,
+            transport = { url, body ->
+                sent.add(url to body)
+                JSONObject().put("ok", true)
+            },
+        )
+        assertFalse(v300Manager.isEnabled())
+        assertFalse(v300Manager.sendHeartbeatNowForTest())
+        assertEquals(0, sent.size)
+    }
+
+    @Test
+    fun `unconfigured v1_5_82 user upgrading to v1_5_83 gets default enabled and confirms boot upgrade`() {
+        val sent = mutableListOf<Pair<String, JSONObject>>()
+
+        // 模拟 v1.5.82 用户从未点过开关（仅记录了本机版本号 298，未写入 KEY_ENABLED）
+        context.getSharedPreferences(TelemetryManager.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(TelemetryManager.KEY_LAST_SEEN_LOCAL_VC, 298)
+            .commit()
+
+        val upgradedManager = TelemetryManager(
+            appContext = context,
+            currentVersionName = "1.5.83",
+            currentVersionCode = 299,
+            transport = { url, body ->
+                sent.add(url to body)
+                JSONObject().put("ok", true)
+            },
+        )
         assertTrue(upgradedManager.isEnabled())
         assertTrue(upgradedManager.sendHeartbeatNowForTest())
+        assertEquals(1, sent.size)
+        val payload = sent.single().second
+        assertEquals(299, payload.getInt("versionCode"))
+        assertEquals(298, payload.getInt("previousVersionCode"))
 
-        val upgradePayload = sent.single().second
-        assertEquals(firstInstallId, upgradePayload.getString("installId"))
-        assertEquals(298, upgradePayload.getInt("versionCode"))
-        assertEquals(297, upgradePayload.getInt("previousVersionCode"))
-
-        // 3. 关闭开关后立即停止后续上报，且匿名 ID 不被重置
+        // 用户随后在设置中主动关闭：立即停止上报
         sent.clear()
         upgradedManager.setEnabled(false)
+        assertFalse(upgradedManager.isEnabled())
         assertFalse(upgradedManager.sendHeartbeatNowForTest())
-        upgradedManager.reportUpdateEvent("download_succeeded", 299, "1.5.83", "stable", "cnb-primary")
         assertEquals(0, sent.size)
-        assertEquals(firstInstallId, upgradedManager.getOrCreateInstallId())
         assertNotNull(upgradedManager.toBridgeJson())
     }
 }

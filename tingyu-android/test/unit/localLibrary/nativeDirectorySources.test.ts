@@ -61,9 +61,10 @@ it('offers local subpage entry and Navidrome without locking global homeSource t
         await act(async()=>panelAction('source:local'));
         expect(useMobileLibraryStore.getState().localMusicOpen).toBe(true);
         expect(useHomeSourceStore.getState().source).toBe('online');
-        expect(resolveHomeSearchSource()).toBe('qq');
+        expect(resolveHomeSearchSource()).toBe('aggregate');
         for(const source of ['navidrome','qq']){
-            await act(async()=>panelAction(`source:${source}`));expect(resolveHomeSearchSource()).toBe(source);
+            await act(async()=>panelAction(`source:${source}`));
+            expect(resolveHomeSearchSource()).toBe('aggregate');
         }
     }finally{await act(()=>root.unmount())}
 });

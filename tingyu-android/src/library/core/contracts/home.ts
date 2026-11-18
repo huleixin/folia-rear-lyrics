@@ -82,8 +82,8 @@ export interface LibraryHomeData {
     onAddNavidromeSongsToQueue?: (songs: NavidromeSong[]) => void;
     navidromeFocusedAlbumIndex?: number;
     setNavidromeFocusedAlbumIndex?: (index: number) => void;
-    /** 已经 submitSearch 过的搜索压进历史；sourceTab 与提交时同一个来源（在线页签传当前 provider id）。 */
-    onSearchCommitted: (query: string, sourceTab: HomeViewTab | OnlineProviderId, replace?: boolean) => void;
+    /** 已经 submitSearch 过的搜索压进历史；sourceTab 与提交时同一个来源。 */
+    onSearchCommitted: (query: string, sourceTab: HomeViewTab | OnlineProviderId | 'aggregate', replace?: boolean) => void;
     stageEnabled?: boolean;
     stageIsActive?: boolean;
     onOpenStagePlayer?: () => void;

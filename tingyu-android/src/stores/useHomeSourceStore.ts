@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { hasPersistedSearchSource, useSearchNavigationStore, type SearchSource } from './useSearchNavigationStore';
-import { useOnlineProviderAccountStore } from './useOnlineProviderAccountStore';
+import { resolveEffectiveSearchSource, useSearchNavigationStore, type SearchSource } from './useSearchNavigationStore';
 import type { HomeViewTab } from '../types';
 
 // src/stores/useHomeSourceStore.ts
@@ -64,38 +63,30 @@ export const useHomeSourceStore = create<HomeSourceState>((set) => ({
         writeStorage(HOME_SOURCE_STORAGE_KEY, normalized);
         alignLibraryTab();
         set({ source: normalized });
-        const navigation = useSearchNavigationStore.getState();
-        const searchSource = resolveHomeSearchSource();
-        if (!hasPersistedSearchSource() && navigation.homeViewTab === 'navidrome' && navigation.searchSourceTab !== searchSource) {
-            navigation.selectSearchSource(searchSource);
-        }
     },
 }));
 
 /**
  * 启动时自愈旧版本残留的全局 local 状态，并恢复 Navidrome 等合法在线页签对齐，
- * 不清空任何本地音乐文件、歌单、收藏或收听历史，且绝不覆盖用户手动选择的搜索源。
+ * 不清空任何本地音乐文件、歌单、收藏或收听历史，且绝不修改用户的独立搜索来源偏好。
  */
 export const reconcileSourceOnStartup = (): void => {
-    const navigation = useSearchNavigationStore.getState();
-    const hadLegacyLocal = useHomeSourceStore.getState().source === 'local' || navigation.homeViewTab === 'local';
     useHomeSourceStore.getState().setSource('online');
-    if (hadLegacyLocal && !hasPersistedSearchSource() && navigation.searchSourceTab === 'local') {
-        navigation.selectSearchSource(resolveHomeSearchSource());
-    }
 };
 
-/** Resolve the search default from existing browsing state; no additional persisted source. */
+/**
+ * 读取进入搜索页时应使用的搜索来源：始终以用户最后一次主动选择的独立搜索偏好为准，
+ * 首次安装无历史记录时默认使用「综合搜索」('aggregate')，绝不由当前音乐平台覆盖。
+ */
 export const resolveHomeSearchSource = (): SearchSource => {
-    if(useSearchNavigationStore.getState().homeViewTab==='navidrome')return 'navidrome';
-    return useOnlineProviderAccountStore.getState().activeProviderId;
+    const state = useSearchNavigationStore.getState();
+    return resolveEffectiveSearchSource(state.preferredSearchSource);
 };
 
-/** Align browsing and search after selecting a source (online provider activation stays with its controller). */
-export const selectHomeSearchSource = (source:SearchSource):void => {
+/** 切换首页/资料库浏览音源时仅同步浏览页签，绝不覆盖独立持久化的搜索来源偏好。 */
+export const selectHomeSearchSource = (source: SearchSource): void => {
     useHomeSourceStore.getState().setSource('online');
-    const navigation=useSearchNavigationStore.getState();
-    if(source==='navidrome')navigation.setHomeViewTab('navidrome');
-    else if(source!=='local'&&navigation.homeViewTab==='navidrome')navigation.setHomeViewTab('playlist');
-    if(useSearchNavigationStore.getState().searchSourceTab!==source)navigation.selectSearchSource(source);
+    const navigation = useSearchNavigationStore.getState();
+    if (source === 'navidrome') navigation.setHomeViewTab('navidrome');
+    else if (source !== 'local' && navigation.homeViewTab === 'navidrome') navigation.setHomeViewTab('playlist');
 };

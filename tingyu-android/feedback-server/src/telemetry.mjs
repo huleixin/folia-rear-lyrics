@@ -40,9 +40,28 @@ const ALLOWED_UPDATE_EVENTS = new Set([
 
 let summaryCache = { key: '', expiresAt: 0, payload: null };
 let lastDownloadSyncAt = 0;
+const memRateBuckets = new Map();
+
+function memRateCount(key, ttlMs) {
+    const now = Date.now();
+    if (memRateBuckets.size > 4096) {
+        for (const [k, v] of memRateBuckets) {
+            if (v.expiresAt <= now) memRateBuckets.delete(k);
+        }
+        if (memRateBuckets.size > 4096) memRateBuckets.clear();
+    }
+    const cur = memRateBuckets.get(key);
+    if (!cur || cur.expiresAt <= now) {
+        memRateBuckets.set(key, { count: 1, expiresAt: now + ttlMs });
+        return 1;
+    }
+    cur.count += 1;
+    return cur.count;
+}
 
 export function invalidateTelemetrySummaryCache() {
     summaryCache = { key: '', expiresAt: 0, payload: null };
+    memRateBuckets.clear();
 }
 
 /** 将毫秒时间戳转换为北京时间 (UTC+8) YYYY-MM-DD 日期字符串 */
@@ -67,7 +86,7 @@ async function getTelemetrySettings(env) {
     ).all()).results;
     const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
     const enabled = map.telemetry_enabled !== 'false';
-    const baseIntervalSec = Math.max(300, Math.min(7200, Number(map.telemetry_interval_sec) || 600));
+    const baseIntervalSec = Math.max(300, Math.min(7200, Number(map.telemetry_interval_sec) || 900));
     const dailyBudget = Math.max(1000, Math.min(90000, Number(map.telemetry_daily_write_budget) || 40000));
     const startedDay = map.telemetry_started_day || '';
 
@@ -82,14 +101,14 @@ async function getTelemetrySettings(env) {
     if (!enabled) {
         throttleMode = 'disabled_by_admin';
         effectiveIntervalSec = 3600;
-    } else if (ratio >= 0.9) {
+    } else if (ratio >= 0.88) {
         throttleMode = 'paused_quota_guard';
         effectiveIntervalSec = 3600;
-    } else if (ratio >= 0.7) {
+    } else if (ratio >= 0.65) {
         throttleMode = 'throttled_quota_guard';
-        effectiveIntervalSec = Math.max(baseIntervalSec, 1800);
+        effectiveIntervalSec = Math.max(baseIntervalSec, 2700);
     }
-    const activeWindowMinutes = Math.max(15, Math.ceil((effectiveIntervalSec * 1.5) / 60));
+    const activeWindowMinutes = Math.max(20, Math.ceil((effectiveIntervalSec * 1.5) / 60));
 
     return {
         enabled,
@@ -151,10 +170,11 @@ export async function submitTelemetryHeartbeat(req, env) {
         ? body.previousVersionCode
         : 0;
 
-    // 速率限制：单 IP 每 10 分钟最多 18 次心跳，防止恶意脚本批量伪造请求
+    // 1. 先检查单实例内存限流与免费额度熔断开关（暂停期间实现严格零 D1 写入，绝不挤占反馈与发布配额）
     const ip = await ipKey(req, env);
     const rlBucket = Math.floor(Date.now() / 600_000);
-    if (!(await rate(env, `telhb:${ip}:${rlBucket}`, 18, 1200_000))) {
+    const localIpHits = memRateCount(`telhb:${ip}:${rlBucket}`, 1200_000);
+    if (localIpHits > 30) {
         return json({ error: 'rate_limit', nextIntervalSec: 1200 }, 429);
     }
 
@@ -168,6 +188,15 @@ export async function submitTelemetryHeartbeat(req, env) {
         });
     }
 
+    // 2. 仅当同 IP 短时间并发偏高（>= 4 次 / 10 分钟）时升级为跨实例 D1 速率限制，节省常规单设备每次心跳的 counters 写入
+    let extraRateWrites = 0;
+    if (localIpHits >= 4) {
+        extraRateWrites++;
+        if (!(await rate(env, `telhb:${ip}:${rlBucket}`, 30, 1200_000))) {
+            return json({ error: 'rate_limit', nextIntervalSec: 1200 }, 429);
+        }
+    }
+
     const now = Date.now();
     const today = cfg.today;
     const deviceHash = await deriveDeviceHash(env, installId);
@@ -175,10 +204,11 @@ export async function submitTelemetryHeartbeat(req, env) {
         'SELECT version_code, first_seen_day, last_seen_at, last_seen_day, is_foreground, is_playing, upgraded_from_code FROM telemetry_devices WHERE device_hash=?',
     ).bind(deviceHash).first();
 
-    // 新设备注册单独限流：单 IP 每小时最多新增 6 台全新匿名设备，阻断伪造海量新增设备攻击
+    // 3. 新设备注册单独限流：单 IP 每小时最多新增 30 台全新匿名设备（兼容校园/家庭共享 NAT 升级峰值，同时阻断批量伪造攻击）
     if (!existing) {
         const newBucket = Math.floor(now / 3600_000);
-        if (!(await rate(env, `telnew:${ip}:${newBucket}`, 6, 7200_000))) {
+        extraRateWrites++;
+        if (!(await rate(env, `telnew:${ip}:${newBucket}`, 30, 7200_000))) {
             return json({ error: 'new_device_rate_limit', nextIntervalSec: 1800 }, 429);
         }
     }
@@ -302,8 +332,15 @@ export async function submitTelemetryHeartbeat(req, env) {
         writeCount++;
     }
 
+    const totalWrites = writeCount + extraRateWrites;
+    if (totalWrites > 0) {
+        statements.push(
+            env.DB.prepare(
+                'INSERT INTO metrics(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = value + excluded.value',
+            ).bind(cfg.writeKey, totalWrites),
+        );
+    }
     await env.DB.batch(statements);
-    await recordTelemetryWrites(env, cfg.writeKey, writeCount);
 
     return json({
         ok: true,
@@ -351,13 +388,23 @@ export async function submitTelemetryUpdateEvent(req, env) {
             : (rawMirror.replace(/[^a-z0-9_-]/g, '') || 'unknown');
 
     const ip = await ipKey(req, env);
-    if (!(await rate(env, `telupd:${ip}:${Math.floor(Date.now() / 600_000)}`, 24, 1200_000))) {
+    const updBucket = Math.floor(Date.now() / 600_000);
+    const localUpdHits = memRateCount(`telupd:${ip}:${updBucket}`, 1200_000);
+    if (localUpdHits > 30) {
         return json({ error: 'rate_limit' }, 429);
     }
 
     const cfg = await getTelemetrySettings(env);
     if (!cfg.enabled || cfg.throttleMode === 'paused_quota_guard') {
         return json({ ok: true, accepted: false });
+    }
+
+    let extraRateWrites = 0;
+    if (localUpdHits >= 5) {
+        extraRateWrites++;
+        if (!(await rate(env, `telupd:${ip}:${updBucket}`, 30, 1200_000))) {
+            return json({ error: 'rate_limit' }, 429);
+        }
     }
 
     const now = Date.now();
@@ -396,8 +443,10 @@ export async function submitTelemetryUpdateEvent(req, env) {
             col === 'verify_failed' ? 1 : 0,
             now,
         ),
+        env.DB.prepare(
+            'INSERT INTO metrics(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = value + excluded.value',
+        ).bind(cfg.writeKey, 2 + extraRateWrites),
     ]);
-    await recordTelemetryWrites(env, cfg.writeKey, 2);
     invalidateTelemetrySummaryCache();
 
     return json({ ok: true, accepted: true });
@@ -1121,7 +1170,7 @@ export async function getAdminTelemetrySummary(url, env) {
             startedDay: cfg.startedDay || null,
             dailyWritesUsed: cfg.usedWrites,
             dailyWriteBudget: cfg.dailyBudget,
-            scopeNote: '仅统计 v1.5.82 及以上且用户主动开启「匿名使用统计」开关的设备；旧版本与未开启统计的用户不纳入活跃设备统计，累计观测设备不等于实际总安装人数。',
+            scopeNote: '自 v1.5.83 起新安装及未手动关闭的用户默认开启匿名使用统计（设置页可随时一键关闭，已关闭用户升级绝不重新开启）；旧版本与主动关闭统计的设备不纳入活跃统计，累计观测设备不等于历史总安装人数。',
         },
         kpis: {
             activeRecentDevices: Number(activeNowRow?.c || 0),

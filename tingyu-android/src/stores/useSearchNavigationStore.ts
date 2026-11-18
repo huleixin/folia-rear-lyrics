@@ -1,5 +1,5 @@
 import { searchSources, type SourcePages } from '../services/search/aggregateSearch';
-import { aggregateSearchSources, useSearchSettingsStore } from './useSearchSettingsStore';
+import { aggregateSearchSources, searchableSources, useSearchSettingsStore } from './useSearchSettingsStore';
 import { appendRankedSearch } from '../services/search/searchRanking';
 import { providerSearchScopeKey } from '../services/onlineMusic/providerResourceScope';
 import { useOnlineProviderAccountStore } from './useOnlineProviderAccountStore';
@@ -15,12 +15,14 @@ import {
 } from '../services/playbackAdapters';
 import { omni } from '../services/onlineMusic/omni';
 import { useSearchHistoryStore } from './useSearchHistoryStore';
-import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';
-const LAST_SEARCH_SOURCE_KEY = 'tingyu_last_search_source_v1';
+export const LAST_SEARCH_SOURCE_KEY = 'tingyu_last_search_source_v1';
 const DEFAULT_SEARCH_LIMIT = 30;
-export type SearchSource = OnlineProviderId | 'local' | 'navidrome';
+const BUILTIN_ONLINE_PROVIDERS = new Set<string>(['qq', 'netease', 'kugou', 'bodian', 'qishui']);
+const NON_SEARCH_VIEW_TABS = new Set<string>(['playlist', 'albums', 'radio']);
+
+export type SearchSource = 'aggregate' | OnlineProviderId | 'local' | 'navidrome';
 export type SearchReturnView = 'home' | 'player';
 
 type SearchExecutorDeps = {
@@ -46,6 +48,7 @@ type SearchCacheEntry = {
 interface SearchNavigationState {
     homeViewTab: HomeViewTab;
     searchQuery: string;
+    preferredSearchSource: SearchSource;
     searchSourceTab: SearchSource;
     searchResults: UnifiedSong[] | null;
     searchReturnView: SearchReturnView;
@@ -81,24 +84,39 @@ const cacheEntry = (entry?: SearchCacheEntry) => entry && Date.now() - entry.sav
 const boundedCache = (cache: Record<string, SearchCacheEntry>, key: string, entry: SearchCacheEntry) =>
     Object.fromEntries([...Object.entries(cache).filter(([id, value]) => id !== key && Date.now() - value.savedAt < CACHE_TTL).slice(-19), [key, entry]]);
 
+export const normalizePersistedSearchSource = (raw: unknown): SearchSource | null => {
+    if (typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    if (!trimmed || NON_SEARCH_VIEW_TABS.has(trimmed)) return null;
+    return trimmed as SearchSource;
+};
+
+export const isSearchSourceCurrentlyAvailable = (source: SearchSource): boolean => {
+    if (source === 'aggregate' || source === 'local' || source === 'navidrome') return true;
+    if (BUILTIN_ONLINE_PROVIDERS.has(source)) return true;
+    return searchableSources().includes(source);
+};
+
+/**
+ * 若用户保存的自定义音源已被停用或移除，运行时临时回退至综合搜索，但绝不篡改用户已持久化的真实偏好。
+ */
+export const resolveEffectiveSearchSource = (source: SearchSource): SearchSource => (
+    isSearchSourceCurrentlyAvailable(source) ? source : 'aggregate'
+);
+
 export const resolveSearchSource = (tab: HomeViewTab | SearchSource): SearchSource => {
-    if (tab === 'local' || tab === 'navidrome') {
+    if (tab === 'aggregate' || tab === 'local' || tab === 'navidrome') {
         return tab;
     }
-    if (tab !== 'playlist' && tab !== 'albums' && tab !== 'radio') return tab as OnlineProviderId;
-    return 'netease';
+    if (!NON_SEARCH_VIEW_TABS.has(tab)) return tab as OnlineProviderId;
+    return getInitialSearchSourceTab();
 };
 
 export const resolveCommandPaletteSearchSource = (
-    currentSong: SongResult | null,
+    _currentSong: SongResult | null,
     searchSourceTab: SearchSource,
-    activeOnlineProviderId: OnlineProviderId,
-): SearchSource => {
-    if (currentSong && isLocalPlaybackSong(currentSong)) return 'local';
-    if (currentSong && isNavidromePlaybackSong(currentSong)) return 'navidrome';
-    if (currentSong || searchSourceTab === 'netease') return activeOnlineProviderId;
-    return searchSourceTab;
-};
+    _activeOnlineProviderId: OnlineProviderId,
+): SearchSource => resolveEffectiveSearchSource(searchSourceTab);
 
 const mapLocalSongToUnifiedSong = (
     song: LocalSong,
@@ -197,20 +215,17 @@ const getInitialHomeViewTab = (): HomeViewTab => {
 export const hasPersistedSearchSource = (): boolean => {
     if (typeof window === 'undefined') return false;
     try {
-        const raw = localStorage.getItem(LAST_SEARCH_SOURCE_KEY);
-        return typeof raw === 'string' && raw.trim().length > 0;
+        return normalizePersistedSearchSource(localStorage.getItem(LAST_SEARCH_SOURCE_KEY)) !== null;
     } catch {
         return false;
     }
 };
 
-const getInitialSearchSourceTab = (): SearchSource => {
+export const getInitialSearchSourceTab = (): SearchSource => {
     if (typeof window === 'undefined') return 'aggregate';
     try {
-        const saved = localStorage.getItem(LAST_SEARCH_SOURCE_KEY)?.trim();
-        if (saved && saved.length > 0) {
-            return saved as SearchSource;
-        }
+        const normalized = normalizePersistedSearchSource(localStorage.getItem(LAST_SEARCH_SOURCE_KEY));
+        if (normalized) return normalized;
     } catch {
         /* Ignore storage errors. */
     }
@@ -226,10 +241,29 @@ const persistSearchSourceTab = (source: SearchSource): void => {
     }
 };
 
-export const useSearchNavigationStore = create<SearchNavigationState>((set, get) => ({
+const syncActiveHistorySearchSource = (source: SearchSource): void => {
+    if (typeof window === 'undefined') return;
+    try {
+        const current = window.history.state;
+        if (current && typeof current === 'object' && current.search && typeof current.search === 'object') {
+            window.history.replaceState(
+                { ...current, search: { ...current.search, sourceTab: source } },
+                '',
+                window.location.hash || (window.location.pathname + window.location.search),
+            );
+        }
+    } catch {
+        /* History state sync is best-effort in non-browser test environments. */
+    }
+};
+
+export const useSearchNavigationStore = create<SearchNavigationState>((set, get) => {
+    const initialSource = getInitialSearchSourceTab();
+    return {
     homeViewTab: getInitialHomeViewTab(),
     searchQuery: '',
-    searchSourceTab: getInitialSearchSourceTab(),
+    preferredSearchSource: initialSource,
+    searchSourceTab: resolveEffectiveSearchSource(initialSource),
     searchResults: null,
     searchReturnView: 'home',
     isSearchOpen: false,
@@ -254,10 +288,14 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         searchResults: null, hasMore: false, offset: 0, scrollTop: 0, sourcePages: {},
     })); },
     selectSearchSource: (source) => {
-        persistSearchSourceTab(source);
+        const normalized = resolveSearchSource(source);
+        persistSearchSourceTab(normalized);
+        syncActiveHistorySearchSource(normalized);
         cancelSearch();
+        const effective = resolveEffectiveSearchSource(normalized);
         set(state => ({
-            searchSourceTab: source, requestId: state.requestId + 1,
+            preferredSearchSource: normalized,
+            searchSourceTab: effective, requestId: state.requestId + 1,
             searchResults: null, isSearching: false, isLoadingMore: false,
             searchError: null, offset: 0, hasMore: false, scrollTop: 0, sourcePages: {},
         }));
@@ -276,11 +314,12 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         };
     }),
     restoreSearch: ({ query, sourceTab, returnView = 'home' }) => { cancelSearch(); set(state => {
-        const cached = cacheEntry(state.searchCache[getSearchCacheKey(query, sourceTab)]);
+        const effectiveSource = resolveEffectiveSearchSource(sourceTab);
+        const cached = cacheEntry(state.searchCache[getSearchCacheKey(query, effectiveSource)]);
         return {
             searchQuery: query,
             requestId: state.requestId + 1,
-            searchSourceTab: sourceTab,
+            searchSourceTab: effectiveSource,
             searchReturnView: returnView,
             searchResults: cached?.results ?? null, sourcePages: cached?.pages ?? {},
             offset: cached?.offset ?? 0,
@@ -293,10 +332,11 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         };
     }); },
     hideSearchOverlay: () => { cancelSearch(); set(state => ({ isSearchOpen: false, searchReturnView: 'home', requestId: state.requestId + 1, isSearching: false, isLoadingMore: false })); },
-    resetRuntime: (onlineProviderId) => { cancelSearch(); set(state => ({
+    resetRuntime: (_onlineProviderId) => { cancelSearch(); set(state => ({
         searchQuery: '',
-        // 用户已手动选择并持久化过搜索来源（如“综合搜索”或指定平台）时，切换账号/浏览平台不得覆盖用户的搜索源记忆。
-        searchSourceTab: hasPersistedSearchSource() ? state.searchSourceTab : (onlineProviderId ?? state.searchSourceTab),
+        // 切换音乐平台账号或浏览平台绝不覆盖搜索来源偏好（含首次默认的综合搜索及用户主动选择的任何平台）。
+        preferredSearchSource: state.preferredSearchSource,
+        searchSourceTab: resolveEffectiveSearchSource(state.preferredSearchSource),
         searchResults: null,
         searchReturnView: 'home',
         isSearchOpen: false,
@@ -308,20 +348,18 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         hasMore: false,
         scrollTop: 0, sourcePages: {}, searchCache: {},
     })); },
-    // Global provider changes only seed an unopened, empty search when the user has not explicitly saved a search source.
-    followOnlineProvider: (providerId) => set(state => !hasPersistedSearchSource()
-        && !['local', 'navidrome', 'aggregate'].includes(state.searchSourceTab)
-        && !state.isSearchOpen && !state.searchQuery && state.searchResults === null
-        ? { searchSourceTab: providerId } : state),
+    // 搜索来源严格独立于首页/资料库当前在线平台，禁止被全局平台切换反向覆盖。
+    followOnlineProvider: (_providerId) => set(state => state),
     submitSearch: async ({ query, sourceTab, deps, returnView = 'home' }) => {
         const trimmed = (query ?? get().searchQuery).trim();
         if (!trimmed) return false;
+        const effectiveTab = resolveEffectiveSearchSource(sourceTab);
         cancelSearch(); controller = new AbortController(); const signal = controller.signal;
         const requestId = get().requestId + 1;
-        const sources = searchSourcesFor(sourceTab), scope = providerSearchScopeKey(sources);
-        const key = getSearchCacheKey(trimmed, sourceTab);
-        useSearchHistoryStore.getState().remember(sourceTab, trimmed);
-        set({ searchQuery: trimmed, searchSourceTab: sourceTab, searchReturnView: returnView,
+        const sources = searchSourcesFor(effectiveTab), scope = providerSearchScopeKey(sources);
+        const key = getSearchCacheKey(trimmed, effectiveTab);
+        useSearchHistoryStore.getState().remember(effectiveTab, trimmed);
+        set({ searchQuery: trimmed, searchSourceTab: effectiveTab, searchReturnView: returnView,
             isSearchOpen: true, isSearching: true, isLoadingMore: false, searchError: null, requestId,
             searchResults: null, sourcePages: {}, offset: 0, hasMore: false, scrollTop: 0 });
         const valid = () => get().requestId === requestId && providerSearchScopeKey(sources) === scope && !signal.aborted;
@@ -367,7 +405,8 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
                         { results, pages, hasMore, offset, scrollTop: latest.scrollTop, savedAt: Date.now() }) };
             }) });
     },
-}));
+    };
+});
 
 // Remove private results immediately on logout/account replacement, including restored cached pages.
 useOnlineProviderAccountStore.subscribe((state, before) => {

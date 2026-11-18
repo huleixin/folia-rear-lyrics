@@ -55,15 +55,16 @@ describe('useSearchNavigationStore', () => {
         });
     });
 
-    it('uses the active online provider for command palette searches', () => {
+    it('preserves user-selected search source in command palette regardless of current playing track or active provider', () => {
         expect(resolveCommandPaletteSearchSource({
             id: 1,
-            name: 'NetEase track still playing',
+            name: 'QQ track currently playing',
             artists: [],
             album: { id: 1, name: '' },
             durationMs: 1,
-        }, 'netease', 'kugou')).toBe('kugou');
-        expect(resolveCommandPaletteSearchSource(null, 'netease', 'kugou')).toBe('kugou');
+            sourceRef: { kind: 'online', providerId: 'qq', mediaId: '1' },
+        } as any, 'netease', 'qq')).toBe('netease');
+        expect(resolveCommandPaletteSearchSource(null, 'aggregate', 'qq')).toBe('aggregate');
     });
 
     it('submits a local search and opens the overlay', async () => {

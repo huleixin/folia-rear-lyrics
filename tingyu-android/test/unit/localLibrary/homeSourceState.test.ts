@@ -27,7 +27,7 @@ describe('全局音乐来源解耦与历史状态自愈', () => {
         expect(localStorage.getItem(HOME_SOURCE_KEY)).toBe('online');
     });
 
-    it('旧版本残留：home_source_mode=local 或 homeViewTab=local 时，冷启动自动自愈回 online', async () => {
+    it('旧版本残留：home_source_mode=local 或 homeViewTab=local 时，冷启动自动自愈回 online 且保留独立搜索来源', async () => {
         localStorage.setItem(HOME_SOURCE_KEY, 'local');
         localStorage.setItem(LAST_TAB_KEY, 'local');
         const { useHomeSourceStore, reconcileSourceOnStartup } = await import('../../../src/stores/useHomeSourceStore');
@@ -35,11 +35,11 @@ describe('全局音乐来源解耦与历史状态自愈', () => {
         const { useOnlineProviderAccountStore } = await import('../../../src/stores/useOnlineProviderAccountStore');
         useOnlineProviderAccountStore.getState().setActiveProviderId('qq');
         useHomeSourceStore.setState({ source: 'local' });
-        useSearchNavigationStore.setState({ homeViewTab: 'local', searchSourceTab: 'local' });
+        useSearchNavigationStore.setState({ homeViewTab: 'local', preferredSearchSource: 'local', searchSourceTab: 'local' });
         reconcileSourceOnStartup();
         expect(useHomeSourceStore.getState().source).toBe('online');
         expect(useSearchNavigationStore.getState().homeViewTab).toBe('playlist');
-        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('qq');
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('local');
         expect(localStorage.getItem(HOME_SOURCE_KEY)).toBe('online');
     });
 
@@ -61,33 +61,33 @@ describe('全局音乐来源解耦与历史状态自愈', () => {
         expect(after.playerState).toBe(before.playerState);
     });
 
-    it('搜索来源可在 QQ、本地、Navidrome 间自由切换，不锁定全局模式', async () => {
+    it('资料库浏览来源切换只对齐资料库页签，绝不覆盖独立搜索来源偏好', async () => {
         const { selectHomeSearchSource, resolveHomeSearchSource } = await import('@/stores/useHomeSourceStore');
         const { useSearchNavigationStore } = await import('@/stores/useSearchNavigationStore');
         const { useOnlineProviderAccountStore } = await import('@/stores/useOnlineProviderAccountStore');
         useOnlineProviderAccountStore.getState().setActiveProviderId('qq');
+        useSearchNavigationStore.getState().selectSearchSource('aggregate');
         for (const source of ['local', 'navidrome', 'qq', 'navidrome', 'local', 'qq'] as const) {
             selectHomeSearchSource(source);
-            expect(useSearchNavigationStore.getState().searchSourceTab).toBe(source);
+            expect(useSearchNavigationStore.getState().searchSourceTab).toBe('aggregate');
+            expect(resolveHomeSearchSource()).toBe('aggregate');
             if (source === 'navidrome') {
-                expect(resolveHomeSearchSource()).toBe('navidrome');
                 expect(useSearchNavigationStore.getState().homeViewTab).toBe('navidrome');
             }
             if (source === 'qq') {
-                expect(resolveHomeSearchSource()).toBe('qq');
                 expect(useSearchNavigationStore.getState().homeViewTab).toBe('playlist');
             }
         }
     });
 
-    it('启动恢复 Navidrome 时搜索默认值跟随既有资料库来源', async () => {
+    it('启动恢复 Navidrome 时保留用户已选择的独立搜索来源', async () => {
         const { useHomeSourceStore, reconcileSourceOnStartup } = await import('@/stores/useHomeSourceStore');
         const { useSearchNavigationStore } = await import('@/stores/useSearchNavigationStore');
         useHomeSourceStore.setState({ source: 'online' });
-        useSearchNavigationStore.setState({ homeViewTab: 'navidrome', searchSourceTab: 'qq' });
+        useSearchNavigationStore.setState({ homeViewTab: 'navidrome', preferredSearchSource: 'netease', searchSourceTab: 'netease' });
         reconcileSourceOnStartup();
-        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('navidrome');
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('netease');
         useSearchNavigationStore.getState().followOnlineProvider('qq');
-        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('navidrome');
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('netease');
     });
 });

@@ -38,7 +38,7 @@ function getFoliaPlugin(): FoliaUpdatePlugin | null {
 export default function AndroidAppUpdateCard() {
     const [status, setStatus] = useState<NativeUpdateStatus | null>(null);
     const [polling, setPolling] = useState(false);
-    const [telemetryEnabled, setTelemetryEnabledState] = useState(false);
+    const [telemetryEnabled, setTelemetryEnabledState] = useState(true);
 
     const refreshStatus = useCallback(async () => {
         const plugin = getFoliaPlugin();
@@ -309,7 +309,7 @@ export default function AndroidAppUpdateCard() {
                 <ChevronRight size={17} className="shrink-0 opacity-45" aria-hidden="true" />
             </button>
 
-            {/* 5. 匿名使用统计开关（严格默认关闭，可随时开启或立即停止） */}
+            {/* 5. 匿名使用统计开关（默认开启，可随时关闭并立即停止上报，升级保留用户选择） */}
             <div
                 data-testid="help-anonymous-telemetry-card"
                 className="flex w-full items-center justify-between gap-4 rounded-2xl p-4"
@@ -325,7 +325,7 @@ export default function AndroidAppUpdateCard() {
                         匿名使用统计
                     </div>
                     <div className="text-xs opacity-60" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
-                        默认关闭。开启后仅以随机匿名安装编号低频统计应用版本、系统型号及更新节点成功率，绝不收集音乐账号、Cookie、歌单或播放歌曲；关闭后立即停止上报。
+                        帮助开发者了解听屿的使用情况、版本分布及运行稳定性，仅收集必要的匿名使用数据，不收集音乐平台账号、歌曲内容等私人信息，可随时关闭。
                     </div>
                 </div>
                 <button

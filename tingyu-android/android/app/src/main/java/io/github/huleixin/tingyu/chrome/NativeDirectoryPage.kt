@@ -3,6 +3,8 @@ package io.github.huleixin.tingyu.chrome
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -30,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -37,6 +40,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -50,9 +54,64 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt
 // 资料库与集合详情页：资料库使用统一折叠顶部栏(72dp->56dp) + 48dp吸顶分类工具栏(总折叠104dp) + 56dp内联搜索。
+
+private object LibraryAccordionMotion {
+    const val DurationMs = 300
+    const val MinReverseDurationMs = 120
+    const val MaxTransitionListRows = 12
+    const val MaxTransitionGridRows = 5
+    // 自然柔和减速缓动（无回弹、无过冲）
+    val Easing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)
+}
+
+private class GroupAccordionState(initialCollapsed: Boolean) {
+    var targetCollapsed by mutableStateOf(initialCollapsed)
+    private var lastRemoteCollapsed: Boolean = initialCollapsed
+    private var pendingLocalToggles: Int = 0
+    val animatable = Animatable(if (initialCollapsed) 0f else 1f)
+    val progress: Float get() = animatable.value
+
+    fun syncRemote(remoteCollapsed: Boolean) {
+        if (remoteCollapsed != lastRemoteCollapsed) {
+            lastRemoteCollapsed = remoteCollapsed
+            if (pendingLocalToggles > 0) {
+                pendingLocalToggles -= 1
+                if (pendingLocalToggles == 0) {
+                    targetCollapsed = remoteCollapsed
+                }
+            } else {
+                targetCollapsed = remoteCollapsed
+            }
+        }
+    }
+
+    fun toggleOptimistically() {
+        pendingLocalToggles += 1
+        targetCollapsed = !targetCollapsed
+    }
+}
+
+private fun Modifier.libraryAccordionClip(progress: Float): Modifier {
+    val clamped = progress.coerceIn(0f, 1f)
+    // 透明度仅作为辅助过渡，主体由高度裁切与同步位移驱动，避免先留大片空白再突然闪出内容
+    val auxAlpha = (0.32f + 0.68f * clamped).coerceIn(0f, 1f)
+    return this
+        .clipToBounds()
+        .graphicsLayer { alpha = auxAlpha }
+        .layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+            val currentHeight = (placeable.height * clamped).roundToInt()
+            val slideY = -((placeable.height - currentHeight) * 0.22f).roundToInt()
+            layout(placeable.width, currentHeight) {
+                placeable.placeRelative(0, slideY)
+            }
+        }
+}
 
 private val savedDirectoryScroll = mutableMapOf<String, Pair<Int, Int>>()
 
@@ -136,6 +195,38 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
         val localListTop by animateDpAsState(if (isLocalLibrary && searchExpanded) NativeSearchBarHeight + 16.dp else 0.dp, tween(if (reduced) 0 else 240), label = "dir-list-top")
         val contentTop = if (isUnifiedLibrary) (page.safeTop + expandedHeaderDp).dp else glass.contentTop + localListTop
 
+        val accordionStates = remember(scrollKey) { mutableStateMapOf<String, GroupAccordionState>() }
+        page.sections.filter { library && it.more.startsWith("toggle-group:") }.forEach { sec ->
+            val remoteCollapsed = sec.text == "collapsed"
+            val entry = accordionStates.getOrPut(sec.id) {
+                GroupAccordionState(initialCollapsed = remoteCollapsed)
+            }
+            entry.syncRemote(remoteCollapsed)
+            key(sec.id) {
+                LaunchedEffect(entry.targetCollapsed, reduced) {
+                    val goal = if (entry.targetCollapsed) 0f else 1f
+                    if (reduced) {
+                        entry.animatable.snapTo(goal)
+                    } else {
+                        val distance = abs(goal - entry.animatable.value)
+                        if (distance > 0.0005f) {
+                            val duration = (distance * LibraryAccordionMotion.DurationMs).roundToInt()
+                                .coerceIn(LibraryAccordionMotion.MinReverseDurationMs, LibraryAccordionMotion.DurationMs)
+                            entry.animatable.animateTo(
+                                targetValue = goal,
+                                animationSpec = tween(
+                                    durationMillis = duration,
+                                    easing = LibraryAccordionMotion.Easing,
+                                ),
+                            )
+                        } else if (entry.animatable.value != goal) {
+                            entry.animatable.snapTo(goal)
+                        }
+                    }
+                }
+            }
+        }
+
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass, colors, ambientImage = null, ambientViewportHeight = null, modifier = Modifier.fillMaxSize()) {
                 val listContent: LazyListScope.() -> Unit = {
@@ -185,25 +276,26 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
 
                     page.sections.filter { it.id !in skipIds }.forEach { section ->
                         val isCollapsibleGroup = library && section.more.startsWith("toggle-group:")
-                        val isGroupCollapsed = isCollapsibleGroup && section.text == "collapsed"
+                        val accordionEntry = if (isCollapsibleGroup) accordionStates[section.id] else null
+                        val groupExpandProgress = when {
+                            !isCollapsibleGroup -> 1f
+                            accordionEntry != null -> accordionEntry.progress
+                            section.text == "collapsed" -> 0f
+                            else -> 1f
+                        }
                         if (isCollapsibleGroup && section.title.isNotBlank()) {
                             item(key = "${section.id}:group-heading") {
-                                val rotation by animateFloatAsState(
-                                    targetValue = if (isGroupCollapsed) 180f else 0f,
-                                    animationSpec = tween(if (reduced) 0 else 200),
-                                    label = "group-chevron"
-                                )
+                                val rotation = lerp(180f, 0f, groupExpandProgress)
+                                val headingBottomPad = lerp(2f, 6f, groupExpandProgress).dp
                                 Row(
                                     Modifier
-                                        .animateItem(
-                                            fadeInSpec = null,
-                                            fadeOutSpec = null,
-                                            placementSpec = tween(if (reduced) 0 else 220),
-                                        )
                                         .fillMaxWidth()
-                                        .padding(top = 6.dp, bottom = if (isGroupCollapsed) 2.dp else 6.dp)
+                                        .padding(top = 6.dp, bottom = headingBottomPad)
                                         .heightIn(min = 46.dp)
-                                        .chromeClickable(corner = 10.dp) { action(section.more, "", 0.0) }
+                                        .chromeClickable(corner = 10.dp) {
+                                            accordionEntry?.toggleOptimistically()
+                                            action(section.more, "", 0.0)
+                                        }
                                         .padding(horizontal = start),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -234,7 +326,49 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                 Box(Modifier.padding(start = start, end = end)) { PageSectionHeading(section, action = action) }
                             }
                         }
-                        if (!isGroupCollapsed) when {
+                        val isAccordionTransitioning = isCollapsibleGroup && groupExpandProgress > 0.001f && groupExpandProgress < 0.999f
+                        if (isAccordionTransitioning) {
+                            val sectionCache = caches[section.id]
+                            if (sectionCache != null && section.total > 0) {
+                                item(key = "${section.id}:accordion-transition") {
+                                    Column(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .libraryAccordionClip(groupExpandProgress)
+                                    ) {
+                                        if (section.layout == "rows") {
+                                            val rowCount = minOf(section.total, LibraryAccordionMotion.MaxTransitionListRows)
+                                            repeat(rowCount) { index ->
+                                                val item = sectionCache.get(section, index)
+                                                Box(Modifier.padding(horizontal = start)) {
+                                                    if (item != null) {
+                                                        NativePageRow(
+                                                            item,
+                                                            NativePageDesign.DirectoryRow.dp,
+                                                            NativePageDesign.DirectoryArt.dp,
+                                                            15,
+                                                            12,
+                                                            divider = false,
+                                                            playing = section.playing,
+                                                            alwaysArt = true,
+                                                            pending = item.id == section.pendingKey,
+                                                        ) { action(it, "", 0.0) }
+                                                    } else {
+                                                        Spacer(Modifier.height(NativePageDesign.DirectoryRow.dp))
+                                                    }
+                                                }
+                                            }
+                                        } else if (section.layout == "cards") {
+                                            val totalGridRows = (section.total + libraryColumns - 1) / libraryColumns
+                                            val gridRowCount = minOf(totalGridRows, LibraryAccordionMotion.MaxTransitionGridRows)
+                                            repeat(gridRowCount) { row ->
+                                                LibraryGridRowItem(page, section, sectionCache, row, libraryColumns, action, horizontalPadding = start)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (groupExpandProgress >= 0.999f) when {
                             section.id == "intro" -> item(key = section.id) {
                                 Column(Modifier.padding(start = start, end = end, top = 4.dp, bottom = 13.dp)) {
                                     Text(page.title, color = PageInk, fontSize = 27.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)

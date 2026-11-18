@@ -27,23 +27,23 @@ beforeEach(()=>{
     vi.stubGlobal('matchMedia',()=>({matches:true,addEventListener(){},removeEventListener(){}}));
     useOnlineProviderAccountStore.setState({activeProviderId:'qq'});
     useHomeSourceStore.setState({source:'online'});
-    useSearchNavigationStore.setState({homeViewTab:'playlist',searchSourceTab:'qq',isSearchOpen:true,searchQuery:'',searchResults:null});
+    useSearchNavigationStore.setState({homeViewTab:'playlist',preferredSearchSource:'qq',searchSourceTab:'qq',isSearchOpen:true,searchQuery:'',searchResults:null});
 });
 afterEach(()=>vi.unstubAllGlobals());
 const props=()=>({theme:{} as never,isDaylight:false,onClose:vi.fn(),onSubmitSearch:vi.fn(),onLoadMore:vi.fn(),onPlayTrack:vi.fn(),onAddTrackToQueue:vi.fn(),onOpenArtist:vi.fn(),onOpenAlbum:vi.fn(),onOpenSearchCollection:vi.fn(),localPlaylists:[],localLibraryCatalog:{entities:[],assignments:[],ready:true,reload:async()=>{}}});
-it('chooses a search source without changing home or playback source',async()=>{
+it('chooses and remembers a search source without changing home or playback source',async()=>{
     const root=createRoot(document.createElement('div'));
     try{
         await act(()=>root.render(createElement(SearchWorkspace,props())));
         for(const source of ['local','navidrome','lx-test','aggregate','qq'] as const){
             await act(async()=>native.switchSource(source));
             expect(native.source).toBe(source);
-            expect(resolveHomeSearchSource()).toBe('qq');
+            expect(resolveHomeSearchSource()).toBe(source);
             expect(useOnlineProviderAccountStore.getState().activeProviderId).toBe('qq');
         }
     }finally{await act(()=>root.unmount())}
 });
-it('does not request a global account switch and retains the keyword',async()=>{
+it('does not request a global account switch and retains the keyword and chosen search source',async()=>{
     const root=createRoot(document.createElement('div')),value=props(),requestSwitch=vi.fn();
     try{
         useSearchNavigationStore.setState({searchQuery:'许嵩',searchResults:[]});
@@ -51,7 +51,8 @@ it('does not request a global account switch and retains the keyword',async()=>{
         await act(async()=>native.switchSource('lx-test'));
         expect(requestSwitch).not.toHaveBeenCalled();
         expect(native.source).toBe('lx-test');
-        expect(resolveHomeSearchSource()).toBe('qq');
+        expect(resolveHomeSearchSource()).toBe('lx-test');
+        expect(useOnlineProviderAccountStore.getState().activeProviderId).toBe('qq');
         expect(useSearchNavigationStore.getState().searchQuery).toBe('许嵩');
         expect(value.onSubmitSearch).toHaveBeenCalledExactlyOnceWith('lx-test');
     }finally{await act(()=>root.unmount())}
@@ -59,11 +60,12 @@ it('does not request a global account switch and retains the keyword',async()=>{
 it('keeps all search sources available even if legacy local state was present',async()=>{
     const root=createRoot(document.createElement('div'));
     useHomeSourceStore.setState({source:'local'});
-    useSearchNavigationStore.setState({searchSourceTab:'local'});
+    useSearchNavigationStore.setState({preferredSearchSource:'local',searchSourceTab:'local'});
     try{
         await act(()=>root.render(createElement(SearchWorkspace,props())));
         expect(native.source).toBe('local');
         expect(native.sources).toEqual(['aggregate','qq','lx-test','local','navidrome']);
-        expect(resolveHomeSearchSource()).toBe('qq');
+        expect(resolveHomeSearchSource()).toBe('local');
+        expect(useOnlineProviderAccountStore.getState().activeProviderId).toBe('qq');
     }finally{await act(()=>root.unmount())}
 });

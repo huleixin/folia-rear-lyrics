@@ -20,9 +20,10 @@ import java.util.UUID
 
 // android/app/src/main/java/io/github/huleixin/tingyu/telemetry/TelemetryManager.kt
 // 听屿轻量化匿名使用统计模块：
-// 1. 默认关闭（enabled = false），必须由用户在设置页主动开启；关闭后立即取消心跳协程并停止一切上报。
+// 1. 新安装及首次升级至支持统计功能且未手动关闭过的用户默认开启（enabled = true）；
+//    用户在设置页主动关闭后立即取消心跳协程并停止一切上报，持久化保存选择，后续版本升级绝不重新开启。
 // 2. 持久化随机匿名安装编号（UUIDv4），正常覆盖升级保持不变；严禁采集手机号、IMEI、OAID、音乐账号、Cookie、歌单或播放曲目。
-// 3. 低功耗调度：冷启动延迟非阻塞上报一次；仅在前台使用或后台正在播放音乐时每 10 分钟（或按服务端降频周期）上报一次；
+// 3. 低功耗调度：冷启动延迟非阻塞上报一次；仅在前台使用或后台正在播放音乐时每 15 分钟（或按服务端降频周期）上报一次；
 //    退入后台且未播放音乐时自动停止循环，网络失败静默丢弃不重试，绝不创建任何额外常驻服务。
 
 class TelemetryManager internal constructor(
@@ -61,14 +62,28 @@ class TelemetryManager internal constructor(
         return generated
     }
 
-    /** 匿名使用统计开关：严格默认关闭（false）。 */
-    fun isEnabled(): Boolean = prefs.getBoolean(KEY_ENABLED, false)
+    /**
+     * 匿名使用统计开关状态：
+     * - 若用户曾主动操作过开关（含 v1.5.82 已写入 KEY_ENABLED 的升级用户或写入 KEY_USER_CONFIGURED 的用户），严格以用户持久化选择为准，绝不重新开启；
+     * - 新安装及从未手动操作过开关的首次升级用户，默认开启（true）。
+     */
+    fun isEnabled(): Boolean {
+        if (prefs.contains(KEY_USER_CONFIGURED) || prefs.contains(KEY_ENABLED)) {
+            return prefs.getBoolean(KEY_ENABLED, false)
+        }
+        return true
+    }
+
+    fun isUserConfigured(): Boolean = prefs.contains(KEY_USER_CONFIGURED) || prefs.contains(KEY_ENABLED)
 
     @Synchronized
     fun setEnabled(enabled: Boolean) {
         // 确保安装 ID 已持久化保存（开关切换不重置匿名 ID，避免重复计为新增设备）
         getOrCreateInstallId()
-        prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
+        prefs.edit()
+            .putBoolean(KEY_ENABLED, enabled)
+            .putBoolean(KEY_USER_CONFIGURED, true)
+            .apply()
         if (!enabled) {
             loopJob?.cancel()
             loopJob = null
@@ -271,6 +286,7 @@ class TelemetryManager internal constructor(
 
     fun toBridgeJson(): JSONObject = JSONObject().apply {
         put("enabled", isEnabled())
+        put("userConfigured", isUserConfigured())
         put("intervalSec", (dynamicIntervalMs / 1000L).toInt())
     }
 
@@ -278,6 +294,7 @@ class TelemetryManager internal constructor(
         internal const val PREFS_NAME = "tingyu_telemetry_prefs"
         internal const val KEY_INSTALL_ID = "install_id"
         internal const val KEY_ENABLED = "telemetry_enabled"
+        internal const val KEY_USER_CONFIGURED = "telemetry_user_configured"
         internal const val KEY_LAST_REPORTED_VC = "last_reported_version_code"
         internal const val KEY_LAST_SEEN_LOCAL_VC = "last_seen_local_version_code"
         internal const val KEY_PENDING_UPGRADE_FROM_VC = "pending_upgrade_from_version_code"
@@ -286,7 +303,7 @@ class TelemetryManager internal constructor(
         private const val UPDATE_EVENT_URL = "https://feedback.20262000.xyz/api/public/telemetry/update-event"
 
         private const val COLD_START_DELAY_MS = 3_500L
-        private const val DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60_000L // 10 分钟
+        private const val DEFAULT_HEARTBEAT_INTERVAL_MS = 15 * 60_000L // 15 分钟
         private const val MIN_HEARTBEAT_GAP_MS = 90_000L // 生命周期切换去重间隔 90 秒
         private const val HTTP_TIMEOUT_MS = 6_000
 

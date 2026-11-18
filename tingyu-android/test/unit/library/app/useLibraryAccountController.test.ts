@@ -128,7 +128,7 @@ describe('application account controller with Folium mod sources', () => {
             .toMatchObject({ shortName: 'Mod', requiresAccount: false });
     });
 
-    it('switches to a mod source after confirmation and points the search overlay at it', async () => {
+    it('switches to a mod source after confirmation without overwriting the independent search source preference', async () => {
         registerOnlineMusicProvider(modProvider);
         mount();
 
@@ -136,17 +136,17 @@ describe('application account controller with Folium mod sources', () => {
 
         expect(view!.activeProviderId).toBe(MOD_PROVIDER_ID);
         expect(cleanup.resetForProviderSwitch).toHaveBeenCalledWith(MOD_PROVIDER_ID, 'netease');
-        expect(useSearchNavigationStore.getState().searchSourceTab).toBe(MOD_PROVIDER_ID);
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('netease');
     });
 
-    it('follows an active provider set without a switch, as after a restart or session restore', () => {
+    it('updates active home/library provider without overwriting search source preference', () => {
         registerOnlineMusicProvider(modProvider);
         mount();
 
         act(() => useOnlineProviderAccountStore.getState().setActiveProviderId(MOD_PROVIDER_ID));
 
         expect(view!.activeProviderId).toBe(MOD_PROVIDER_ID);
-        expect(useSearchNavigationStore.getState().searchSourceTab).toBe(MOD_PROVIDER_ID);
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('netease');
         expect(cleanup.resetForProviderSwitch).not.toHaveBeenCalled();
     });
 

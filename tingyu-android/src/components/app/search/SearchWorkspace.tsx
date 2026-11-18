@@ -125,12 +125,14 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
     const registryVersion = useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion, () => 0);
     const sources = useMemo<SearchSource[]>(() => ['aggregate', ...searchableSources(), 'navidrome'], [registryVersion]);
-    useEffect(() => {
-        if (!sources.includes(searchSourceTab)) useSearchNavigationStore.getState().selectSearchSource('aggregate');
-    }, [sources, searchSourceTab]);
-    const capabilities = useMemo(() => exploreCapabilities(searchSourceTab), [searchSourceTab, registryVersion]);
+    // 当原保存的扩展音源暂未注册或被停用时，仅做运行时临时回退至综合搜索，绝不篡改用户已持久化的真实偏好。
+    const effectiveSource = useMemo<SearchSource>(
+        () => (sources.includes(searchSourceTab) ? searchSourceTab : 'aggregate'),
+        [sources, searchSourceTab],
+    );
+    const capabilities = useMemo(() => exploreCapabilities(effectiveSource), [effectiveSource, registryVersion]);
     const viewport = useVisualViewport();
-    const sourceNeedsSetup = searchSourceTab === 'navidrome' && !getNavidromeConfig();
+    const sourceNeedsSetup = effectiveSource === 'navidrome' && !getNavidromeConfig();
 
     const [mode, setMode] = useState<'landing' | 'suggest' | 'results'>(
         searchResults && searchQuery.trim() ? 'results' : searchQuery.trim() ? 'suggest' : 'landing',
@@ -159,17 +161,17 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
 
     const onlineSuggestions = useSearchSuggestions({
         query: searchQuery,
-        source: searchSourceTab,
+        source: effectiveSource,
         enabled: mode === 'suggest' && !composing && isSearchOpen,
     });
 
     const includeLocal=useSearchSettingsStore(s=>!s.disabled.includes('local'));
-    const localSuggestions=useLocalSearchSuggestions(localSongs,searchQuery,mode==='suggest'&&!composing&&isSearchOpen&&(searchSourceTab==='local'||searchSourceTab==='aggregate'&&includeLocal));
+    const localSuggestions=useLocalSearchSuggestions(localSongs,searchQuery,mode==='suggest'&&!composing&&isSearchOpen&&(effectiveSource==='local'||effectiveSource==='aggregate'&&includeLocal));
     const suggestionState={...onlineSuggestions,items:[...localSuggestions,...onlineSuggestions.items.filter(item=>item.kind!=='keyword'||!localSuggestions.some(local=>local.kind==='keyword'&&local.text.toLocaleLowerCase()===item.text.toLocaleLowerCase()))].slice(0,16)};
 
     // 空关键词永远是「默认页」，不依赖 mode：autoFocus、清除、返回搜索等路径都可能把 mode 留在别处。
     const showLanding = !searchQuery.trim();
-    const historyMatches = useSearchHistoryStore(state => state.terms[searchSourceTab] ?? EMPTY_TERMS)
+    const historyMatches = useSearchHistoryStore(state => state.terms[effectiveSource] ?? EMPTY_TERMS)
         .filter(term => term && term !== searchQuery.trim() && term.toLowerCase().includes(searchQuery.trim().toLowerCase()))
         .slice(0, 4);
 
@@ -177,21 +179,23 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
 
     const submit = useCallback((query?: string, source?: SearchSource) => {
         const nextQuery = (query ?? useSearchNavigationStore.getState().searchQuery).trim();
-        const nextSource = source ?? useSearchNavigationStore.getState().searchSourceTab;
+        const rawSource = source ?? effectiveSource;
+        const nextSource = sources.includes(rawSource) ? rawSource : 'aggregate';
         if (!nextQuery) return;
         setMode('results');
         setTab('overview');
         setSearchQuery(nextQuery);
-        onSubmitSearch(source);
+        onSubmitSearch(nextSource);
         if (nextSource !== 'navidrome' || getNavidromeConfig()) void useSearchExploreStore.getState().submit({ query: nextQuery, source: nextSource, deps });
         // 收起输入法，把整屏留给结果；重新点击输入框会回到联想状态。
         inputRef.current?.blur();
-    }, [deps, onSubmitSearch, setSearchQuery]);
+    }, [deps, effectiveSource, onSubmitSearch, setSearchQuery, sources]);
 
     const switchSource = useCallback((source: SearchSource) => {
-        if (source === useSearchNavigationStore.getState().searchSourceTab) return;
-        const query = useSearchNavigationStore.getState().searchQuery.trim();
-        useSearchNavigationStore.getState().selectSearchSource(source);
+        const current = useSearchNavigationStore.getState();
+        if (source === current.preferredSearchSource && source === current.searchSourceTab) return;
+        const query = current.searchQuery.trim();
+        current.selectSearchSource(source);
         useSearchExploreStore.getState().reset();
         setTab('overview');
         if (!query || mode !== 'results') return;
@@ -240,10 +244,10 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     };
 
     const rootRef=useRef<HTMLElement>(null);
-    const native=useNativeSearchPage({root:rootRef,active:isSearchOpen&&!hasCollection,query:searchQuery,source:searchSourceTab,
+    const native=useNativeSearchPage({root:rootRef,active:isSearchOpen&&!hasCollection,query:searchQuery,source:effectiveSource,
         mode,tab,tabs:visibleTabs,sources,results,searching:isSearching,loadingMore:isLoadingMore,error:searchError,
         hasMore,needsSetup:sourceNeedsSetup,sourcePages,artists,albums,playlists,suggestions:suggestionState,historyMatches,
-        clearHistory:()=>setClearHistorySource(searchSourceTab),
+        clearHistory:()=>setClearHistorySource(effectiveSource),
         close:onClose,change:(text,composing)=>{setComposing(composing);useSearchExploreStore.getState().reset();setSearchQuery(text);setMode(text.trim()?'suggest':'landing')},
         submit,selectTab:setTab,switchSource,sourceLabel:getSourceLabel,loadMore:onLoadMore,loadExplore:kind=>{void useSearchExploreStore.getState().loadMore(kind,deps)},
         openHit,play:onPlayTrack,enqueue:onAddTrackToQueue,openArtist:onOpenArtist,openAlbum:onOpenAlbum,openMenu:setFloatingMenuSong});
@@ -397,7 +401,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                                 type="button"
                                 key={source}
                                 className="ty-search-chip"
-                                aria-pressed={source === searchSourceTab}
+                                aria-pressed={source === effectiveSource}
                                 onClick={() => switchSource(source)}
                             >{getSourceLabel(source)}</button>)}
                         </nav>
@@ -416,7 +420,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
 
                     {showLanding ? (
                         <div className="ty-search-scroll" data-testid="tingyu-search-landing">
-                            <SearchLanding key={searchSourceTab} source={searchSourceTab} onSearch={(query) => submit(query)} />
+                            <SearchLanding key={effectiveSource} source={effectiveSource} onSearch={(query) => submit(query)} />
                         </div>
                     ) : mode === 'suggest' ? (
                         <div className="ty-search-scroll">

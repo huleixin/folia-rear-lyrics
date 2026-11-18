@@ -241,10 +241,11 @@ test('telemetry endpoints enforce admin authorization and quota circuit breaker'
   });
   assert.equal(readDenied.status, 403);
 
-  // 触发 90% 每日写入预算熔断后，心跳自动降级为 accepted: false, throttleMode: paused_quota_guard
+  // 触发 88% 每日写入预算熔断后，心跳自动降级为 accepted: false, throttleMode: paused_quota_guard，且暂停期间保持严格 0 次额外 D1 写入
   const today = toCnDay();
   f.sql.prepare("INSERT OR REPLACE INTO settings(key, value) VALUES('telemetry_daily_write_budget', '1000')").run();
   f.sql.prepare('INSERT OR REPLACE INTO metrics(key, value) VALUES(?, 950)').run(`telemetry_writes:${today}`);
+  const countersBefore = f.sql.prepare('SELECT count(*) AS c FROM counters').get().c;
 
   const hbPaused = await f.call('/api/public/telemetry/heartbeat', {
     method: 'POST',
@@ -264,4 +265,8 @@ test('telemetry endpoints enforce admin authorization and quota circuit breaker'
   assert.equal(pausedBody.accepted, false);
   assert.equal(pausedBody.throttleMode, 'paused_quota_guard');
   assert.equal(pausedBody.nextIntervalSec, 3600);
+  const countersAfter = f.sql.prepare('SELECT count(*) AS c FROM counters').get().c;
+  assert.equal(countersAfter, countersBefore, '额度熔断暂停期间不得向 counters 表产生任何额外 D1 写入');
+  const writeCountAfter = f.sql.prepare('SELECT value FROM metrics WHERE key=?').get(`telemetry_writes:${today}`).value;
+  assert.equal(writeCountAfter, 950);
 });
