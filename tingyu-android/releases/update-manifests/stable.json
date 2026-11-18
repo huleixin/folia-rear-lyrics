@@ -2,30 +2,45 @@
   "schemaVersion": 1,
   "appId": "io.github.huleixin.tingyu",
   "channel": "stable",
-  "policyRevision": 1,
-  "policyAction": "pause",
-  "updateEnabled": false,
-  "latestVersionName": "1.5.78",
-  "latestVersionCode": 293,
-  "minSupportedVersionCode": 1,
-  "releaseId": "policy-control",
-  "gitCommit": "",
-  "releaseNotes": "听屿更新策略调整",
-  "publishedAt": "2026-11-18T03:07:22.881Z",
-  "publishedAtEpochMs": 1794971242881,
-  "policyExpiresAt": "2026-12-18T03:07:22.881Z",
-  "policyExpiresAtEpochMs": 1797563242881,
+  "policyRevision": 2,
+  "policyAction": "normal",
+  "updateEnabled": true,
+  "latestVersionName": "1.5.81",
+  "latestVersionCode": 297,
+  "minSupportedVersionCode": 297,
+  "releaseId": "rel-stable-1.5.81-297",
+  "gitCommit": "19540732",
+  "releaseNotes": "1. 全新升级推荐、资料库、搜索、设置四大一级页面折叠顶栏与多主题视觉细节，修复残留蒙版与多余分割线。\n2. 升级多平台综合资料库：支持平台分组紧凑折叠与展开动画、SWR 缓存秒开，新增智能歌单与原生听歌足迹。\n3. 升级多源渐进式聚合搜索：支持同曲多版本聚合排序与搜索源选择持久化记忆，再次进入自动恢复上次音源。\n4. 支持推荐平台与页面模块右侧手柄 1:1 跟手拖拽排序及显隐控制，并与首页、资料库筛选全局实时同步；优化时光雷达推荐。\n5. 解耦独立「本地音乐」原生子页面，支持歌曲、文件夹、专辑、艺术家分类浏览，本地曲库可参与综合推荐。\n6. 新增统一「音乐平台账号」管理页（支持 QQ/微信扫码登录与全面屏侧滑返回），修复汽水音乐冷启动登录态恢复及二级设置返回栈。\n7. 修复未缓存在线歌曲后台切歌续播与队列自动补充问题。\n8. 上线听屿原生软件内安全更新系统（支持 CNB 国内高速下载、断点续传与签名校验），统一版本更新日志、独立开源声明与关于页居中品牌署名。",
+  "publishedAt": "2026-11-18T05:58:59.060Z",
+  "publishedAtEpochMs": 1794981539060,
+  "policyExpiresAt": "2026-12-18T05:58:59.060Z",
+  "policyExpiresAtEpochMs": 1797573539060,
   "offlineGraceHours": 168,
-  "apkSizeBytes": 0,
-  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "apkSizeBytes": 58630354,
+  "sha256": "07f1a700d24d6e9c01b2df7815ebf1d491aa7d608d1e990decd8c06b13052af0",
   "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
   "minSdk": 24,
   "supportedAbis": [
     "arm64-v8a",
-    "armeabi-v7a"
+    "armeabi-v7a",
+    "x86",
+    "x86_64"
   ],
-  "downloadUrls": [],
+  "downloadUrls": [
+    {
+      "id": "cnb-primary",
+      "label": "CNB 国内高速主节点",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.81/tingyu-1.5.81-release.apk",
+      "priority": 1
+    },
+    {
+      "id": "github-backup",
+      "label": "GitHub 备用节点",
+      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.81/tingyu-1.5.81-release.apk",
+      "priority": 2
+    }
+  ],
   "signatureAlgorithm": "ECDSA-P256-SHA256",
   "keyId": "tingyu-policy-2026-k1",
-  "signature": "MEYCIQDTrEChiA40J1ui80pE8X98Fm5Hc4ew7zTo4Jkzv+b1cwIhAKkC/gN1Z6dSXovXmtT23BTf6AUCXXmS77BCcfJiYxie"
+  "signature": "MEYCIQDqvi+aAckapIYEIBsQ4mJvxd79A2TNphynlFCPuqFAXAIhAJsmddK6hai6Ls1RKC7Vg30zsL3OPC17NpZc1qBUe1ij"
 }
