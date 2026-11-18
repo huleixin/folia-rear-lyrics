@@ -145,7 +145,7 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                 UnifiedPlatformFilterBar(platformSection, Modifier.padding(top = 8.dp), horizontalPadding = start, action = action)
                             }
                         }
-                        if (shortcutsSection != null) {
+                        if (shortcutsSection != null && shortcutsSection.items.isNotEmpty()) {
                             item(key = "personal-shortcuts") {
                                 LibraryShortcutCards(
                                     shortcutsSection,
@@ -156,10 +156,11 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                         }
                         if (categoriesSection != null) {
                             stickyHeader(key = "library-toolbar-sticky") {
+                                val toolbarPinned = list.firstVisibleItemIndex >= 2
                                 Column(
                                     Modifier
                                         .fillMaxWidth()
-                                        .background(colors.first())
+                                        .background(if (toolbarPinned) colors.first() else Color.Transparent)
                                 ) {
                                     LibraryCategoryToolbar(
                                         categories = categoriesSection,
@@ -194,9 +195,14 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                 )
                                 Row(
                                     Modifier
+                                        .animateItem(
+                                            fadeInSpec = null,
+                                            fadeOutSpec = null,
+                                            placementSpec = tween(if (reduced) 0 else 220),
+                                        )
                                         .fillMaxWidth()
-                                        .padding(top = 8.dp)
-                                        .heightIn(min = 48.dp)
+                                        .padding(top = 6.dp, bottom = if (isGroupCollapsed) 2.dp else 6.dp)
+                                        .heightIn(min = 46.dp)
                                         .chromeClickable(corner = 10.dp) { action(section.more, "", 0.0) }
                                         .padding(horizontal = start),
                                     verticalAlignment = Alignment.CenterVertically
@@ -214,7 +220,7 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                             color = PageMuted,
                                             fontSize = 12.sp
                                         )
-                                        Spacer(Modifier.width(10.dp))
+                                        Spacer(Modifier.width(8.dp))
                                     }
                                     PageIcon(
                                         "chevron-up",
@@ -222,7 +228,6 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                         Modifier.size(20.dp).graphicsLayer { rotationZ = rotation }
                                     )
                                 }
-                                if (!isGroupCollapsed) Spacer(Modifier.height(8.dp))
                             }
                         } else if (library && section.title.isNotBlank() && (section.layout == "rows" || section.layout == "cards") && section.id != "directory") {
                             item(key = "${section.id}:heading") {
@@ -247,11 +252,13 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                 }
                             }
                             section.layout == "rows" -> pagedNativeRows(page, section, caches.getValue(section.id), if (library) NativePageDesign.DirectoryRow else 62, action, art = if (library) NativePageDesign.DirectoryArt.dp else null, horizontalPadding = start)
-                            library && section.layout == "cards" -> {
-                                item(key = "${section.id}:grid-pad") { Spacer(Modifier.height(10.dp)) }
+                            library && section.layout == "cards" && section.total > 0 -> {
+                                if (!isCollapsibleGroup) {
+                                    item(key = "${section.id}:grid-pad") { Spacer(Modifier.height(8.dp)) }
+                                }
                                 libraryGridRows(page, section, caches.getValue(section.id), libraryColumns, action, horizontalPadding = start)
                             }
-                            library && (section.layout == "textActions" || section.layout == "quickLinks") -> item(key = section.id) {
+                            library && (section.layout == "textActions" || section.layout == "quickLinks") && section.items.isNotEmpty() -> item(key = section.id) {
                                 Box(Modifier.padding(start = start, end = end)) { LibraryQuickActions(section, action) }
                             }
                             library && section.layout == "bars" -> item(key = section.id) {
@@ -277,7 +284,7 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                         if (section.busy) item(key = "${section.id}:busy") {
                             Box(Modifier.padding(start = start, end = end)) { CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp), color = PageAccent, strokeWidth = 2.dp) }
                         }
-                        if (section.more.isNotBlank() && section.text.isNotBlank()) item(key = "${section.id}:retry") {
+                        if (!isCollapsibleGroup && section.more.isNotBlank() && section.text.isNotBlank()) item(key = "${section.id}:retry") {
                             Box(Modifier.padding(start = start, end = end)) { PagePill(section.moreLabel, { action(section.more, "", 0.0) }) }
                         }
                     }
@@ -614,7 +621,6 @@ private fun LibraryInlineSearchBar(
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().height(0.8.dp).background(palette.border.copy(alpha = 0.45f)))
     }
 }
 

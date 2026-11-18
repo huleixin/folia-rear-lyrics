@@ -10,9 +10,10 @@
   - 备用入口：`https://tingyu-feedback-api.2473297053.workers.dev/admin`
   - 云端资源：Cloudflare Worker `tingyu-feedback-api`、D1 数据库 `tingyu-feedback-db`、私有 R2 桶 `tingyu-feedback`
 - **软件内更新多节点源（客户端并发验签并按 `policyRevision` 裁决）**：
-  1. CNB 国内高速静态源：`https://cnb.cool/tingyu-2026/releases/-/git/raw/main/stable.json`（测试渠道：`channels/testing.json`）
-  2. Cloudflare 实时签名策略源：`https://feedback.20262000.xyz/api/public/update/stable`（支持手机端无电脑参与实时发布/暂停/紧急解除）
+  1. CNB 国内高速静态源：`https://cnb.cool/tingyu-2026/releases/-/git/raw/main/stable.json`（测试渠道：`testing.json` 及 `channels/testing.json`）
+  2. Cloudflare 实时签名策略源：`https://feedback.20262000.xyz/api/public/update/stable`（支持手机端无电脑参与实时发布/暂停/紧急解除；真实版本历史：`GET /api/public/releases/history`）
   3. GitHub 静态兜底源：`https://raw.githubusercontent.com/huleixin/folia-rear-lyrics/feat/library-search-v2/tingyu-android/releases/update-manifests/stable.json`
+- **当前最新正式发行基线**：`v1.5.81`（`versionCode = 297`，CNB 主节点 + GitHub Release 备用节点双源分发）
 
 ## 2. 标准化本地工具链
 

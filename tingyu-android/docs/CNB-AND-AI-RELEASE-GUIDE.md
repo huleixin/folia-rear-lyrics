@@ -28,8 +28,11 @@ node tools/release-cli.mjs prepare --channel stable --register
 # 3. 将候选 APK 上传至 CNB (tingyu-2026/releases) 预发布附件（--prerelease，不触发用户更新）
 node tools/release-cli.mjs upload --channel testing
 
-# 4. 从远程 CNB 下载直链完整拉取整个 APK 文件，核验非 HTML 二进制流、字节大小与完整 SHA-256
-node tools/release-cli.mjs verify --channel testing
+# 3b. 正式版双源上传（同时创建 CNB 正式 Release 与 GitHub Release 备用节点）
+node tools/release-cli.mjs upload --channel stable --tag v1.5.81 --formal-release --with-github
+
+# 4. 从远程 CNB 与 GitHub 下载直链完整拉取整个 APK 文件，核验非 HTML 二进制流、字节大小与完整 SHA-256
+node tools/release-cli.mjs verify --channel stable
 
 # 5. 只读查看线上服务状态、反馈统计、各渠道当前策略版本与节点同步状态
 node tools/release-cli.mjs status

@@ -39,7 +39,9 @@ for (const name of [...names].sort()) {
         moduleFile = path.resolve(path.dirname(moduleFile),alias[1]);
     }
     if (!data?.node) throw Error(`Missing Lucide geometry: ${name}`);
-    definitions[data.name] = data.node.map(([kind, attributes]) => [kind, Object.fromEntries(Object.entries(attributes).filter(([key]) => key !== 'key'))]);
+    const geom = data.node.map(([kind, attributes]) => [kind, Object.fromEntries(Object.entries(attributes).filter(([key]) => key !== 'key'))]);
+    definitions[data.name] = geom;
+    if (kebab !== data.name) definitions[kebab] = geom;
 }
 fs.writeFileSync(target, `${JSON.stringify(definitions)}\n`);
 console.log(`Exported ${Object.keys(definitions).length} native Lucide definitions`);

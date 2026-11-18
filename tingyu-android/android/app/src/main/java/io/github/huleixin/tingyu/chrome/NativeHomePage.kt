@@ -62,8 +62,8 @@ import kotlinx.coroutines.launch
             LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=contentTopPadding,bottom=(page.bottomClearance+page.safeBottom).dp)) {
                 sections.forEach { section ->
                     when {
-                        section.layout=="discoveryHero" -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=12.dp),action)}
-                        section.layout=="radarCards" -> item(key=section.id){Column(Modifier.padding(start=start,end=end,top=24.dp)){
+                        section.layout=="discoveryHero" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=12.dp),action)}
+                        section.layout=="radarCards" && section.items.isNotEmpty() -> item(key=section.id){Column(Modifier.padding(start=start,end=end,top=24.dp)){
                             Row(Modifier.fillMaxWidth().padding(bottom=12.dp),verticalAlignment=Alignment.CenterVertically){
                                 Text(section.title,color=PageInk,fontSize=18.sp,fontWeight=FontWeight(650),modifier=Modifier.weight(1f))
                                 if(section.more.isNotBlank()){
@@ -76,9 +76,9 @@ import kotlinx.coroutines.launch
                             }
                             DiscoveryRadars(section,action=action)
                         }}
-                        section.layout=="textActions" -> item(key=section.id){DiscoveryTextActions(section,Modifier.padding(start=start,end=end),action)}
-                        section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
-                        section.layout=="chips" && section.id=="discovery-sources" -> item(key=section.id){
+                        section.layout=="textActions" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryTextActions(section,Modifier.padding(start=start,end=end),action)}
+                        section.layout=="hero" && section.items.isNotEmpty() -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
+                        section.layout=="chips" && section.id=="discovery-sources" && section.items.isNotEmpty() -> item(key=section.id){
                             val platformAlpha = (1f - (collapseProgress - 0.25f) / 0.55f).coerceIn(0f, 1f)
                             UnifiedPlatformFilterBar(
                                 section,
@@ -93,7 +93,7 @@ import kotlinx.coroutines.launch
                             NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=8.dp),action=action)
                         }
                         // 方形封面横滑 rail：在线首页的「最近播放」与本地首页的「最近播放 / 常听专辑」共用一套。
-                        section.layout=="cards" && section.id in setOf("recent","localAlbums") -> item(key=section.id){
+                        section.layout=="cards" && section.id in setOf("recent","localAlbums") && section.items.isNotEmpty() -> item(key=section.id){
                             Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
                                 PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)8.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -115,7 +115,7 @@ import kotlinx.coroutines.launch
                             }
                         }
                         // Real recommendation collections: square artwork rail, same caption rhythm as recent.
-                        section.layout=="cards" && section.id!="playlists" -> item(key=section.id){
+                        section.layout=="cards" && section.id!="playlists" && section.items.isNotEmpty() -> item(key=section.id){
                             Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
                                 PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)8.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -134,7 +134,7 @@ import kotlinx.coroutines.launch
                         // 本地首页的四个快捷入口：四张独立轻量玻璃卡（深绿半透明、小圆角、
                         // 圆形图标容器），图标在上 / 名称居中 / 真实数量在下，无竖线分隔；
                         // 按压沿用 ChromeMaterial 的缩放+透明度反馈。导航与计数逻辑不变。
-                        section.layout=="quickLinks" && discovery -> item(key=section.id){
+                        section.layout=="quickLinks" && discovery && section.items.isNotEmpty() -> item(key=section.id){
                             val palette = LocalInterfacePalette.current
                             val isGlacierLight = palette.light && palette.style == "glacier"
                             val tintColors = if (isGlacierLight) {

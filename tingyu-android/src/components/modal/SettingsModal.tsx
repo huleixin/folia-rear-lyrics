@@ -1,4 +1,3 @@
-import { chromeNative } from '../../services/nativeChrome';
 import { useOfflineCacheUsage } from '../../hooks/useOfflineCacheUsage';
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import SettingsPresence from './settings/SettingsPresence';
@@ -6,7 +5,7 @@ import { isAndroidNativeRuntime } from '../../utils/platform';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { MotionValue } from 'framer-motion';
-import { X, Keyboard, Loader2, Check, AlertCircle, ChevronLeft, Download, ExternalLink, CircleHelp } from 'lucide-react';
+import { X, Keyboard, Loader2, Check, Copy, AlertCircle, ChevronLeft, Download, ExternalLink, CircleHelp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { hasRegisteredModal } from '../../services/modalBackStack';
 import { getCacheUsageByCategory, clearCacheByCategory, clearDownloadableCaches } from '../../services/db';
@@ -425,7 +424,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     } = useVisualizerAssetStore(useShallow(selectVisualizerAssetSnapshot));
     const resolvedToggleTransparentPlayerBackground = onToggleTransparentPlayerBackground ?? onToggleTransparentPlayerBackgroundFromStore;
     const setIsSubSettingsViewOpen = useSettingsModalStore(state => state.setIsSubSettingsViewOpen);
-    const [licenseError, setLicenseError] = useState(false);
+    const [nativeBuildIdentity, setNativeBuildIdentity] = useState<{ versionName: string; versionCode: number } | null>(null);
+    useEffect(() => {
+        if (!isAndroidNativeRuntime()) return;
+        const plugin = (window as unknown as {
+            Capacitor?: { Plugins?: { FoliaNative?: { getAppUpdateStatus?: () => Promise<{ currentVersionName?: string; currentVersionCode?: number }> } } };
+        }).Capacitor?.Plugins?.FoliaNative;
+        plugin?.getAppUpdateStatus?.().then(res => {
+            if (res?.currentVersionName || res?.currentVersionCode) {
+                setNativeBuildIdentity({
+                    versionName: res.currentVersionName || __APP_VERSION__,
+                    versionCode: Number(res.currentVersionCode || (typeof __ANDROID_VERSION_CODE__ !== 'undefined' ? __ANDROID_VERSION_CODE__ : 0)),
+                });
+            }
+        }).catch(() => {});
+    }, []);
     const [activeTab, setActiveTab] = useState<'help' | 'options'>(initialTab);
     const [tabDirection, setTabDirection] = useState<'left' | 'right'>('right');
     const handleTabChange = (tab: 'help' | 'options') => {
@@ -630,9 +643,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         });
     }, [updateStatus?.availableVersion, updateStatus?.updateSeen]);
 
+    const androidVersionName = nativeBuildIdentity?.versionName || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '');
+    const androidVersionCode = nativeBuildIdentity?.versionCode || (typeof __ANDROID_VERSION_CODE__ !== 'undefined' ? __ANDROID_VERSION_CODE__ : 0);
+    const androidCommitShort = ((typeof __BUILD_COMMIT__ !== 'undefined' && __BUILD_COMMIT__ && __BUILD_COMMIT__ !== 'dev')
+        ? __BUILD_COMMIT__
+        : (typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__.split('/')[0].replace(/-dirty$/, '') : '')
+    ).slice(0, 8) || 'unknown';
+    const androidVersionCopyPayload = `听屿 · Tingyu\nVersion ${androidVersionName}\nBuild ${androidVersionCode} · ${androidCommitShort}`;
+
     const handleCopyVersionInfo = async () => {
         try {
-            await copyTextToClipboard(VERSION_INFO);
+            await copyTextToClipboard(isAndroidNativeRuntime() ? androidVersionCopyPayload : VERSION_INFO);
             setVersionCopied(true);
             window.setTimeout(() => setVersionCopied(false), 1800);
         } catch (error) {
@@ -1481,7 +1502,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {isMobileSettings ? <MobileSettingsHeader
                     primary={activeTab === 'options' && mobileSettingsIndex}
                     title={activeTab === 'help' ? t('mobileSettings.about') : mobileSettingsIndex ? t('ui.options') : mobileRearGuide ? t('mobileSettings.startupGuide') : activeSettingsNavItem?.label ?? ''}
-                    onLicenses={activeTab === 'help' && isAndroidNativeRuntime() ? () => { void chromeNative.openThirdPartyLicenses().catch(() => setLicenseError(true)); } : undefined}
                     onClose={onClose}
                     onBack={() => { if(NATIVE_FIRST&&activeTab==='help'&&initialTab==='help')returnFromMobileSection();else if (activeTab === 'help') setActiveTab('options'); else if(NATIVE_FIRST)returnFromMobileSection();else { setMobileRearGuide(false); setMobileSettingsIndex(true); } }}
                 /> : <div className="relative shrink-0 z-10 mb-6 select-none" data-settings-style='{"margin":[0,0,0,24]}' data-settings-layout="column">
@@ -1622,27 +1642,67 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </div>}
 
 
-                                {licenseError && <p role="alert" data-settings-layout="column">{t('licenses.openError')}</p>}
-
-                                {/* Author Info (Moved from Footer) */}
-                                <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true" data-settings-style='{"center":true,"font":12,"tone":"muted","gap":4}' data-settings-layout="column">
-                                    <p data-settings-layout="column">听屿 · Tingyu {__APP_VERSION__}</p>
-                                    {!isAndroidNativeRuntime() && <p data-settings-layout="column">AGPL-3.0 · 基于 Folia 的独立衍生版本 · 原作者及第三方署名见下方</p>}
-                                    {isAndroidNativeRuntime() && (
+                                {/* Author Info / Brand Signature */}
+                                {isAndroidNativeRuntime() ? (
+                                    <div
+                                        className="flex flex-col items-center text-center select-none"
+                                        data-tingyu-attribution="true"
+                                        data-testid="about-brand-signature"
+                                        data-settings-style='{"center":true,"gap":7,"padding":[0,0,0,0]}'
+                                        data-settings-layout="column"
+                                    >
+                                        <p
+                                            className="text-xl font-semibold"
+                                            style={{ color: 'var(--text-primary)' }}
+                                            data-settings-style='{"center":true,"font":20,"weight":600,"tone":"text"}'
+                                            data-settings-layout="column"
+                                        >
+                                            听屿 · Tingyu
+                                        </p>
+                                        <p
+                                            className="text-sm opacity-75"
+                                            style={{ color: 'var(--text-secondary)' }}
+                                            data-settings-style='{"center":true,"font":14,"tone":"muted"}'
+                                            data-settings-layout="column"
+                                        >
+                                            {`Version ${androidVersionName}`}
+                                        </p>
+                                        <p
+                                            className="text-xs opacity-65"
+                                            style={{ color: 'var(--text-secondary)' }}
+                                            data-settings-style='{"center":true,"font":12,"tone":"muted"}'
+                                            data-settings-layout="column"
+                                        >
+                                            {`Build ${androidVersionCode} · ${androidCommitShort}`}
+                                        </p>
                                         <button
                                             type="button"
-                                            onClick={handleCopyVersionInfo}
-                                            className="opacity-65 hover:opacity-100 transition-opacity cursor-copy"
-                                            style={{ color: 'var(--text-secondary)' }}
-                                            title={versionCopied ? t('status.copied') : t('options.versionCopiedHint')}
-                                            aria-label={t('options.versionCopiedHint')}
-                                            data-settings-style='{"tone":"muted","center":true,"font":11}'
+                                            data-testid="about-copy-version-info"
+                                            onClick={() => void handleCopyVersionInfo()}
+                                            className="inline-flex items-center justify-center gap-1.5 text-xs opacity-75 hover:opacity-100 transition-opacity cursor-copy"
+                                            style={{ color: versionCopied ? 'var(--accent-color)' : 'var(--text-secondary)' }}
+                                            title={versionCopied ? t('status.copied') : '复制版本信息'}
+                                            aria-label="复制版本信息"
+                                            data-settings-style={JSON.stringify({
+                                                center: true,
+                                                gap: 5,
+                                                font: 12,
+                                                minHeight: 28,
+                                                padding: [8, 2, 8, 2],
+                                                tone: versionCopied ? 'accent' : 'muted',
+                                            })}
                                             data-settings-layout="row"
                                         >
-                                            {versionCopied ? t('status.copied') : `Build ${__COMMIT_HASH__.split('/')[0]} · 点击复制版本信息`}
+                                            {versionCopied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                                            <span>{versionCopied ? t('status.copied') : '复制版本信息'}</span>
                                         </button>
-                                    )}
-                                </div>
+                                    </div>
+                                ) : (
+                                    <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true" data-settings-style='{"center":true,"font":12,"tone":"muted","gap":4}' data-settings-layout="column">
+                                        <p data-settings-layout="column">听屿 · Tingyu {__APP_VERSION__}</p>
+                                        <p data-settings-layout="column">AGPL-3.0 · 基于 Folia 的独立衍生版本 · 原作者及第三方署名见下方</p>
+                                    </div>
+                                )}
                                 {!isAndroidNativeRuntime() && <div className="mt-8 pt-6 border-t border-white/10 text-center shrink-0" data-settings-style='{"center":true,"gap":4}' data-settings-layout="column">
                                     <div className="relative mb-1" data-settings-style='{"margin":[0,0,0,4]}' data-settings-layout="column">
                                         <p className="text-sm opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","center":true,"gap":4}' data-settings-layout="wrap">

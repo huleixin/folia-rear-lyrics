@@ -40,7 +40,7 @@ internal fun SettingsLayoutView(node: SettingsLayoutNode, controls: Map<String,T
     if(s.maxHeight>0)outer=outer.heightIn(max=s.maxHeight.dp)
     if(s.aspect>0)outer=outer.aspectRatio(s.aspect)
     val textStyle=LocalTextStyle.current.merge(TextStyle(
-        color=when(s.tone){"muted"->theme.muted;"accent"->theme.accent;"primary"->LocalInterfacePalette.current.onAccent;"danger"->theme.danger;else->Color.Unspecified},
+        color=when(s.tone){"text"->theme.text;"muted"->theme.muted;"accent"->theme.accent;"primary"->LocalInterfacePalette.current.onAccent;"danger"->theme.danger;else->Color.Unspecified},
         fontSize=if(s.font>0)s.font.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
         lineHeight=if(s.font>0)(s.font*1.45f).sp else androidx.compose.ui.unit.TextUnit.Unspecified,
         fontWeight=if(s.weight>0)FontWeight(s.weight) else null,textAlign=if(s.center)TextAlign.Center else TextAlign.Unspecified))
@@ -48,8 +48,8 @@ internal fun SettingsLayoutView(node: SettingsLayoutNode, controls: Map<String,T
         when(node.kind){
             "vector"->SettingsLayoutArt(node,theme,outer.fillMaxWidth())
             "break"->Spacer(outer.fillMaxWidth().height(0.dp))
-            "text"->Text(node.text,modifier=outer.layoutEdges(s.padding))
-            "icon"->PageIcon(node.icon,if(s.tone=="accent")theme.accent else if(s.tone=="muted")theme.muted else theme.text,
+            "text"->Text(node.text,modifier=outer.then(if(!compact&&s.width<=0&&(s.center||LocalTextStyle.current.textAlign==TextAlign.Center))Modifier.fillMaxWidth()else Modifier).layoutEdges(s.padding))
+            "icon"->PageIcon(node.icon,when(s.tone){"accent"->theme.accent;"muted"->theme.muted;"text"->theme.text;else->LocalTextStyle.current.color.takeIf{it!=Color.Unspecified}?:theme.text},
                 outer.size(if(s.width>0)s.width.dp else 16.dp,if(s.height>0)s.height.dp else 16.dp))
             "control"->controls[node.ref]?.let { SettingsLayoutControl(it,node,controls,theme,action,outer,compact) }
             "spacer"->if(s.progress>=0f)Canvas(outer.fillMaxWidth().clip(RoundedCornerShape(s.radius.dp))){

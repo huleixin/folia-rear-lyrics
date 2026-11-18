@@ -14,6 +14,7 @@ declare global {
   /** 自部署平台 docker / vercel / cloudflare；其他类别为空串。 */
   const __BUILD_HOST__: string;
   const __APP_VERSION__: string;
+  const __ANDROID_VERSION_CODE__: number;
   const __APP_VERSION_LABEL__: string;
   const __APP_RELEASE_CHANNEL__: string;
   const __DOCKER_STACK_VERSION__: string;

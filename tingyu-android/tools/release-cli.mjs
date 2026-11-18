@@ -40,6 +40,7 @@ const TRUST_ANCHORS_PATH = path.join(PROJECT_ROOT, 'shared', 'updateTrustAnchors
 const CNB_REPO = 'tingyu-2026/releases';
 const CNB_GIT_URL = 'https://cnb.cool/tingyu-2026/releases.git';
 const CNB_RAW_BASE = 'https://cnb.cool/tingyu-2026/releases/-/git/raw/main';
+const GITHUB_REPO = 'huleixin/folia-rear-lyrics';
 const CONSOLE_API_BASE = 'https://feedback.20262000.xyz';
 const EXPECTED_CERT_SHA256 = 'a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d';
 
@@ -425,6 +426,92 @@ async function cmdPrepare(flags) {
     }, null, 2));
 }
 
+function readGitHubTokenFromGitCredential() {
+    const res = spawnSync('git', ['credential', 'fill'], {
+        cwd: PROJECT_ROOT,
+        input: 'protocol=https\nhost=github.com\n\n',
+        encoding: 'utf8',
+    });
+    const m = /password=(.+)/.exec(res.stdout || '');
+    if (!m?.[1]?.trim()) {
+        throw new Error('未在系统 Git 凭据管理器中读取到 GitHub 认证凭据');
+    }
+    return m[1].trim();
+}
+
+async function uploadApkToGitHubRelease({ tag, title, body, apkPath, assetName, prerelease, targetCommitish = 'feat/library-search-v2' }) {
+    const token = readGitHubTokenFromGitCredential();
+    const ghHeaders = {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'Tingyu-ReleaseCLI/1.0',
+        'X-GitHub-Api-Version': '2022-11-28',
+    };
+
+    let release = null;
+    const getRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${encodeURIComponent(tag)}`, {
+        headers: ghHeaders,
+    });
+    if (getRes.ok) {
+        release = await getRes.json();
+        const patchRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/${release.id}`, {
+            method: 'PATCH',
+            headers: { ...ghHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: title, body, prerelease, draft: false }),
+        });
+        if (patchRes.ok) release = await patchRes.json();
+    } else if (getRes.status === 404) {
+        const createRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases`, {
+            method: 'POST',
+            headers: { ...ghHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tag_name: tag,
+                target_commitish: targetCommitish,
+                name: title,
+                body,
+                draft: false,
+                prerelease,
+            }),
+        });
+        if (!createRes.ok) {
+            const errTxt = await createRes.text();
+            throw new Error(`创建 GitHub Release 失败 (HTTP ${createRes.status}): ${errTxt.slice(0, 200)}`);
+        }
+        release = await createRes.json();
+    } else {
+        throw new Error(`查询 GitHub Release 失败: HTTP ${getRes.status}`);
+    }
+
+    const existingAsset = (release.assets || []).find(a => a.name === assetName);
+    if (existingAsset?.id) {
+        await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/assets/${existingAsset.id}`, {
+            method: 'DELETE',
+            headers: ghHeaders,
+        });
+    }
+
+    const apkBytes = readFileSync(apkPath);
+    const uploadEndpoint = String(release.upload_url || '').replace(/\{\?name,label\}$/, '') + `?name=${encodeURIComponent(assetName)}`;
+    const upRes = await fetch(uploadEndpoint, {
+        method: 'POST',
+        headers: {
+            ...ghHeaders,
+            'Content-Type': 'application/vnd.android.package-archive',
+            'Content-Length': String(apkBytes.byteLength),
+        },
+        body: apkBytes,
+    });
+    if (!upRes.ok) {
+        const errTxt = await upRes.text();
+        throw new Error(`上传 GitHub Release 资产失败 (HTTP ${upRes.status}): ${errTxt.slice(0, 200)}`);
+    }
+    const uploadedAsset = await upRes.json();
+    return {
+        releaseHtmlUrl: release.html_url,
+        browserDownloadUrl: uploadedAsset.browser_download_url,
+    };
+}
+
 async function cmdUpload(flags) {
     const channel = String(flags.channel || 'testing');
     const draftPath = path.join(WORK_DIR, `candidate-${channel}.json`);
@@ -437,8 +524,17 @@ async function cmdUpload(flags) {
 
     const tag = String(flags.tag || draft.cnbTag || `candidate-${draft.versionName}-${draft.versionCode}`);
     const assetName = `tingyu-${draft.versionName}-release.apk`;
+    const isFormalRelease = Boolean(flags['formal-release']);
+    const releaseTitle = isFormalRelease
+        ? `听屿 v${draft.versionName}`
+        : `听屿 v${draft.versionName} (${channel === 'stable' ? '正式候选' : '测试通道'})`;
+    const cnbBody = flags['cnb-notes-file']
+        ? readFileSync(path.resolve(String(flags['cnb-notes-file'])), 'utf8').trim()
+        : draft.releaseNotes;
+    const githubBody = flags['github-notes-file']
+        ? readFileSync(path.resolve(String(flags['github-notes-file'])), 'utf8').trim()
+        : cnbBody;
 
-    // Check if tag release already exists on CNB; otherwise create as PRERELEASE (--make-latest false)
     let releaseObj = null;
     try {
         releaseObj = runCnbJson(['releases', 'get-release-by-tag', '--repo', CNB_REPO, '--tag', tag]);
@@ -448,8 +544,8 @@ async function cmdUpload(flags) {
 
     if (!releaseObj?.id) {
         const notesFile = path.join(WORK_DIR, `notes-${channel}.md`);
-        writeFileSync(notesFile, draft.releaseNotes, 'utf8');
-        releaseObj = runCnbJson([
+        writeFileSync(notesFile, cnbBody, 'utf8');
+        const createArgs = [
             'releases',
             'post-release',
             '--repo',
@@ -459,13 +555,16 @@ async function cmdUpload(flags) {
             '--target-commitish',
             'main',
             '--name',
-            `听屿 v${draft.versionName} (${channel === 'stable' ? '正式候选' : '测试通道'})`,
+            releaseTitle,
             '--body-file',
             notesFile,
-            '--prerelease',
-            '--make-latest',
-            'false',
-        ]);
+        ];
+        if (!isFormalRelease) {
+            createArgs.push('--prerelease', '--make-latest', 'false');
+        } else {
+            createArgs.push('--make-latest', 'true');
+        }
+        releaseObj = runCnbJson(createArgs);
     }
 
     const uploadMeta = runCnbJson([
@@ -531,15 +630,38 @@ async function cmdUpload(flags) {
 
     draft.cnbTag = tag;
     draft.cnbReleaseId = String(refreshed.id);
-    draft.downloadUrls = [
+    const nextDownloadUrls = [
         {
             id: 'cnb-primary',
             label: 'CNB 国内高速主节点',
             url: cnbDownloadUrl,
             priority: 1,
         },
-        ...(draft.downloadUrls || []).filter(u => u.id !== 'cnb-primary'),
+        ...(draft.downloadUrls || []).filter(u => u.id !== 'cnb-primary' && u.id !== 'github-backup'),
     ];
+
+    let githubDownloadUrl = null;
+    let githubReleaseUrl = null;
+    if (flags['with-github']) {
+        const ghRes = await uploadApkToGitHubRelease({
+            tag,
+            title: releaseTitle,
+            body: githubBody,
+            apkPath,
+            assetName,
+            prerelease: !isFormalRelease,
+        });
+        githubDownloadUrl = ghRes.browserDownloadUrl;
+        githubReleaseUrl = ghRes.releaseHtmlUrl;
+        nextDownloadUrls.push({
+            id: 'github-backup',
+            label: 'GitHub 备用节点',
+            url: githubDownloadUrl,
+            priority: 2,
+        });
+    }
+
+    draft.downloadUrls = nextDownloadUrls;
     writeFileSync(draftPath, JSON.stringify(draft, null, 2) + '\n', 'utf8');
 
     if (flags.register !== 'false') {
@@ -552,11 +674,13 @@ async function cmdUpload(flags) {
 
     console.log(JSON.stringify({
         ok: true,
-        stage: 'candidate_uploaded_prerelease_only',
+        stage: isFormalRelease ? 'formal_assets_uploaded' : 'candidate_uploaded_prerelease_only',
         updateEnabledChanged: false,
         cnbTag: tag,
         cnbReleaseId: refreshed.id,
         cnbDownloadUrl,
+        githubReleaseUrl,
+        githubDownloadUrl,
     }, null, 2));
 }
 
