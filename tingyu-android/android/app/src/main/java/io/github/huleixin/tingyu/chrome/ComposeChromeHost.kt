@@ -378,10 +378,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var settingsRootRequested by mutableStateOf(false)
     private val settingsPrefs by lazy { web.context.getSharedPreferences("tingyu_pad_settings", android.content.Context.MODE_PRIVATE) }
     private var retainedSettingsRoot by mutableStateOf<NativePage?>(null)
-    private var activeSettingsAction by mutableStateOf(settingsPrefs.getString("last_split_action", "settings:accounts") ?: "settings:accounts")
+    private var activeSettingsAction by mutableStateOf("settings:accounts")
+    private var pendingSplitSettingsAction by mutableStateOf<String?>(null)
     private var splitLyricsMode by mutableStateOf<String?>(null)
     private var lastSettingsDetailPage by mutableStateOf<NativePage?>(null)
-    private var autoOpenedSettingsSession by mutableStateOf<String?>(null)
+    private var autoOpenedSettingsVisit by mutableStateOf(false)
     private fun inferredSettingsAction(key: String): String? = when {
         key.startsWith("settings:document:accounts") -> "settings:accounts"
         key == "settings:document:discovery" -> "discovery:settings"
@@ -545,7 +546,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
         collectionDetail=value.optBoolean("collectionDetail")
-        if(next!="settings"){splitLyricsMode=null;lastSettingsDetailPage=null;autoOpenedSettingsSession=null}
+        if(next!="settings"){splitLyricsMode=null;lastSettingsDetailPage=null;autoOpenedSettingsVisit=false;pendingSplitSettingsAction=null;activeSettingsAction="settings:accounts"}
         if(routeChanged||webOverlay)sleepMenuOpen=false
         if(routeChanged||presented==null)resolvePage()
         settingsTrace("route-commit","route" to destination,"navigation" to navigation,"key" to presented?.key,"session" to presented?.session)
@@ -1234,8 +1235,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             if (splitLyricsMode == null) {
                                 val inferred = inferredSettingsAction(shown.key)
                                 if (!inferred.isNullOrBlank()) {
-                                    activeSettingsAction = inferred
-                                    settingsPrefs.edit().putString("last_split_action", inferred).apply()
+                                    if (pendingSplitSettingsAction == null || pendingSplitSettingsAction == inferred) {
+                                        pendingSplitSettingsAction = null
+                                        activeSettingsAction = inferred
+                                        settingsPrefs.edit().putString("last_split_action", inferred).apply()
+                                    }
                                 }
                             }
                         }
@@ -1263,23 +1267,22 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         LaunchedEffect(destination, isLiveSettingsIndexReady, shown.session, padSettingsDual) {
                             if (destination != "settings" || !padSettingsDual) {
                                 if (destination != "settings") {
-                                    autoOpenedSettingsSession = null
+                                    autoOpenedSettingsVisit = false
+                                    pendingSplitSettingsAction = null
                                 }
                                 return@LaunchedEffect
                             }
-                            if (isLiveSettingsIndexReady && splitLyricsMode == null && autoOpenedSettingsSession != shown.session) {
-                                autoOpenedSettingsSession = shown.session
-                                val availableActions = shown.sections
-                                    .filter { it.id != "rear" }
+                            if (isLiveSettingsIndexReady && splitLyricsMode == null && !autoOpenedSettingsVisit && pendingSplitSettingsAction == null) {
+                                autoOpenedSettingsVisit = true
+                                val rearSupported = io.github.huleixin.tingyu.RearLyricsCoordinator.hasRearDisplayHardware(web.context)
+                                val availableActions = filterSettingsSectionsForDevice(shown.sections, tablet = true, rearHardwareSupported = rearSupported)
                                     .flatMap { it.items }
                                     .filter { it.action.isNotBlank() && !it.action.startsWith("support:") && !it.disabled }
                                     .map { it.action }
-                                val remembered = settingsPrefs.getString("last_split_action", null)
-                                    ?.takeIf { it in availableActions }
-                                val targetAction = remembered
-                                    ?: "settings:accounts".takeIf { it in availableActions }
+                                val targetAction = "settings:accounts".takeIf { it in availableActions }
                                     ?: availableActions.firstOrNull()
                                 if (!targetAction.isNullOrBlank()) {
+                                    pendingSplitSettingsAction = targetAction
                                     activeSettingsAction = targetAction
                                     settingsPrefs.edit().putString("last_split_action", targetAction).apply()
                                     if (targetAction == "lyrics:desktop" || targetAction == "lyrics:bluetooth") {
@@ -1319,20 +1322,22 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             },
                             onSettingsSelect = { itemAction, _, _ ->
                                 if (itemAction.startsWith("support:")) {
-                                    val root = retainedSettingsRoot ?: pages[shown.id]
+                                    val root = retainedSettingsRoot ?: fallbackSettingsRoot ?: pages[shown.id]
                                     supportCopyJson = root?.sections?.firstOrNull { it.id == "support" }?.text
                                     showNativeSettings(NativeSettingsDestination(itemAction.removePrefix("support:"), supportCopyJson))
                                 } else if (itemAction == "lyrics:desktop" || itemAction == "lyrics:bluetooth") {
                                     val mode = if (itemAction == "lyrics:bluetooth") "bluetooth" else "desktop"
+                                    pendingSplitSettingsAction = null
                                     splitLyricsMode = mode
                                     activeSettingsAction = itemAction
                                     settingsPrefs.edit().putString("last_split_action", itemAction).apply()
                                 } else if (itemAction.isNotBlank()) {
+                                    pendingSplitSettingsAction = itemAction
                                     splitLyricsMode = null
                                     activeSettingsAction = itemAction
                                     settingsPrefs.edit().putString("last_split_action", itemAction).apply()
                                     val current = pages[shown.id] ?: shown
-                                    pageListener?.onAction(current.id, current.session, current.key, "__splitSelect", itemAction, 0.0)
+                                    pageListener?.onAction("settings", current.session, current.key, "__splitSelect", itemAction, 0.0)
                                 }
                             },
                         ){action,text,value->
@@ -1504,6 +1509,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 navigationActionSerial++;clearStartupNavigation()
                                 val nextIdx=value.toInt().coerceIn(0,3)
                                 destination=when(nextIdx){2->"search";3->"settings";else->"home"}
+                                if(destination!="settings"){splitLyricsMode=null;lastSettingsDetailPage=null;autoOpenedSettingsVisit=false;pendingSplitSettingsAction=null;activeSettingsAction="settings:accounts"}
                                 settingsRootRequested=destination=="settings"
                                 syncWebBackground()
                                 if(nextIdx in 0..1)selectedTab=nextIdx

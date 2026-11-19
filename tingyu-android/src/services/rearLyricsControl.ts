@@ -19,7 +19,7 @@ export type RearLyricsStatus = {
     controlEngine?: RearControlEngine; lockedRoute?: RearLockedRoute; lastLaunchRoute?: string;
     userDismissed?:boolean;rendererFailed?:boolean;hostConnected?:boolean;hostActive?:boolean;hostDetail?:string;displayMode?:'system-card'|'independent';
     returnedToSystem?: boolean; pauseReturnSeconds?: number;
-    shizukuAvailable?: boolean; authorized?: boolean; rearDisplayId?: number; active?: boolean;
+    shizukuAvailable?: boolean; authorized?: boolean; rearDisplayId?: number; rearHardwareSupported?: boolean; active?: boolean;
     enabled?: boolean; starting?: boolean; message?: string; diagnostics?: string; build?: number;
     coverSleepEnabled?: boolean; sleeping?: boolean; sleepUnsupported?: boolean; sensorAvailable?: boolean; sleepDiagnostics?: string;
     cameraSuspended?:boolean;yieldingToCamera?:boolean;

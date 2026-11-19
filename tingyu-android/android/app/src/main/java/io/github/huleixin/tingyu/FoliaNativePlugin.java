@@ -1427,6 +1427,7 @@ public class FoliaNativePlugin extends Plugin {
         // id keeps the settings page usable and lets recovery wake it again.
         int rear = RearHostBridge.display()>0?RearHostBridge.display():RearLyricsCoordinator.rearDisplayForShell(getContext());
         result.put("rearDisplayId", rear);
+        result.put("rearHardwareSupported", RearLyricsCoordinator.hasRearDisplayHardware(getContext()));
         result.put("yieldingToCamera", RearLyricsActivity.isYieldingToCamera());
         // 「背屏故障诊断」：锁屏前后 0/5/60 秒的状态快照（JSON lines），以及最近一次背屏唤醒
         // 的完整结果（含执行后的真实面板状态）。两者都随「导出诊断数据」一起带走。

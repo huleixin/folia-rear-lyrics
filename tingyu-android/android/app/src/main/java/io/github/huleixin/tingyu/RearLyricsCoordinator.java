@@ -26,7 +26,7 @@ import rikka.shizuku.Shizuku;
  * performs the two effects that machine asks for - release the rear screen, or rebuild the lyric
  * session - and never starts a window, a wake or a lease on its own while a camera owns the panel.
  */
-final class RearLyricsCoordinator {
+public final class RearLyricsCoordinator {
     private static volatile RearLyricsCoordinator instance;
     /** Release retries before the teardown is abandoned (with a diagnostic) instead of looping. */
     private static final int MAX_CLOSE_RETRIES = 5;
@@ -1548,6 +1548,22 @@ final class RearLyricsCoordinator {
         return RearLyricsLauncher.rememberedRear(context);
     }
     int rearDisplayForShell() { return rearDisplayForShell(context); }
+
+    /**
+     * Device rear-display capability check independent of Shizuku authorization state:
+     * returns true if a supported rear display exists in DisplayManager / remembered preferences,
+     * an LSP/host bridge is connected, or the OEM rear-screen host package is present on the device.
+     */
+    public static boolean hasRearDisplayHardware(Context context) {
+        if (context == null) return false;
+        if (RearHostBridge.display() > 0 || RearHostBridge.connected() || LspRearBridge.get() != null) return true;
+        if (rearDisplayForShell(context) >= 0) return true;
+        try {
+            return context.getPackageManager().getPackageInfo(RearHostContract.TARGET, 0) != null;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
 
     private RearOwnershipState.State ownership() {
         int display = findRearDisplayId(context);

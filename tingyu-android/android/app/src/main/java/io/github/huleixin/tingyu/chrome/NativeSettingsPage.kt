@@ -66,6 +66,11 @@ internal fun NativeSettingsPage(page: NativePage, modifier: Modifier, action: Pa
     val bottomClearance = with(LocalDensity.current) { LocalNativePageBottomPx.current.toDp() }
     val tablet = LocalPadWindow.current.tablet
     val reduced = LocalLiquidReduced.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val rearSupported = remember(context) { io.github.huleixin.tingyu.RearLyricsCoordinator.hasRearDisplayHardware(context) }
+    val visibleSections = remember(page.sections, tablet, rearSupported) {
+        filterSettingsSectionsForDevice(page.sections, tablet = tablet, rearHardwareSupported = rearSupported)
+    }
 
     BoxWithConstraints(modifier) {
         val inset = UnifiedHeaderTokens.HorizontalPadding
@@ -86,7 +91,7 @@ internal fun NativeSettingsPage(page: NativePage, modifier: Modifier, action: Pa
                         bottom = maxOf((24 + page.safeBottom).dp, bottomClearance)
                     )
                 ) {
-                    page.sections.filter { !tablet || it.id != "rear" }.forEach { section ->
+                    visibleSections.forEach { section ->
                         item(key = section.id) {
                             Column(Modifier.padding(bottom = 20.dp)) {
                                 if (section.title.isNotBlank()) {

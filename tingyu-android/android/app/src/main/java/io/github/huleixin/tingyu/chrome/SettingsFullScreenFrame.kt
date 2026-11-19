@@ -41,8 +41,9 @@ import androidx.compose.ui.unit.sp
         TyTopGlassContentLayer(glass,colors,null,null,Modifier.fillMaxSize()){
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()){
                 Spacer(Modifier.height(glass.contentTop))
-                Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter){
-                    Column(Modifier.widthIn(max=1040.dp).fillMaxWidth().padding(horizontal=22.dp,vertical=12.dp),content=content)
+                val maxDetailWidth = if (splitPane) LocalPadWindow.current.settingsDetailMaxWidth.dp else 1040.dp
+                Box(Modifier.fillMaxWidth(),contentAlignment=if(splitPane)Alignment.TopStart else Alignment.TopCenter){
+                    Column(Modifier.widthIn(max=maxDetailWidth).fillMaxWidth().padding(horizontal=22.dp,vertical=12.dp),content=content)
                 }
                 Spacer(Modifier.height(bottomClearance))
             }

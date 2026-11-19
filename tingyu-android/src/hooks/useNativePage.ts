@@ -109,7 +109,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 && window.matchMedia('(min-width:840px) and (min-height:480px) and (orientation:landscape)').matches
                 && document.documentElement.dataset.nativeRoute === 'collection';
             const enabled = current.active && isMainStageActive() && (NATIVE_FIRST&&id==='collection'||padLibrary||!node.closest('[inert]'))
-                && (padLibrary||style.visibility !== 'hidden'||node.dataset.nativeDocumentRoot==='true') && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+                && (padLibrary||style.visibility !== 'hidden'||node.dataset.nativeDocumentRoot==='true'||(NATIVE_FIRST&&id==='settings')) && style.display !== 'none' && rect.width > 0 && rect.height > 0;
             const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-top')) || 0;
             const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom')) || 0;
             const packet = { id, session, generation, enabled, left: rect.left, top: rect.top, width: rect.width,
@@ -152,7 +152,14 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 if(event.action==='__refresh'){
                     last=undefined;refreshNativeSettingsDocument(event.text??'native-stale-presentation');schedule();return;
                 }
-                const reason=event.session!==session?'session-mismatch':event.key!==current.model?.key?'key-mismatch':node.dataset.nativePage!=='true'?'ownership-mismatch':!current.actions[event.action]?'unknown-control':'';
+                if(id==='settings'&&event.action==='__splitSelect'){
+                    if(document.documentElement.dataset.nativeShellRouting==='true')return;
+                    noteUiInteraction();
+                    current.actions.__splitSelect?.({ text: event.text, value: event.value });
+                    return;
+                }
+                const bypassSessionMatch = id === 'settings' && event.action === 'close';
+                const reason=(!bypassSessionMatch&&event.session!==session)?'session-mismatch':(!bypassSessionMatch&&event.key!==current.model?.key)?'key-mismatch':node.dataset.nativePage!=='true'?'ownership-mismatch':!current.actions[event.action]?'unknown-control':'';
                 settingsDiagnostic(reason?'action-rejected':'action-accepted',{id,session,key:current.model?.key??'',eventSession:event.session,eventKey:event.key,control:event.action,route:document.documentElement.dataset.nativeRoute,navigation:document.documentElement.dataset.nativeNavigation,reason});
                 if(reason){last=undefined;refreshNativeSettingsDocument(reason);schedule();return;}
                 noteUiInteraction();

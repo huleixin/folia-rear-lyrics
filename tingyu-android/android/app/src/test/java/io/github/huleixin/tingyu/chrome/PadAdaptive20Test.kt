@@ -733,4 +733,393 @@ class PadAdaptive20Test {
         compose.onNodeWithText("提交反馈").assertIsDisplayed()
         shot("settings-fix-feedback-phone")
     }
+
+    @Test
+    fun tabletSettingsThirdRoundSingleColumnAndAllEntriesInteractive() {
+        fun buildRealSettingsIndex(rearSubtitle: String): NativePage {
+            val sections = listOf(
+                section("accounts-service", "rows", "账号与服务", listOf(
+                    item("platform-accounts", "音乐平台账号", "管理各音乐平台的登录状态").put("action", "settings:accounts"),
+                )),
+                section("lyrics-output", "rows", "歌词功能", listOf(
+                    item("desktop-lyrics", "桌面歌词", "原生悬浮歌词与样式设置").put("action", "lyrics:desktop"),
+                    item("bluetooth-lyrics", "车载蓝牙歌词", "为选定 A2DP 设备尝试显示歌词标题").put("action", "lyrics:bluetooth"),
+                    item("rear-entry", "背屏歌词", rearSubtitle).put("action", "rear:open"),
+                )),
+                section("discovery", "rows", "音乐发现", listOf(
+                    item("discovery-settings", "推荐设置", "推荐来源、探索偏好与内容模块").put("action", "discovery:settings"),
+                    item("search-settings", "搜索设置", "搜索来源与结果偏好").put("action", "search:settings"),
+                )),
+                section("appearance", "rows", "外观", listOf(
+                    item("appearance", "视觉设置", "主题、歌词渲染和背景外观。").put("action", "settings:appearance"),
+                    item("general", "界面设置", "语言、布局与导航偏好").put("action", "settings:general"),
+                )),
+                section("control", "rows", "控制", listOf(
+                    item("playback", "播放控制", "音质、淡入淡出与输出设置").put("action", "settings:playback"),
+                    item("integration", "音源与系统歌词", "在线音源导入与状态栏歌词").put("action", "settings:integration"),
+                )),
+                section("system", "rows", "系统", listOf(
+                    item("storage", "存储与同步", "缓存清理、备份与恢复").put("action", "settings:storage"),
+                    item("graphics", "图形", "渲染帧率与硬件加速").put("action", "settings:graphics"),
+                    item("about", "关于与使用说明", "版本信息、更新检查与问题反馈").put("action", "help"),
+                )),
+                section("support", "rows", "支持与交流", listOf(
+                    item("coffee", "请作者喝杯咖啡", "自愿赞赏支持开发").put("action", "support:coffee"),
+                    item("community", "加入听屿交流群", "交流反馈与内测讨论").put("action", "support:group"),
+                )),
+            )
+            return NativePage.parse(
+                JSONObject()
+                    .put("id", "settings")
+                    .put("session", "pad-r3-index")
+                    .put("enabled", true)
+                    .put("width", 1280)
+                    .put("height", 800)
+                    .put("viewportWidth", 1280)
+                    .put("safeTop", 24)
+                    .put(
+                        "model",
+                        JSONObject()
+                            .put("key", "settings:index")
+                            .put("title", "设置")
+                            .put("bottomClearance", 74)
+                            .put("sections", JSONArray(sections)),
+                    )
+            )
+        }
+
+        val realAccountsDoc = semanticFlowPage(
+            "accounts",
+            "音乐平台账号",
+            listOf(
+                JSONObject().put("id", "accounts-desc").put("kind", "note").put("title", "统一管理各音乐平台的登录状态，同步个人歌单、收藏及高音质播放权限。不会影响自定义音源导入。"),
+                JSONObject().put("id", "accounts-group").put("kind", "group").put("title", "音乐平台"),
+                JSONObject().put("id", "provider:netease").put("kind", "action").put("title", "网易云音乐").put("hint", "已登录 · 吾乃小黑呀").put("value", "管理"),
+                JSONObject().put("id", "provider:kugou").put("kind", "action").put("title", "酷狗音乐").put("hint", "未登录（可使用公开推荐与搜索）").put("value", "登录"),
+                JSONObject().put("id", "provider:qq").put("kind", "action").put("title", "QQ音乐").put("hint", "已登录 · 测试账号").put("value", "管理"),
+                JSONObject().put("id", "provider:bodian").put("kind", "action").put("title", "波点音乐").put("hint", "未登录（可使用公开推荐与搜索）").put("value", "登录"),
+                JSONObject().put("id", "provider:qishui").put("kind", "action").put("title", "汽水音乐").put("hint", "未登录（可使用公开推荐与搜索）").put("value", "登录"),
+            ),
+        )
+        val discoveryDoc = semanticFlowPage(
+            "discovery",
+            "推荐设置",
+            listOf(
+                JSONObject().put("id", "disc-desc").put("kind", "note").put("title", "自定义推荐来源优先级与首页模块展示。"),
+                JSONObject().put("id", "disc-g1").put("kind", "group").put("title", "推荐来源"),
+                JSONObject().put("id", "disc-s1").put("kind", "switch").put("title", "启用跨平台混合推荐").put("value", "1"),
+                JSONObject().put("id", "disc-g2").put("kind", "group").put("title", "探索偏好"),
+                JSONObject().put("id", "disc-s2").put("kind", "switch").put("title", "优先推荐熟悉歌手").put("value", "0"),
+            ),
+        )
+        val searchDoc = semanticFlowPage(
+            "search",
+            "搜索设置",
+            listOf(
+                JSONObject().put("id", "search-desc").put("kind", "note").put("title", "管理聚合搜索的平台范围与搜索历史。"),
+                JSONObject().put("id", "search-g1").put("kind", "group").put("title", "搜索来源"),
+                JSONObject().put("id", "search-s1").put("kind", "switch").put("title", "聚合搜索全平台曲库").put("value", "1"),
+                JSONObject().put("id", "search-g2").put("kind", "group").put("title", "历史记录"),
+                JSONObject().put("id", "search-s2").put("kind", "action").put("title", "清空搜索历史").put("value", "清空"),
+            ),
+        )
+        val appearanceDoc = semanticFlowPage(
+            "options:appearance:false:false:false:false:false:false:false:false",
+            "视觉设置",
+            listOf(
+                JSONObject().put("id", "app-g1").put("kind", "group").put("title", "主题与色彩"),
+                JSONObject().put("id", "app-s1").put("kind", "switch").put("title", "跟随系统深浅色").put("value", "1"),
+            ),
+        )
+        val generalDoc = semanticFlowPage(
+            "options:general:false:false:false:false:false:false:false:false",
+            "界面设置",
+            listOf(
+                JSONObject().put("id", "gen-g1").put("kind", "group").put("title", "界面与语言"),
+                JSONObject().put("id", "gen-s1").put("kind", "action").put("title", "显示语言").put("value", "简体中文"),
+            ),
+        )
+        val playbackDoc = semanticFlowPage(
+            "options:playback:false:false:false:false:false:false:false:false",
+            "播放控制",
+            listOf(
+                JSONObject().put("id", "play-g1").put("kind", "group").put("title", "播放行为"),
+                JSONObject().put("id", "play-s1").put("kind", "switch").put("title", "无缝播放").put("value", "1"),
+            ),
+        )
+        val integrationDoc = semanticFlowPage(
+            "options:integration:false:false:false:false:false:false:false:false",
+            "音源与系统歌词",
+            listOf(
+                JSONObject().put("id", "int-g1").put("kind", "group").put("title", "自定义音源"),
+                JSONObject().put("id", "int-s1").put("kind", "action").put("title", "导入洛雪音源脚本").put("value", "导入"),
+            ),
+        )
+        val storageDoc = semanticFlowPage(
+            "options:storage:false:false:false:false:false:false:false:false",
+            "存储与同步",
+            listOf(
+                JSONObject().put("id", "sto-g1").put("kind", "group").put("title", "本地缓存"),
+                JSONObject().put("id", "sto-s1").put("kind", "action").put("title", "清理音频与图片缓存").put("value", "清理"),
+            ),
+        )
+        val graphicsDoc = semanticFlowPage(
+            "options:graphics:false:false:false:false:false:false:false:false",
+            "图形",
+            listOf(
+                JSONObject().put("id", "gfx-g1").put("kind", "group").put("title", "渲染管线"),
+                JSONObject().put("id", "gfx-s1").put("kind", "switch").put("title", "高刷液态玻璃渲染").put("value", "1"),
+            ),
+        )
+        val aboutDoc = semanticFlowPage(
+            "help:appearance:false:false:false:false:false:false:false:false",
+            "关于与使用说明",
+            listOf(
+                JSONObject().put("id", "abt-g1").put("kind", "group").put("title", "版本与更新"),
+                JSONObject().put("id", "abt-s1").put("kind", "action").put("title", "检查内测版本更新").put("value", "v1.5.96"),
+            ),
+        )
+        val rearControlDoc = NativePage.parse(
+            JSONObject()
+                .put("id", "settings")
+                .put("session", "pad-r3-rear")
+                .put("enabled", true)
+                .put("width", 1280)
+                .put("height", 800)
+                .put("viewportWidth", 1280)
+                .put("safeTop", 24)
+                .put(
+                    "model",
+                    JSONObject()
+                        .put("key", "settings:rear:control")
+                        .put("title", "背屏歌词")
+                        .put("leading", "rear:back")
+                        .put("trailingLabel", "返回")
+                        .put("sections", JSONArray(listOf(
+                            section("rear-summary", "rows", "背屏控制", listOf(
+                                item("toggle", "开启背屏歌词", "Shizuku · 未启用（等待授权）").put("action", "rear:toggle"),
+                            )),
+                        ))),
+                )
+        )
+
+        var window by mutableStateOf(PadWindow(1280f, 800f))
+        var palette by mutableStateOf(InterfacePalette(true, "glacier"))
+        var rootIndex by mutableStateOf(buildRealSettingsIndex("Shizuku · 当前未检测到支持的背屏"))
+        var currentDetail by mutableStateOf(realAccountsDoc)
+        var activeAction by mutableStateOf("settings:accounts")
+        var lyricsMode by mutableStateOf<String?>(null)
+        var supportSheet by mutableStateOf<String?>(null)
+        val clickedActions = mutableListOf<String>()
+
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalPadWindow provides window,
+                LocalInterfacePalette provides palette,
+                LocalChromeRendering provides false,
+                LocalNativePageBottomPx provides 112f,
+            ) {
+                Box(Modifier.size(window.width.dp, window.height.dp)) {
+                    val shown = supportSheet?.let { kind ->
+                        NativeSettingsDestination(kind).page(currentDetail, window.width, window.height)
+                    } ?: currentDetail
+                    val nativeKind = NativeSettingsDestination.fromKey(shown.key)
+                    if (nativeKind != null) {
+                        NativeSettingsContent(nativeKind, compose.activity, null) {
+                            supportSheet = null
+                        }
+                    } else {
+                        NativePageView(
+                            page = shown,
+                            modifier = Modifier.fillMaxSize(),
+                            settingsRootPage = rootIndex,
+                            settingsActiveAction = activeAction,
+                            splitLyricsMode = lyricsMode,
+                            onCloseSplitLyrics = { lyricsMode = null },
+                            onSettingsSelect = { itemAction, _, _ ->
+                                clickedActions += itemAction
+                                if (itemAction.startsWith("support:")) {
+                                    supportSheet = itemAction.removePrefix("support:")
+                                } else if (itemAction == "lyrics:desktop" || itemAction == "lyrics:bluetooth") {
+                                    lyricsMode = if (itemAction == "lyrics:bluetooth") "bluetooth" else "desktop"
+                                    activeAction = itemAction
+                                } else {
+                                    lyricsMode = null
+                                    activeAction = itemAction
+                                    currentDetail = when (itemAction) {
+                                        "settings:accounts" -> realAccountsDoc
+                                        "rear:open" -> rearControlDoc
+                                        "discovery:settings" -> discoveryDoc
+                                        "search:settings" -> searchDoc
+                                        "settings:appearance" -> appearanceDoc
+                                        "settings:general" -> generalDoc
+                                        "settings:playback" -> playbackDoc
+                                        "settings:integration" -> integrationDoc
+                                        "settings:storage" -> storageDoc
+                                        "settings:graphics" -> graphicsDoc
+                                        "help" -> aboutDoc
+                                        else -> currentDetail
+                                    }
+                                }
+                            },
+                        ) { action, _, _ ->
+                            clickedActions += action
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1. Verify Problem 3: Unsupported tablet hides 背屏歌词 inside 歌词功能 while keeping 桌面歌词 & 车载蓝牙歌词
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithText("桌面歌词").assertIsDisplayed()
+        compose.onNodeWithText("车载蓝牙歌词").assertIsDisplayed()
+        compose.onNodeWithText("背屏歌词").assertDoesNotExist()
+
+        // 2. Verify Problem 1: 音乐平台账号 detail pane uses single vertical column (Title -> Note -> Group -> Providers)
+        val noteBounds = compose.onNodeWithText("统一管理各音乐平台的登录状态，同步个人歌单、收藏及高音质播放权限。不会影响自定义音源导入。").fetchSemanticsNode().boundsInRoot
+        val groupBounds = compose.onNodeWithText("音乐平台").fetchSemanticsNode().boundsInRoot
+        val neteaseBounds = compose.onNodeWithText("网易云音乐").fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "Explanatory note must be stacked vertically ABOVE group header (no 2-column split); note=$noteBounds, group=$groupBounds",
+            noteBounds.bottom <= groupBounds.top + 4f && kotlin.math.abs(noteBounds.left - groupBounds.left) < 12f,
+        )
+        assertTrue(
+            "Group header must be stacked vertically ABOVE provider cards; group=$groupBounds, netease=$neteaseBounds",
+            groupBounds.bottom <= neteaseBounds.top + 4f,
+        )
+        shot("pad-r3-accounts-single-column-glacier-light")
+
+        // 3. Verify Problem 2 & 5: Click through EVERY setting item in the middle directory one by one!
+        // (2) 桌面歌词
+        compose.onNodeWithText("桌面歌词").performClick()
+        assertEquals("lyrics:desktop", activeAction)
+        compose.onNodeWithText("启用桌面歌词").assertIsDisplayed()
+
+        // (3) 车载蓝牙歌词
+        compose.onNodeWithText("车载蓝牙歌词").performClick()
+        assertEquals("lyrics:bluetooth", activeAction)
+        compose.onAllNodesWithText("车载蓝牙歌词").assertCountEquals(2)
+
+        // (4) 推荐设置 (also verify single-column vertical stacking of its 2 groups!)
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("推荐设置"))
+        compose.onNodeWithText("推荐设置").performClick()
+        assertEquals("discovery:settings", activeAction)
+        compose.onNodeWithText("启用跨平台混合推荐").assertIsDisplayed()
+        val discG1 = compose.onNodeWithText("推荐来源").fetchSemanticsNode().boundsInRoot
+        val discG2 = compose.onNodeWithText("探索偏好").fetchSemanticsNode().boundsInRoot
+        assertTrue("Discovery settings groups must stack vertically in one column; g1=$discG1, g2=$discG2", discG1.bottom <= discG2.top && kotlin.math.abs(discG1.left - discG2.left) < 12f)
+        shot("pad-r3-discovery-single-column")
+
+        // (5) 搜索设置
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("搜索设置"))
+        compose.onNodeWithText("搜索设置").performClick()
+        assertEquals("search:settings", activeAction)
+        compose.onNodeWithText("聚合搜索全平台曲库").assertIsDisplayed()
+
+        // (6) 视觉设置
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("视觉设置"))
+        compose.onNodeWithText("视觉设置").performClick()
+        assertEquals("settings:appearance", activeAction)
+        compose.onNodeWithText("跟随系统深浅色").assertIsDisplayed()
+
+        // (7) 界面设置
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("界面设置"))
+        compose.onNodeWithText("界面设置").performClick()
+        assertEquals("settings:general", activeAction)
+        compose.onNodeWithText("显示语言").assertIsDisplayed()
+
+        // (8) 播放控制
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("播放控制"))
+        compose.onNodeWithText("播放控制").performClick()
+        assertEquals("settings:playback", activeAction)
+        compose.onNodeWithText("无缝播放").assertIsDisplayed()
+
+        // (9) 音源与系统歌词
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("音源与系统歌词"))
+        compose.onNodeWithText("音源与系统歌词").performClick()
+        assertEquals("settings:integration", activeAction)
+        compose.onNodeWithText("导入洛雪音源脚本").assertIsDisplayed()
+
+        // (10) 存储与同步
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("存储与同步"))
+        compose.onNodeWithText("存储与同步").performClick()
+        assertEquals("settings:storage", activeAction)
+        compose.onNodeWithText("清理音频与图片缓存").assertIsDisplayed()
+
+        // (11) 图形
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("图形"))
+        compose.onNodeWithText("图形").performClick()
+        assertEquals("settings:graphics", activeAction)
+        compose.onNodeWithText("高刷液态玻璃渲染").assertIsDisplayed()
+
+        // (12) 关于与使用说明
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("关于与使用说明"))
+        compose.onNodeWithText("关于与使用说明").performClick()
+        assertEquals("help", activeAction)
+        compose.onNodeWithText("检查内测版本更新").assertIsDisplayed()
+
+        // (13) 请作者喝杯咖啡 (native support sheet) -> open and return
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("请作者喝杯咖啡"))
+        compose.onNodeWithText("请作者喝杯咖啡").performClick()
+        assertEquals("coffee", supportSheet)
+        compose.runOnIdle { supportSheet = null }
+
+        // (14) 加入听屿交流群 (native support sheet) -> open and return
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("加入听屿交流群"))
+        compose.onNodeWithText("加入听屿交流群").performClick()
+        assertEquals("group", supportSheet)
+        compose.runOnIdle { supportSheet = null }
+
+        // (1) Scroll back to top and click 音乐平台账号 -> returns to 音乐平台账号 in right pane
+        compose.onNodeWithTag("pad-settings-directory").performScrollToNode(hasText("音乐平台账号"))
+        compose.onNodeWithText("音乐平台账号").performClick()
+        assertEquals("settings:accounts", activeAction)
+        compose.onNodeWithText("网易云音乐").assertIsDisplayed()
+
+        // (15) Rear-capable device (even before Shizuku permission is granted!) retains 背屏歌词 and opens it in right pane
+        compose.runOnIdle {
+            rootIndex = buildRealSettingsIndex("Shizuku · 未启用（等待授权）")
+        }
+        compose.onNodeWithText("背屏歌词").assertIsDisplayed().performClick()
+        assertEquals("rear:open", activeAction)
+        compose.onNodeWithText("开启背屏歌词").assertIsDisplayed()
+
+        // Switch back to unsupported tablet index & verify across Classic Dark, Portrait (800x1280), Split-Screen (720x800), and Phone (393x852)
+        compose.runOnIdle {
+            rootIndex = buildRealSettingsIndex("Shizuku · 当前未检测到支持的背屏")
+            currentDetail = realAccountsDoc
+            activeAction = "settings:accounts"
+            palette = InterfacePalette(false, "classic")
+        }
+        compose.onNodeWithText("背屏歌词").assertDoesNotExist()
+        compose.onNodeWithText("网易云音乐").assertIsDisplayed()
+        shot("pad-r3-accounts-single-column-classic-dark")
+
+        // Tablet portrait 800x1280 preserves selected setting & single-column right detail
+        compose.runOnIdle {
+            palette = InterfacePalette(true, "glacier")
+            window = PadWindow(800f, 1280f)
+        }
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithText("网易云音乐").assertIsDisplayed()
+        val portraitNote = compose.onNodeWithText("统一管理各音乐平台的登录状态，同步个人歌单、收藏及高音质播放权限。不会影响自定义音源导入。").fetchSemanticsNode().boundsInRoot
+        val portraitGroup = compose.onNodeWithText("音乐平台").fetchSemanticsNode().boundsInRoot
+        assertTrue("Portrait right pane must also stack note above group", portraitNote.bottom <= portraitGroup.top + 4f)
+        shot("pad-r3-accounts-portrait-800x1280")
+
+        // Split-screen 720x800
+        compose.runOnIdle { window = PadWindow(720f, 800f) }
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithText("网易云音乐").assertIsDisplayed()
+        shot("pad-r3-accounts-split-720x800")
+
+        // Phone 393x852 preserves 背屏歌词 entry on phone index
+        compose.runOnIdle {
+            window = PadWindow(393f, 852f)
+            currentDetail = rootIndex
+        }
+        compose.onNodeWithText("背屏歌词").assertIsDisplayed()
+        shot("pad-r3-phone-393x852-retains-rear")
+    }
 }

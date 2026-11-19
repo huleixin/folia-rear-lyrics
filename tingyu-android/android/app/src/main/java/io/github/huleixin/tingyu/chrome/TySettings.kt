@@ -630,19 +630,28 @@ internal fun TySettingsPageView(
     val scrollState = rememberScrollState()
     androidx.compose.runtime.CompositionLocalProvider(LocalSettingsScrollState provides scrollState) {
         val window = LocalPadWindow.current
-        Column(modifier.fillMaxSize().imePadding(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-            val maxContentWidth = when {
-                page.layout != null -> androidx.compose.ui.unit.Dp.Unspecified
-                window.settingsDualPane && groupSettingsNodes(page.nodes).size > 1 -> 1040.dp
-                else -> window.settingsDetailMaxWidth.dp
-            }
+        val isSplitDetail = window.settingsDualPane
+        val maxContentWidth = if (isSplitDetail || window.tablet) {
+            window.settingsDetailMaxWidth.dp
+        } else {
+            androidx.compose.ui.unit.Dp.Unspecified
+        }
+        val horizontalPad = if (page.layout == null) {
+            if (isSplitDetail) 22.dp else window.pageHorizontalMargin.dp
+        } else {
+            0.dp
+        }
+        Column(
+            modifier.fillMaxSize().imePadding(),
+            horizontalAlignment = if (isSplitDetail) androidx.compose.ui.Alignment.Start else androidx.compose.ui.Alignment.CenterHorizontally,
+        ) {
             Column(
                 Modifier
                     .fillMaxWidth()
                     .then(if (maxContentWidth != androidx.compose.ui.unit.Dp.Unspecified) Modifier.widthIn(max = maxContentWidth) else Modifier)
                     .weight(1f)
                     .verticalScroll(scrollState)
-                    .padding(start = if(page.layout==null) window.pageHorizontalMargin.dp else 0.dp, end = if(page.layout==null) window.pageHorizontalMargin.dp else 0.dp, top = contentTop)
+                    .padding(start = horizontalPad, end = horizontalPad, top = contentTop)
                     .padding(bottom = bottomPadding),
             ) {
                 // 分组切分：group 节点开一张卡片，其后的普通节点都装进这张卡片，
@@ -655,35 +664,6 @@ internal fun TySettingsPageView(
 
 @Composable
 internal fun TySettingsContent(page: TySettingsPage, theme: TyPanelTheme, onAction: PageAction) {
-    val padGroups=groupSettingsNodes(page.nodes)
-    if(page.layout==null&&padGroups.size>1){
-        BoxWithConstraints(Modifier.fillMaxWidth()){
-            if(maxWidth>=680.dp){
-                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(24.dp)){
-                    repeat(2){column->Column(Modifier.weight(1f)){
-                        padGroups.filterIndexed{index,_->index%2==column}.forEach{(group,nodes)->
-                            TySettingsContent(page.copy(nodes=listOfNotNull(group)+nodes),theme,onAction)
-                        }
-                    }}
-                }
-            }else{
-                Column(Modifier.fillMaxWidth()){
-                    padGroups.forEach{(group,items)->
-                        key(group?.id?:"ungrouped"){
-                            @Composable fun Items(){
-                                items.forEachIndexed{index,node->
-                                    if(index>0&&node.kind!="note"&&items[index-1].kind!="note")SettingsDivider(theme)
-                                    key(node.id){TySettingItemView(theme,node,onAction)}
-                                }
-                            }
-                            if(group!=null)SettingsGroup(theme,group.title,group.hint){Items()} else Items()
-                        }
-                    }
-                }
-            }
-        }
-        return
-    }
     if(page.layout!=null){
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalTextStyle provides TextStyle(color=theme.text,fontSize=14.sp,lineHeight=20.sp)){
             SettingsLayoutView(page.layout,page.nodes.associateBy{it.id},theme,onAction)

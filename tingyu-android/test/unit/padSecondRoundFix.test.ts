@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { isTabletSettingsDualPane, resolveSettingsOverlayBacking } from '../../src/utils/nativeShellState';
 import { dispatchSettingsSplitAction, handleSettingsPaneBack } from '../../src/components/modal/settings/settingsSplitNavigation';
+import { hasRearDisplayCapability, shouldShowRearLyricsEntry } from '../../src/components/modal/settings/rearControlModel';
 import { useSettingsModalStore } from '../../src/stores/useSettingsModalStore';
 
 describe('Tablet second-round split settings & shell state', () => {
@@ -76,5 +77,61 @@ describe('Tablet second-round split settings & shell state', () => {
         handleSettingsPaneBack(true, closeSpy);
         expect(closeSpy).toHaveBeenCalledOnce();
         vi.unstubAllGlobals();
+    });
+
+    it('routes all regular tablet setting actions to their exact detail page targets', () => {
+        const expectedTargets: Array<[string, string]> = [
+            ['settings:accounts', 'settings:document:accounts'],
+            ['discovery:settings', 'settings:document:discovery'],
+            ['search:settings', 'settings:document:search'],
+            ['settings:appearance', 'settings:document:options:appearance:'],
+            ['settings:general', 'settings:document:options:general:'],
+            ['settings:playback', 'settings:document:options:playback:'],
+            ['settings:integration', 'settings:document:options:integration:'],
+            ['settings:storage', 'settings:document:options:storage:'],
+            ['settings:graphics', 'settings:document:options:graphics:'],
+            ['help', 'settings:document:help:'],
+            ['rear:open', 'settings:rear:control'],
+        ];
+        for (const [action, target] of expectedTargets) {
+            expect(dispatchSettingsSplitAction(action)).toBe(true);
+            const state = useSettingsModalStore.getState().settingsModalState;
+            const backing = resolveSettingsOverlayBacking(state, true);
+            expect(backing.settingsOwnsRoute).toBe(true);
+            if (target.endsWith(':')) {
+                expect(backing.pageTarget.startsWith(target)).toBe(true);
+            } else {
+                expect(backing.pageTarget).toBe(target);
+            }
+        }
+    });
+
+    it('hides rear lyrics entry on unsupported tablets while preserving it on rear-capable devices (even without Shizuku auth) and phones', () => {
+        // Ordinary tablet with no rear display
+        const unsupportedTabletStatus = {
+            backendMode: 'shizuku' as const,
+            shizukuAvailable: false,
+            authorized: false,
+            rearDisplayId: -1,
+            rearHardwareSupported: false,
+        };
+        expect(hasRearDisplayCapability(unsupportedTabletStatus)).toBe(false);
+        expect(shouldShowRearLyricsEntry(unsupportedTabletStatus, true)).toBe(false);
+        expect(shouldShowRearLyricsEntry(null, true)).toBe(false);
+
+        // Rear-capable device where Shizuku permission has NOT been granted yet
+        const unauthedRearCapableStatus = {
+            backendMode: 'shizuku' as const,
+            shizukuAvailable: false,
+            authorized: false,
+            rearDisplayId: 2,
+            rearHardwareSupported: true,
+        };
+        expect(hasRearDisplayCapability(unauthedRearCapableStatus)).toBe(true);
+        expect(shouldShowRearLyricsEntry(unauthedRearCapableStatus, true)).toBe(true);
+
+        // Phone retains rear lyrics entry regardless of initial snapshot
+        expect(shouldShowRearLyricsEntry(null, false)).toBe(true);
+        expect(shouldShowRearLyricsEntry({ rearDisplayId: -1 }, false)).toBe(true);
     });
 });

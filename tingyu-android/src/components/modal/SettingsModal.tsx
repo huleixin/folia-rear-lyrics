@@ -463,7 +463,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const contentScrollRef = useRef<HTMLDivElement>(null);
     // Matches the md:flex-row split below; the two sidebars are different enough to render separately.
     const phoneFitEnabled = useAndroidLayoutSettingsStore(state => state.phoneFitEnabled);
-    const isWideSettingsLayout = useMediaQuery('(min-width: 768px)') && !phoneFitEnabled;
+    const isWideSettingsLayout = !NATIVE_FIRST && useMediaQuery('(min-width: 768px)') && !phoneFitEnabled;
     const isMobileSettings = useActiveLibrarySuiteId() === 'mobile' && (NATIVE_FIRST || !isWideSettingsLayout);
     const subviewBackStackLen = useSettingsModalStore(state => state.settingsModalState.subviewBackStack?.length ?? 0);
     const returnFromMobileSection = () => {
@@ -487,7 +487,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     // stage closes the modal. Entering playback from the index is not a direct editor.
     const shouldCloseModalOnSubviewBack = initialSubview !== null && (!NATIVE_FIRST||['visualizer','themePark','lyricFilter','globalLyricOffset'].includes(initialSubview));
 
-    useEffect(() => {
+    React.useLayoutEffect(() => {
         setActiveTab(initialTab);
         if (initialSubview !== null || initialAnchor !== null) setMobileSettingsIndex(false);
         setShowVisPlayground(initialSubview === 'visualizer');
@@ -495,6 +495,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         setShowThemePark(initialSubview === 'themePark');
         setShowLyricFilterSettings(initialSubview === 'lyricFilter');
         setShowGlobalLyricOffset(initialSubview === 'globalLyricOffset');
+        setShowAiHelpPrompt(false);
+        setShowReleaseNotes(false);
 
         const targetSection = sectionForSettingsSubview(initialSubview);
         if (targetSection) {
@@ -1447,7 +1449,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     // Their mounted React components retain the existing handlers, not browser placement.
     useNativeSettingsDocument(nativeDocumentRef,NATIVE_FIRST,
         `${activeTab}:${activeSettingsSection}:${showVisPlayground}:${showStageTheme}:${showThemePark}:${showLyricFilterSettings}:${showGlobalLyricOffset}:${showAiHelpPrompt}:${showReleaseNotes}:${subviewBackStackLen > 0}`,
-        showVisPlayground?t(showStageTheme?'rearAppearance.theme':'rearAppearance.edit'):activeSettingsNavItem?.label??t('ui.options'));
+        showVisPlayground?t(showStageTheme?'rearAppearance.theme':'rearAppearance.edit'):activeTab==='help'?t('mobileSettings.about'):activeSettingsNavItem?.label??t('ui.options'));
 
 
     return (

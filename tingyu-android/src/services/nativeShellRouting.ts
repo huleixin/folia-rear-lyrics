@@ -10,18 +10,28 @@ import { nativeShellRoute, nativeShellHasWebOverlay, resolveSettingsOverlayBacki
 import { collectionKey } from '../library/core/model/collectionIdentity';
 import { useMotionSettingsStore, readReducedMotion } from '../stores/useMotionSettingsStore';
 import { useAndroidLayoutSettingsStore } from '../stores/useAndroidLayoutSettingsStore';
-import {setNativeShellPublisher,scheduleNativeShellRoute} from './nativeShellCommit';
+import {setNativeShellPublisher,scheduleNativeShellRoute,flushNativeShellRoute} from './nativeShellCommit';
 import {canPublishNativeStage} from '../utils/nativeStageCommit';
 import { isStageSurface, usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
 import { composeMinimalOwnsSurface } from './nativeMinimalPlayer';
 import { installNativeMotionPreferences } from './nativeMotionPreferences';
+import { dispatchSettingsSplitAction } from '../components/modal/settings/settingsSplitNavigation';
 
 // src/services/nativeShellRouting.ts
 // The native shell owns its UI from process start; JS only supplies destinations and data.
 let installed=false;
 export function installNativeShellRouting() {
     if(!NATIVE_FIRST||installed)return;installed=true;
+    document.documentElement.dataset.nativeShellRouting='true';
     void installNativeMotionPreferences().catch(error => console.warn('[NativeShell] Motion preference unavailable', error));
+    void nativePages.addListener('pageAction', event => {
+        if (event.id !== 'settings') return;
+        if (event.action === '__splitSelect' && event.text) {
+            if (dispatchSettingsSplitAction(event.text)) {
+                flushNativeShellRoute();
+            }
+        }
+    }).catch(error => console.warn('[NativeShell] Settings split listener unavailable', error));
     const generation=newChromeGeneration();let revision=0,last='',lastRoute='',navigationRevision=0;
     const publish=()=>{
         const view=useAppViewStore.getState(),settingsState=useSettingsModalStore.getState(),settings=settingsState.settingsModalState;

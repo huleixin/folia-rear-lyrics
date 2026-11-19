@@ -47,9 +47,10 @@ import androidx.compose.ui.unit.sp
             Box(Modifier.fillMaxSize()){
                 TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
                 val list = rememberLazyListState()
+                val maxDetailWidth = if (splitPane) LocalPadWindow.current.settingsDetailMaxWidth.dp else androidx.compose.ui.unit.Dp.Unspecified
                 LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.contentTop,bottom=bottomPad),verticalArrangement=Arrangement.spacedBy(16.dp)){
                     page.sections.forEach{section->item(key=section.id){
-                        Column{
+                        Column(if (maxDetailWidth != androidx.compose.ui.unit.Dp.Unspecified) Modifier.fillMaxWidth().widthIn(max = maxDetailWidth) else Modifier.fillMaxWidth()){
                             if(section.title.isNotBlank())Text(section.title,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,modifier=Modifier.padding(start=2.dp,bottom=8.dp))
                             when(section.layout){
                                 "message"->Text(section.text,color=PageMuted,fontSize=12.sp,lineHeight=19.sp,modifier=Modifier.padding(horizontal=2.dp))

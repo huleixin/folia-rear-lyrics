@@ -14,12 +14,53 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.huleixin.tingyu.RearLyricsCoordinator
+
+internal fun isRearItemSupportedOnTablet(item: NativePageItem, rearHardwareSupported: Boolean): Boolean {
+    if (item.id != "rear-entry" && item.action != "rear:open" && !item.action.startsWith("rear:")) return true
+    if (rearHardwareSupported) return true
+    val sub = item.subtitle.trim()
+    if (sub.isEmpty()) return false
+    val supportedCapabilityMarkers = listOf(
+        "已检测到背屏",
+        "等待授权",
+        "请授予",
+        "背屏已活跃",
+        "等待背屏",
+        "已退回系统",
+        "休眠中",
+        "相机占用",
+    )
+    return supportedCapabilityMarkers.any { sub.contains(it, ignoreCase = true) }
+}
+
+internal fun filterSettingsSectionsForDevice(
+    sections: List<NativePageSection>,
+    tablet: Boolean,
+    rearHardwareSupported: Boolean = false,
+): List<NativePageSection> {
+    if (!tablet) return sections
+    return sections.mapNotNull { section ->
+        if (section.id == "rear" && !rearHardwareSupported) {
+            return@mapNotNull null
+        }
+        val filteredItems = section.items.filter { isRearItemSupportedOnTablet(it, rearHardwareSupported) }
+        if (filteredItems.isEmpty() && section.items.isNotEmpty() && section.text.isBlank()) {
+            null
+        } else if (filteredItems.size == section.items.size) {
+            section
+        } else {
+            section.copy(items = filteredItems)
+        }
+    }
+}
 
 // Tablet master-detail settings: left global nav + middle full settings list + right live subpage detail.
 @Composable
@@ -32,7 +73,11 @@ internal fun PadSettingsPage(
 ) {
     val window = LocalPadWindow.current
     val palette = LocalInterfacePalette.current
-    val groups = remember(page.sections) { page.sections.filter { it.id != "rear" } }
+    val context = LocalContext.current
+    val rearSupported = remember(context) { RearLyricsCoordinator.hasRearDisplayHardware(context) }
+    val groups = remember(page.sections, rearSupported) {
+        filterSettingsSectionsForDevice(page.sections, tablet = true, rearHardwareSupported = rearSupported)
+    }
     val hostBottom = with(LocalDensity.current) { LocalNativePageBottomPx.current.toDp() }
     val bottomPadding = maxOf(hostBottom, (page.safeBottom + if (window.expanded) 96 else 36).dp)
     val startInset = if (window.expanded) 114.dp else window.pageHorizontalMargin.dp

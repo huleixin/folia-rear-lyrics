@@ -58,7 +58,7 @@ data class PadWindow(val width: Float = 0f, val height: Float = 0f) {
             else -> 236f
         }
 
-    val settingsDetailMaxWidth: Float get() = 720f
+    val settingsDetailMaxWidth: Float get() = 760f
     val homeMaxWidth: Float get() = 1440f
 
     fun adaptiveColumns(

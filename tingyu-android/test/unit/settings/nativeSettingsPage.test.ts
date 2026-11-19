@@ -20,7 +20,7 @@ vi.mock('react-i18next',async()=>{
         const value=key.split('.').reduce<any>((node,part)=>node?.[part],dictionary);
         return typeof value==='string'?value.replace(/{{(\w+)}}/g,(_match,part)=>String(args?.[part]??'')):key;
     };
-    return {useTranslation:()=>({t})};
+    return {useTranslation:()=>({t}),initReactI18next:{type:'3rdParty',init:()=>{}}};
 });
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
 let host:HTMLDivElement,root:Root;
@@ -33,9 +33,10 @@ beforeEach(()=>{vi.clearAllMocks();state.change.mockResolvedValue(true);state.re
 afterEach(()=>{act(()=>root.unmount());host.remove()});
 it('uses translated system status and keeps the original rear controls in one group',async()=>{
     await act(async()=>root.render(h(Probe)));
-    const rear=state.model.sections.find((section:any)=>section.id==='rear');
-    expect(rear.items[0].subtitle).toContain(zh.rearBridge.system);
-    expect(rear.items.map((item:any)=>item.id)).toEqual(['rear-entry']);
+    const rear=state.model.sections.find((section:any)=>section.id==='lyrics-output');
+    const rearItem=rear.items.find((item:any)=>item.id==='rear-entry');
+    expect(rearItem.subtitle).toContain(zh.rearBridge.system);
+    expect(rearItem.id).toBe('rear-entry');
     expect(rear.image).toBeUndefined();
     expect(JSON.stringify(state.model)).not.toContain('mobileSettings.rearState.system');
     expect(state.model.sections.find((section:any)=>section.id==='system').items[0].id).toBe('about');

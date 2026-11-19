@@ -1,13 +1,14 @@
 import { type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNativePage } from '../../../hooks/useNativePage';
-import {buildRearControlPage,rearEntrySubtitle,type RearSettingsPage} from './rearControlModel';
+import {buildRearControlPage,rearEntrySubtitle,shouldShowRearLyricsEntry,type RearSettingsPage} from './rearControlModel';
 import {rearControlActions} from './rearControlActions';
 import type {RearSettingsController} from './useRearSettingsController';
 import type { SettingsNavGroup, SettingsSectionId } from './navigation/settingsNavModel';
 import type { NativePageModel, PageActions, PageSection, PageItem } from '../../../types/nativePages';
 import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../services/nativeLyrics';
 import { dispatchSettingsSplitAction } from './settingsSplitNavigation';
+import { isTabletSettingsDualPane } from '../../../utils/nativeShellState';
 
 // src/components/modal/settings/useNativeSettingsPage.ts
 // Same index groups and rear-display controls as MobileSettingsNavigation / AndroidRearLyricsSetting.
@@ -37,7 +38,7 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:Rear
             {id:'bluetooth-lyrics',title:t('lyricsOutput.bluetooth'),subtitle:t('lyricsOutput.bluetoothHint'),action:'lyrics:bluetooth'},
         );
     }
-    if (rear.available) {
+    if (rear.available && shouldShowRearLyricsEntry(rear.snapshot, isTabletSettingsDualPane())) {
         lyricsItems.push({id:'rear-entry',title:t('rearControl.title'),subtitle:rearEntrySubtitle(rear.snapshot,rear.failed,t),action:'rear:open'});
     }
     if (lyricsItems.length) {

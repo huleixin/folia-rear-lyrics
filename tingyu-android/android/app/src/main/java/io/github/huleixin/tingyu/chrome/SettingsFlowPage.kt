@@ -159,9 +159,11 @@ internal fun SettingsFlowPage(
                 },
             ) {
                 val origin = glass.originTopPx.takeIf { it.isFinite() } ?: 0f
+                val maxDetailWidthPx = with(density) { LocalPadWindow.current.settingsDetailMaxWidth.dp.toPx() }
+                val effectiveViewportWidth = if (splitPane) minOf(viewportWidth, maxDetailWidthPx) else viewportWidth
                 CompositionLocalProvider(
                     LocalSettingsPreviewCutouts provides cutouts,
-                    LocalSettingsPreviewViewport provides Rect(glass.originLeftPx, origin + with(density) { glass.contentTop.toPx() }, glass.originLeftPx + viewportWidth, origin + viewportHeight),
+                    LocalSettingsPreviewViewport provides Rect(glass.originLeftPx, origin + with(density) { glass.contentTop.toPx() }, glass.originLeftPx + effectiveViewportWidth, origin + viewportHeight),
                 ) {
                 key(flow.key) { TySettingsPageView(
                     page = flow,
@@ -203,7 +205,7 @@ internal fun SettingsFlowPage(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 10.dp).weight(1f),
+                        modifier = Modifier.padding(start = if (showBack) 10.dp else 0.dp).weight(1f),
                     )
                     flow.headerActions.forEach { id -> flow.nodes.firstOrNull { it.id == id }?.let { node ->
                         Box(Modifier.then(if(node.icon.isBlank())Modifier.widthIn(min=40.dp,max=112.dp).height(40.dp).padding(horizontal=6.dp)else Modifier.size(40.dp)).clip(RoundedCornerShape(999.dp))

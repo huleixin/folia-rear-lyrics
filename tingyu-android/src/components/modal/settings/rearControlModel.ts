@@ -27,6 +27,25 @@ export function rearRunLabel(s:RearLyricsStatus|null,failed:boolean,t:Translate)
 export function rearEntrySubtitle(s:RearLyricsStatus|null,failed:boolean,t:Translate){
     return `${s?.backendMode==='lsp'?'LSP':s?.backendMode==='shizuku'?'Shizuku':t('mobileSettings.rearState.detecting')} · ${rearRunLabel(s,failed,t)}`;
 }
+/**
+ * Rear-display hardware capability check independent of Shizuku authorization state.
+ * A device that has not granted Shizuku permission yet still reports rearHardwareSupported=true
+ * or rearDisplayId>=0, whereas an ordinary tablet without a rear screen reports neither.
+ */
+export function hasRearDisplayCapability(s: RearLyricsStatus | null | undefined): boolean {
+    if (!s) return false;
+    if (typeof s.rearHardwareSupported === 'boolean') return s.rearHardwareSupported;
+    return (s.rearDisplayId ?? -1) >= 0
+        || s.hostConnected === true
+        || s.lspConnected === true
+        || s.nativeCardKeepAwakeAvailable === true
+        || s.enabled === true
+        || s.active === true;
+}
+export function shouldShowRearLyricsEntry(s: RearLyricsStatus | null | undefined, isTablet: boolean): boolean {
+    if (!isTablet) return s?.rearHardwareSupported !== false || (s?.rearDisplayId ?? -1) >= 0 || !('rearHardwareSupported' in (s ?? {}));
+    return hasRearDisplayCapability(s);
+}
 /** Same compact, capability-aware presentation is consumed by Compose and the Web fallback. */
 export function buildRearControlPage(page:'control'|'advanced',state:RearPresentation,t:Translate):NativePageModel {
     const s=state.snapshot,backend=s?.backendMode??'shizuku',locked=rearModeLocked(s,state.busy);
