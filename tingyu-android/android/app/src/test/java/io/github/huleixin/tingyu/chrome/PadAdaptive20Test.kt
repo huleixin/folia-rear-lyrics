@@ -1114,6 +1114,24 @@ class PadAdaptive20Test {
         compose.onNodeWithText("网易云音乐").assertIsDisplayed()
         shot("pad-r3-accounts-split-720x800")
 
+        // Verify selected row pill keeps identical height & text position before and after selection (zero layout shift)
+        compose.runOnIdle {
+            window = PadWindow(1280f, 800f)
+            activeAction = "settings:accounts"
+        }
+        compose.waitForIdle()
+        val accountsBoundsSelected = compose.onAllNodesWithText("音乐平台账号")[0].fetchSemanticsNode().boundsInRoot
+        val desktopBoundsUnselected = compose.onAllNodesWithText("桌面歌词")[0].fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("pad-settings-row-selected").assertIsDisplayed()
+        compose.runOnIdle { activeAction = "desktopLyrics:open" }
+        compose.waitForIdle()
+        val accountsBoundsUnselected = compose.onAllNodesWithText("音乐平台账号")[0].fetchSemanticsNode().boundsInRoot
+        val desktopBoundsSelected = compose.onAllNodesWithText("桌面歌词")[0].fetchSemanticsNode().boundsInRoot
+        assertEquals(accountsBoundsSelected.top, accountsBoundsUnselected.top, 0.5f)
+        assertEquals(accountsBoundsSelected.left, accountsBoundsUnselected.left, 0.5f)
+        assertEquals(desktopBoundsUnselected.top, desktopBoundsSelected.top, 0.5f)
+        assertEquals(desktopBoundsUnselected.left, desktopBoundsSelected.left, 0.5f)
+
         // Phone 393x852 preserves 背屏歌词 entry on phone index
         compose.runOnIdle {
             window = PadWindow(393f, 852f)

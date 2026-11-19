@@ -157,9 +157,17 @@ object LxRuntimeHost {
     fun validate(code: String, metadata: JSONObject): String {
         if (code.toByteArray(Charsets.UTF_8).size > 1_048_576) return "音源脚本不能超过 1 MB"
         val candidate=LxScriptEngine(hooks)
-        return try {runBlocking {candidate.start(code, JSONObject().apply { listOf("name","version","description","author","homepage").forEach { put(it, metadata.optString(it).take(160)) } })}; ""}
-        catch (failure: Throwable) {redact(failure.message ?: failure.javaClass.simpleName)}
-        finally {runBlocking {candidate.shutdown()}}
+        val info = JSONObject().apply { listOf("name","version","description","author","homepage").forEach { put(it, metadata.optString(it).take(160)) } }
+        return try {
+            runBlocking { candidate.start(code, info, timeoutMs = 20_000L) }
+            ""
+        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+            "原生 JS 初始化超时（超过 20 秒）"
+        } catch (failure: Throwable) {
+            redact(failure.message ?: failure.javaClass.simpleName)
+        } finally {
+            runBlocking { kotlinx.coroutines.withTimeoutOrNull(3_000L) { candidate.shutdown() } }
+        }
     }
 
     /**

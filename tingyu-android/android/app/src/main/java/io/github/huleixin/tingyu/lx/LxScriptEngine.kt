@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -66,7 +67,8 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
         withContext(dispatcher) {
             closeLocked()
             initResult = CompletableDeferred()
-            val engine = QuickJs.create(Dispatchers.IO)
+            // Keep QuickJS job execution on the same single-threaded dispatcher as evaluate/close.
+            val engine = QuickJs.create(dispatcher)
             quickJs = engine
             engine.memoryLimit = 64L * 1024 * 1024
             engine.maxStackSize = 256L * 1024
@@ -158,7 +160,7 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
 
     /** 彻底释放：先关引擎，再关线程。之后这个实例不能再用了。 */
     suspend fun shutdown() {
-        close()
+        withTimeoutOrNull(3_000) { close() }
         scope.cancel()
         dispatcher.close()
     }

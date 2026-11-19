@@ -1,7 +1,8 @@
 package io.github.huleixin.tingyu.chrome
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -152,12 +153,17 @@ internal fun PadSettingsPage(
                                             )
                                         }
                                         val selected = activeAction.isNotBlank() && item.action == activeAction
-                                        val rowModifier = if (selected) {
-                                            Modifier
-                                                .background(palette.settingsAccentSurface.copy(alpha = 0.13f))
-                                                .border(1.dp, palette.settingsAccentSurface.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
-                                        } else Modifier
-                                        NativeSettingsRow(item, modifier = rowModifier, inset = 12.dp, action = action)
+                                        val rowBg by animateColorAsState(
+                                            targetValue = if (selected) palette.settingsAccentSurface.copy(alpha = 0.14f) else Color.Transparent,
+                                            animationSpec = tween(durationMillis = 200),
+                                            label = "pad-settings-row-bg",
+                                        )
+                                        val rowModifier = Modifier
+                                            .padding(horizontal = 4.dp, vertical = 3.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(rowBg)
+                                            .let { if (selected) it.testTag("pad-settings-row-selected") else it }
+                                        NativeSettingsRow(item, modifier = rowModifier, inset = 10.dp, selectedAccent = selected, action = action)
                                     }
                                 }
                             } else if (section.text.isNotBlank()) {

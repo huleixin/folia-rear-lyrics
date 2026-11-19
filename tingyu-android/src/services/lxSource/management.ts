@@ -7,35 +7,51 @@ import { classifyLx, noteLx } from './diagnostics';
 import { assertLxImportPermit, useLxSourceStore, type LxImportPermit } from '../../stores/useLxSourceStore';
 
 // src/services/lxSource/management.ts
-export async function loadLxScriptUrl(input:string) {
+export async function loadLxScriptUrl(input:string,signal?:AbortSignal) {
     const importUrl=validateRemoteUrl(input.trim());
-    const response=await lxHttp(importUrl,{timeout:15000},new AbortController().signal);
-    if(response.statusCode<200||response.statusCode>=300)throw Error(`更新检查失败：服务器返回 HTTP ${response.statusCode}，请检查更新地址或稍后重试`);
+    const response=await lxHttp(importUrl,{timeout:15000},signal??new AbortController().signal);
+    if(response.statusCode<200||response.statusCode>=300)throw Error(`下载音源失败：服务器返回 HTTP ${response.statusCode}，请检查地址或稍后重试`);
     if(typeof response.body!=='string')throw Error('地址没有返回 JavaScript 文本');
+    if(/^\s*<(?:!doctype|html|head|body)\b/i.test(response.body))throw Error('下载地址返回了网页内容而非 .js 音源脚本，请检查链接是否为直链');
     return {...parseLxScript(response.body),importUrl};
 }
+function raceAbort<T>(work:Promise<T>,signal?:AbortSignal):Promise<T> {
+    if(!signal)return work;
+    if(signal.aborted)return Promise.reject(new DOMException('已取消导入','AbortError'));
+    return new Promise<T>((resolve,reject)=>{
+        const onAbort=()=>reject(new DOMException('已取消导入','AbortError'));
+        signal.addEventListener('abort',onAbort,{once:true});
+        work.then(
+            value=>{signal.removeEventListener('abort',onAbort);resolve(value);},
+            error=>{signal.removeEventListener('abort',onAbort);reject(error);},
+        );
+    });
+}
 /** Import must validate both playback runtimes before replacing the installed version. */
-export async function checkLxScript(script:Omit<LxScript,'capabilities'>,permit?:LxImportPermit) {
+export async function checkLxScript(script:Omit<LxScript,'capabilities'>,permit?:LxImportPermit,options?:{signal?:AbortSignal;timeoutMs?:number}) {
     const state=useLxSourceStore.getState();
     if(!state.extensionEnabled)throw Error('第三方音源扩展已关闭');
+    if(options?.signal?.aborted)throw new DOMException('已取消导入','AbortError');
     const installed=state.scripts.some(s=>s.id===script.id&&s.code===script.code);
     if(!installed){if(!permit)throw Error('请先确认实验性功能风险');assertLxImportPermit(permit);}
-    const runtime=new LxRuntime(script);
+    const timeoutMs=options?.timeoutMs??20000;
+    const runtime=new LxRuntime(script,timeoutMs);
+    const onAbort=()=>runtime.stop(new DOMException('已取消导入','AbortError'));
+    options?.signal?.addEventListener('abort',onAbort,{once:true});
     const unsubscribe=useLxSourceStore.subscribe(next=>{
         if(!next.extensionEnabled){runtime.stop();return;}
         if(permit)try{assertLxImportPermit(permit);}catch{runtime.stop();}
     });
     try{
-        const capabilities=await runtime.ready;
+        const workerCheck=runtime.ready;
+        const nativeCheck=Capacitor.isNativePlatform()
+            ?raceAbort(getTingyuPlayback<{validateLxScript(value:typeof script):Promise<{valid:boolean;reason?:string}>}>().validateLxScript(script),options?.signal)
+                .then(result=>{if(!result.valid)throw Error(`原生 JS 初始化失败：${result.reason||'未知错误'}`);})
+            :Promise.resolve();
+        const [capabilities]=await Promise.all([workerCheck,nativeCheck]);
         if(!useLxSourceStore.getState().extensionEnabled)throw Error('第三方音源扩展已关闭');
-        if(permit)assertLxImportPermit(permit);
-        if(Capacitor.isNativePlatform()){
-            const native=getTingyuPlayback<{validateLxScript(value:typeof script):Promise<{valid:boolean;reason?:string}>}>();
-            const result=await native.validateLxScript(script);
-            if(!result.valid)throw Error(`原生 JS 初始化失败：${result.reason||'未知错误'}`);
-        }
-        if(!useLxSourceStore.getState().extensionEnabled)throw Error('第三方音源扩展已关闭');
+        if(options?.signal?.aborted)throw new DOMException('已取消导入','AbortError');
         if(permit)assertLxImportPermit(permit);
         return {capabilities,updateAlert:runtime.updateAlert};
-    }catch(error){noteLx('import',classifyLx(error),error);throw error;}finally{unsubscribe();runtime.stop();}
+    }catch(error){noteLx('import',classifyLx(error),error);throw error;}finally{options?.signal?.removeEventListener('abort',onAbort);unsubscribe();runtime.stop();}
 }

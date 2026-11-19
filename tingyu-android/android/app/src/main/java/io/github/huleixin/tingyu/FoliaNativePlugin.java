@@ -777,15 +777,41 @@ public class FoliaNativePlugin extends Plugin {
         if (result.getResultCode() != Activity.RESULT_OK || uri == null) {
             call.resolve(new JSObject().put("cancelled", true)); return;
         }
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> new Thread(r, "tingyu-source-import"));
+        java.util.concurrent.Future<JSObject> task = executor.submit(() -> {
+            String name = queryDisplayName(getContext().getContentResolver(), uri);
+            if ((name == null || name.trim().isEmpty()) && uri.getLastPathSegment() != null) {
+                name = uri.getLastPathSegment();
+            }
+            if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".js")) {
+                throw new IOException("请选择 .js 音源文件");
+            }
+            try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
+                return new JSObject().put("name", name).put("text", NativeTextDocument.read(input));
+            }
+        });
         new Thread(() -> {
             try {
-                String name = queryDisplayName(getContext().getContentResolver(), uri);
-                if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".js")) throw new IOException("请选择 .js 音源文件");
-                try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
-                    call.resolve(new JSObject().put("name", name).put("text", NativeTextDocument.read(input)));
+                call.resolve(task.get(15, java.util.concurrent.TimeUnit.SECONDS));
+            } catch (java.util.concurrent.TimeoutException timeout) {
+                task.cancel(true);
+                call.reject("读取文件超时，请检查文件所在位置后重试", timeout);
+            } catch (java.util.concurrent.ExecutionException exec) {
+                Throwable cause = exec.getCause() != null ? exec.getCause() : exec;
+                if (cause instanceof SecurityException) {
+                    call.reject("没有读取所选文件的权限，请重新选择", (Exception) cause);
+                } else if (cause instanceof java.io.FileNotFoundException) {
+                    call.reject("找不到所选文件，可能已被移动或删除", (Exception) cause);
+                } else {
+                    String msg = cause.getMessage();
+                    call.reject(msg != null && !msg.trim().isEmpty() ? msg : "读取音源文件失败", cause instanceof Exception ? (Exception) cause : null);
                 }
-            } catch (Exception error) { call.reject(error.getMessage(), error); }
-        }, "tingyu-source-import").start();
+            } catch (Exception error) {
+                call.reject(error.getMessage() != null ? error.getMessage() : "读取音源文件失败", error);
+            } finally {
+                executor.shutdownNow();
+            }
+        }, "tingyu-source-import-wait").start();
     }
 
     /** Native settings render React controls on Compose; route their file inputs through SAF. */

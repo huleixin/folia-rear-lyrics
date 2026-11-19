@@ -14,7 +14,7 @@ export default function LxRiskDialog({isDaylight}:{isDaylight:boolean}) {
     useEffect(()=>{if(!settingsOpen)useLxSourceStore.getState().cancelConsent();},[settingsOpen]);
     if(!consent)return null;
     const state=useLxSourceStore.getState();
-    return createPortal(<ThemedDialog isOpen isDaylight={isDaylight} title="实验性功能提醒" onClose={state.cancelConsent}
+    return createPortal(<ThemedDialog isOpen zIndexClass="z-[220]" isDaylight={isDaylight} title="实验性功能提醒" onClose={state.cancelConsent}
         footer={<><button type="button" onClick={state.cancelConsent}>取消</button><button type="button" disabled={!consent.checked} onClick={()=>{try{state.confirmConsent();}catch{setError('保存失败，请检查存储空间后重试');}}}>继续</button></>}>
         <div data-settings-layout="column" data-settings-style='{"gap":16}'>
             <p data-settings-layout="wrap">{LX_RISK_BODY}</p>

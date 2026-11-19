@@ -18,9 +18,9 @@ export class LxRuntime {
     private initResolve!: (value: LxCapabilities) => void;
     private initReject!: (reason: Error) => void;
     private initTimer: ReturnType<typeof setTimeout>;
-    constructor(script: Pick<LxScript, 'code' | 'name' | 'version' | 'description' | 'author' | 'homepage'>) {
+    constructor(script: Pick<LxScript, 'code' | 'name' | 'version' | 'description' | 'author' | 'homepage'>, initTimeoutMs = 65000) {
         this.ready = new Promise((resolve, reject) => { this.initResolve = resolve; this.initReject = reject; });
-        this.initTimer = setTimeout(() => this.stop(new Error('音源初始化超时')), 65000);
+        this.initTimer = setTimeout(() => this.stop(new Error('音源初始化超时')), Math.max(1000, initTimeoutMs));
         this.worker.onerror = event => this.stop(new Error(event.message || '音源运行失败'));
         this.worker.onmessage = event => void this.receive(event.data);
         this.worker.postMessage({ kind: 'init', code: script.code, metadata: { ...script, code: undefined, rawScript: script.code } });

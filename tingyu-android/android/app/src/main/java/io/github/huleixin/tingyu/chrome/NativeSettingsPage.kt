@@ -1,5 +1,7 @@
 package io.github.huleixin.tingyu.chrome
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -164,7 +166,18 @@ internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-internal fun NativeSettingsRow(item: NativePageItem, modifier: Modifier = Modifier, inset: Dp = 14.dp, action: PageAction) {
+internal fun NativeSettingsRow(item: NativePageItem, modifier: Modifier = Modifier, inset: Dp = 14.dp, selectedAccent: Boolean = false, action: PageAction) {
+    val palette = LocalInterfacePalette.current
+    val iconColor by animateColorAsState(
+        targetValue = if (selectedAccent) palette.settingsAccent else palette.settingsIcon,
+        animationSpec = tween(durationMillis = 200),
+        label = "settings-row-icon",
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (selectedAccent) palette.settingsAccent else palette.settingsInk,
+        animationSpec = tween(durationMillis = 200),
+        label = "settings-row-title",
+    )
     Row(
         modifier
             .fillMaxWidth()
@@ -178,15 +191,15 @@ internal fun NativeSettingsRow(item: NativePageItem, modifier: Modifier = Modifi
             Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(LocalInterfacePalette.current.settingsIconSurface),
+                .background(palette.settingsIconSurface),
             contentAlignment = Alignment.Center
         ) {
-            PageIcon(SettingIcons[item.id] ?: "settings2", LocalInterfacePalette.current.settingsIcon, Modifier.size(20.dp))
+            PageIcon(SettingIcons[item.id] ?: "settings2", iconColor, Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f)) {
             Text(
                 item.title,
-                color = LocalInterfacePalette.current.settingsInk,
+                color = titleColor,
                 fontSize = 15.sp,
                 lineHeight = 20.sp,
                 fontWeight = FontWeight.SemiBold

@@ -14,12 +14,14 @@ public final class TingyuPlaybackPlugin extends Plugin {
     @PluginMethod public void lxHttp(PluginCall call) {
         final String id=call.getString("id","");
         if(id.length()>80||LX_HTTP_CALLS.size()>=12){call.reject("LX request limit");return;}
+        final org.json.JSONObject data=call.getData();
+        final org.json.JSONObject options=data==null?new org.json.JSONObject():data.optJSONObject("options");
         LX_HTTP_IO.execute(()->{try{
-            String response=io.github.huleixin.tingyu.lx.LxHttp.INSTANCE.request(call.getString("url",""),call.getData().optJSONObject("options"),request->{
+            String response=io.github.huleixin.tingyu.lx.LxHttp.INSTANCE.request(call.getString("url",""),options!=null?options:new org.json.JSONObject(),request->{
                 LX_HTTP_CALLS.put(id,request);if(LX_HTTP_CANCELLED.contains(id))request.cancel();return kotlin.Unit.INSTANCE;
             });
             call.resolve(new JSObject().put("response",response));
-        }catch(Exception error){
+        }catch(Throwable error){
             String detail=io.github.huleixin.tingyu.lx.LxRedaction.INSTANCE.clean(error.getMessage());
             call.reject("LX HTTP "+error.getClass().getSimpleName()+(detail.isEmpty()?"":": "+detail));
         }
@@ -444,28 +446,34 @@ if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enq
             // 诊断里也就能看到 started=yes / sources=tx，而不是等到续播失败才发现没起来。
             // 引擎初始化会阻塞，所以放在后台线程，不占主线程。
             Thread warmer=new Thread(() -> {
-                boolean started=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.warmUp();
-                org.json.JSONObject snapshot=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot();
-                PlaybackDiagnostics.note("lx-script-sync",new JSObject()
-                    .put("installed",installed)
-                    .put("started",started)
-                    .put("sources",snapshot.optString("sources",""))
-                    .put("version",snapshot.optString("version",""))
-                    .put("bytes",code.length()));
+                try {
+                    boolean started=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.warmUp();
+                    org.json.JSONObject snapshot=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot();
+                    PlaybackDiagnostics.note("lx-script-sync",new JSObject()
+                        .put("installed",installed)
+                        .put("started",started)
+                        .put("sources",snapshot.optString("sources",""))
+                        .put("version",snapshot.optString("version",""))
+                        .put("bytes",code.length()));
+                } catch (Throwable error) {
+                    PlaybackDiagnostics.note("lx-warmup-error",new JSObject().put("type",error.getClass().getSimpleName()));
+                }
             },"tingyu-lx-warmup");
             warmer.setDaemon(true);
             warmer.start();
             call.resolve(new JSObject().put("installed",installed).put("warming",installed));
         }
-        catch(Exception error){call.reject("安装音源脚本失败："+error.getClass().getSimpleName());}},error->call.reject("安装音源脚本失败："+error.getClass().getSimpleName()));
+        catch(Throwable error){call.reject("安装音源脚本失败："+error.getClass().getSimpleName());}},error->call.reject("安装音源脚本失败："+error.getClass().getSimpleName()));
     }
 
     @PluginMethod public void validateLxScript(PluginCall call) {
+        final org.json.JSONObject metadata=call.getData()!=null?call.getData():new org.json.JSONObject();
+        final String code=call.getString("code","");
         LX_HTTP_IO.execute(()->{
             try {
-                String reason=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.validate(call.getString("code",""),call.getData());
+                String reason=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.validate(code,metadata);
                 call.resolve(new JSObject().put("valid",reason.isEmpty()).put("reason",reason));
-            } catch(Exception error) {call.reject("LX validation failed: "+error.getClass().getSimpleName());}
+            } catch(Throwable error) {call.reject("LX validation failed: "+error.getClass().getSimpleName());}
         });
     }
 

@@ -4,13 +4,14 @@ import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import { useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
 import { loadLxScriptUrl } from '../../services/lxSource/management';
 import { noteLx, redactLx } from '../../services/lxSource/diagnostics';
+import { isLxAbortError, type InstallLxOptions } from '../../services/lxSource/installation';
 import type { LxScript } from '../../services/lxSource/contract';
 
 // src/components/audio-tools/LxManagerControls.tsx
 export const LX_PLATFORM_LABELS: Record<string,string>={kw:'酷我音乐',tx:'QQ音乐',wy:'网易云音乐',kg:'酷狗音乐',mg:'咪咕音乐',local:'本地音乐'};
 export const lxPlatformLabel=(source:string)=>LX_PLATFORM_LABELS[source]??source;
 
-export default function LxManagerControls({busy,onInstall,onError,onBusyChange,selected,onSelect}:{busy:boolean;onInstall:(load:()=>Promise<Omit<LxScript,'capabilities'>|null>,activate:boolean)=>Promise<boolean>;onError:(text:string)=>void;onBusyChange:(busy:boolean)=>void;selected:LxScript|null;onSelect:(script:LxScript)=>void}) {
+export default function LxManagerControls({busy,onInstall,onError,onBusyChange,selected,onSelect}:{busy:boolean;onInstall:(load:(signal?:AbortSignal)=>Promise<Omit<LxScript,'capabilities'>|null>,activate:boolean,options?:Pick<InstallLxOptions,'sourceKind'>)=>Promise<boolean>;onError:(text:string)=>void;onBusyChange:(busy:boolean)=>void;selected:LxScript|null;onSelect:(script:LxScript)=>void}) {
     const [url,setUrl]=useState(''),[loading,setLoading]=useState(false),[updateUrl,setUpdateUrl]=useState('');
     const [checking,setChecking]=useState(false),[candidate,setCandidate]=useState<Omit<LxScript,'capabilities'>|null>(null),[updateMessage,setUpdateMessage]=useState('');
 
@@ -20,7 +21,7 @@ export default function LxManagerControls({busy,onInstall,onError,onBusyChange,s
     const available=policy.priority.filter(source=>selected?.capabilities[source]);
     const quality=useAudioSettingsStore(s=>s.audioQuality);
     useEffect(()=>setUpdateUrl(selected?.importUrl??''),[selected?.id,selected?.importUrl]);
-    const download=async()=>{setLoading(true);onBusyChange(true);try{await onInstall(()=>loadLxScriptUrl(url),true);}catch(error){noteLx('url-import','import',error);onError(redactLx(error));}finally{setLoading(false);onBusyChange(false);}};
+    const download=async()=>{setLoading(true);onBusyChange(true);try{await onInstall(signal=>loadLxScriptUrl(url,signal),true,{sourceKind:'url'});}catch(error){if(!isLxAbortError(error)){noteLx('url-import','import',error);onError(redactLx(error));}}finally{setLoading(false);onBusyChange(false);}};
     const bind=()=>{if(!selected)return;try{setImportUrl(selected.id,updateUrl);setUpdateMessage(updateUrl.trim()?'已绑定更新地址':'已清除更新地址');onSelect(useLxSourceStore.getState().scripts.find(s=>s.id===selected.id)!);}catch(error){const text=redactLx(error);setUpdateMessage(text);onError(text);}};
     const checkUpdate=async()=>{if(!selected?.importUrl)return;setChecking(true);setCandidate(null);setUpdateMessage('');onBusyChange(true);try{const next=await loadLxScriptUrl(selected.importUrl);if(next.name!==selected.name)throw Error('更新脚本名称与原音源不一致，请重新导入');
         if(next.code===selected.code){setUpdateMessage('已是最新版本');return;}setCandidate({...next,id:selected.id});setUpdateMessage(`发现新版本：${selected.version||'未知版本'} → ${next.version||'未知版本'}`);
@@ -42,7 +43,7 @@ export default function LxManagerControls({busy,onInstall,onError,onBusyChange,s
                 <div className="ty-lx-update-actions" data-settings-layout="wrap" data-settings-style='{"gap":8}'>
                     <button type="button" disabled={busy} onClick={bind}>保存更新地址</button>
                     {selected.importUrl&&<button type="button" disabled={busy||checking} onClick={()=>void checkUpdate()}>{checking?'正在检查…':'检查更新'}</button>}
-                    {candidate&&<button type="button" className="ty-lx-primary-action" disabled={busy} onClick={()=>{const activeUpdate=selected.id===activeId;onBusyChange(true);void onInstall(async()=>candidate,activeUpdate).then(installed=>{if(installed){setCandidate(null);setUpdateMessage('更新已安装，可回退上一版');}}).catch(error=>onError(redactLx(error))).finally(()=>onBusyChange(false));}}>安装更新</button>}
+                    {candidate&&<button type="button" className="ty-lx-primary-action" disabled={busy} onClick={()=>{const activeUpdate=selected.id===activeId;onBusyChange(true);void onInstall(async()=>candidate,activeUpdate,{sourceKind:'update'}).then(installed=>{if(installed){setCandidate(null);setUpdateMessage('更新已安装，可回退上一版');}}).catch(error=>{if(!isLxAbortError(error))onError(redactLx(error));}).finally(()=>onBusyChange(false));}}>安装更新</button>}
                     {selected.previous&&<button type="button" disabled={busy} onClick={()=>{useLxSourceStore.getState().rollback(selected.id);onSelect(useLxSourceStore.getState().scripts.find(s=>s.id===selected.id)!);setCandidate(null);setUpdateMessage('已回退上一版');}}><RotateCcw size={14}/>回退上一版</button>}
                 </div>
                 {updateMessage&&<p className="ty-lx-update-message" role={/失败|不一致|不能/.test(updateMessage)?'alert':undefined}>{updateMessage}</p>}

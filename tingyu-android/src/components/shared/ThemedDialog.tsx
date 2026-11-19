@@ -23,6 +23,8 @@ interface ThemedDialogProps {
     maxWidthClass?: string;
     /** Optional stable marker for phone-fit CSS that needs to target one dialog kind. */
     panelKind?: string;
+    /** Optional Tailwind z-index class for nested modal priority (default z-[200]). */
+    zIndexClass?: string;
     /**
      * Blocks the two close paths this dialog owns - the X and the backdrop - while the caller is
      * mid-way through work a close would leave half-applied. Also dims the X so the wait shows:
@@ -44,6 +46,7 @@ const ThemedDialogContent: React.FC<ThemedDialogProps> = ({
     footer,
     maxWidthClass = 'max-w-md',
     panelKind,
+    zIndexClass = 'z-[200]',
     closeDisabled = false,
     closeDisabledTitle,
 }) => {
@@ -82,7 +85,7 @@ const ThemedDialogContent: React.FC<ThemedDialogProps> = ({
                     transition={{duration:staticSurface?0:TY_DURATION.panelExit}}
                     data-folia-keyboard-window="true"
                     data-folia-themed-overlay="true"
-                    className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : NATIVE_FIRST ? 'bg-black/60' : 'bg-black/60 backdrop-blur-md'}`}
+                    className={`fixed inset-0 ${zIndexClass} flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : NATIVE_FIRST ? 'bg-black/60' : 'bg-black/60 backdrop-blur-md'}`}
                     onMouseDown={handleOverlayMouseDown}
                     onClick={handleBackdropClick}
                  data-settings-style='{"align":"center","center":true,"padding":[16,16,16,16]}' data-settings-layout="row">

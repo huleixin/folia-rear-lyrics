@@ -9,16 +9,27 @@ import { noteLx, redactLx } from '../../services/lxSource/diagnostics';
 import LxManagerControls, { lxPlatformLabel } from './LxManagerControls';
 import { pickLxScript } from '../../services/lxSource/importFile';
 import { createPortal } from 'react-dom';
-import { installLxSource } from '../../services/lxSource/installation';
+import { installLxSource, isLxAbortError, type InstallLxOptions, type LxImportStage } from '../../services/lxSource/installation';
 import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 
 // src/components/audio-tools/LxSourceDialog.tsx
+const IMPORT_STAGE_LABELS: Record<LxImportStage, string> = {
+    consent: '等待风险确认…',
+    picking: '等待选择文件…',
+    reading: '正在读取文件…',
+    downloading: '正在下载音源…',
+    validating: '正在验证脚本…',
+    saving: '正在保存音源…',
+};
+
 export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) {
     const state = useLxSourceStore();
     const [busy, setBusy] = useState(false);
+    const [importStage, setImportStage] = useState<LxImportStage | null>(null);
     const [message, setMessage] = useState('');
     const [failed, setFailed] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const importAbortRef = useRef<AbortController | null>(null);
     // 设置路由被其它方式关闭时，这里打开的弹窗不能留下来挂在首页上（68600）。
     // 导入/验证进行中（busy）保持不动：那是弹窗自己的操作面，等它跑完再收。
     const settingsOpen = useSettingsModalStore(store => store.settingsModalState.isOpen);
@@ -36,8 +47,45 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
         orphanPending.current = false;
         state.close();
     }, [busy, state.close]);
+    useEffect(() => () => { importAbortRef.current?.abort(); }, []);
     const active = state.scripts.find(script => script.id === state.activeId);
     const selected = state.scripts.find(script => script.id === (selectedId ?? state.activeId)) ?? state.scripts[0] ?? null;
+    const cancelImport = () => {
+        importAbortRef.current?.abort();
+        useLxSourceStore.getState().cancelConsent();
+    };
+    const runInstall = async (
+        load: (signal?: AbortSignal) => Promise<Omit<LxScript, 'capabilities'> | null>,
+        activate: boolean,
+        options?: Pick<InstallLxOptions, 'sourceKind'>,
+    ) => {
+        const controller = new AbortController();
+        importAbortRef.current = controller;
+        setBusy(true); setFailed(false); setImportStage('consent'); setMessage(IMPORT_STAGE_LABELS.consent);
+        try {
+            const result = await installLxSource(() => load(controller.signal), activate, {
+                sourceKind: options?.sourceKind ?? 'file',
+                signal: controller.signal,
+                onStage: stage => { setImportStage(stage); setMessage(IMPORT_STAGE_LABELS[stage]); },
+            });
+            setMessage(result ? '导入成功，已启用该音源' : '已取消导入');
+            return !!result;
+        } catch (error) {
+            if (isLxAbortError(error)) {
+                setFailed(false);
+                setMessage('已取消导入');
+                return false;
+            }
+            setFailed(true);
+            setMessage(`导入失败：${redactLx(error)}`);
+            noteLx('import', 'import', error);
+            return false;
+        } finally {
+            if (importAbortRef.current === controller) importAbortRef.current = null;
+            setImportStage(null);
+            setBusy(false);
+        }
+    };
     const test = async (script: LxScript) => {
         setBusy(true); setFailed(false); setMessage('正在检查音源…');
         try {
@@ -48,20 +96,22 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
     };
     const importFile = async () => {
         if (busy) return;
-        setBusy(true); setFailed(false); setMessage('请选择 .js 音源文件…');
-        try {
-            const result = await installLxSource(pickLxScript);
-            setMessage(result?'音源已导入并启用':'已取消导入');
-        } catch (error) { setFailed(true); setMessage(redactLx(error));noteLx('import','import',error); }
-        finally { setBusy(false); }
+        await runInstall(
+            signal => pickLxScript({ signal, onPicked: () => { setImportStage('reading'); setMessage(IMPORT_STAGE_LABELS.reading); } }),
+            true,
+            { sourceKind: 'file' },
+        );
     };
     if(!state.extensionEnabled)return null;
+    const busyTitle = importStage ? IMPORT_STAGE_LABELS[importStage] : '正在处理…';
+    const canCancelImport = busy && importStage !== null && importStage !== 'saving';
     return createPortal(<ThemedDialog isOpen onClose={state.close} closeDisabled={busy} isDaylight={isDaylight} title="第三方音源管理" panelKind="audio-tools" description="管理已开启的第三方音源扩展。">
         <div className="ty-lx-manager" data-settings-layout="column" data-settings-style='{"gap":12,"font":12}' data-light={isDaylight || undefined}>
             <button type="button" className="ty-lx-import" data-settings-layout="row" data-settings-style='{"gap":12,"align":"center","padding":[14,12,14,12],"radius":14,"border":true,"fill":true,"tone":"accent","minHeight":60}' disabled={busy} onClick={() => void importFile()}>
-                <Upload size={19}/><span data-settings-layout="column" data-settings-style='{"grow":true,"gap":3}'><strong data-settings-layout="column" data-settings-style='{"font":13,"weight":600}'>{busy ? '正在处理…' : '导入并启用音源'}</strong><small data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}'>.js 文件 · 最大 1 MB</small></span>
+                <Upload size={19}/><span data-settings-layout="column" data-settings-style='{"grow":true,"gap":3}'><strong data-settings-layout="column" data-settings-style='{"font":13,"weight":600}'>{busy ? busyTitle : '导入并启用音源'}</strong><small data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}'>.js 文件 · 最大 1 MB</small></span>
             </button>
-            <LxManagerControls busy={busy} onBusyChange={setBusy} onInstall={async(load,activate)=>!!(await installLxSource(load,activate))} onError={text=>{setFailed(true);setMessage(text);}} selected={selected} onSelect={script=>setSelectedId(script.id)}/>
+            {canCancelImport && <button type="button" className="ty-lx-cancel-import" data-settings-style='{"border":true,"radius":10,"font":11,"padding":[10,8,10,8],"minHeight":40}' onClick={cancelImport}>取消导入</button>}
+            <LxManagerControls busy={busy} onBusyChange={setBusy} onInstall={(load,activate,opts)=>runInstall(load,activate,opts)} onError={text=>{setFailed(true);setMessage(`导入失败：${text}`);}} selected={selected} onSelect={script=>setSelectedId(script.id)}/>
             <div className="ty-lx-current" data-settings-layout="row" data-settings-style='{"gap":10,"align":"center","font":11,"padding":[2,2,2,2]}'><span data-settings-layout="column" data-settings-style='{"grow":true,"gap":3,"tone":"muted"}'>当前音源<strong data-settings-layout="column" data-settings-style='{"font":12,"weight":600,"tone":"text"}'>{active?.name || '平台原音源'}</strong></span>
                 <button type="button" data-settings-style='{"border":true,"radius":10,"font":11,"padding":[10,6,10,6],"minHeight":40}' disabled={busy || !active} onClick={() => omni.activateLxSource(null)}>{active ? '恢复原音源' : '使用中'}</button>
             </div>
