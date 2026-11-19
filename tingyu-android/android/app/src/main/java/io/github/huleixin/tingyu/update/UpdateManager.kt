@@ -23,10 +23,13 @@ import java.io.File
 // android/app/src/main/java/io/github/huleixin/tingyu/update/UpdateManager.kt
 // 更新生命周期总控：冷启动恢复、后台非阻塞检查、回前台与低频轮询、手动限流检查、下载校验与系统安装衔接。
 
-class UpdateManager private constructor(private val appContext: Context) {
+class UpdateManager internal constructor(
+    private val appContext: Context,
+    private val betaAuth: BetaAuthManager = BetaAuthManager(appContext),
+    private val api: UpdateApi = UpdateApi(),
+) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val store = UpdateStateStore(appContext)
-    private val api = UpdateApi()
     private val downloader = UpdateDownloader(appContext)
 
     private var checkJob: Job? = null
@@ -38,13 +41,20 @@ class UpdateManager private constructor(private val appContext: Context) {
     val currentVersionCode: Long = BuildConfig.VERSION_CODE.toLong()
 
     /**
-     * 更新渠道选择：默认正式包为 `stable`，测试种子包（版本号含 `test`）默认为 `testing`；
-     * 同时支持开发者在「设置 → 关于听屿」持久化切换正式/测试通道以直接验证软件内更新。
+     * 更新渠道裁决（权限严格下沉至 UpdateManager 层）：
+     * - 未持有有效私有内测授权的普通用户：始终固定返回 `stable`，自动迁移并清理历史旧版 `testing` 偏好与缓存；
+     * - 持有有效内测授权的开发者/受邀设备：允许在 `stable` 与 `private_beta` 之间自由切换。
      */
     val activeChannel: String
         get() {
-            val defaultCh = if (BuildConfig.DEBUG || BuildConfig.VERSION_NAME.contains("test")) "testing" else "stable"
-            return store.getPreferredChannel(defaultCh)
+            val auth = betaAuth.getAuthorizationSnapshot()
+            if (auth == null) {
+                return "stable"
+            }
+            return when (store.getPreferredChannel("stable")) {
+                "private_beta", "testing" -> "private_beta"
+                else -> "stable"
+            }
         }
 
     private val _state = MutableStateFlow(
@@ -57,11 +67,35 @@ class UpdateManager private constructor(private val appContext: Context) {
     val state: StateFlow<UpdateUiState> = _state.asStateFlow()
 
     init {
+        migrateLegacyTestingChannelIfNeeded()
         hydrateFromPersistedPolicy()
+    }
+
+    /**
+     * 存量用户自动迁移（v1.5.83 -> 新版）：
+     * 无论旧版偏好是否为 `testing`，若当前设备不持有有效私有内测授权，立即回归 `stable` 并清理旧 `testing` 缓存与残留文件，
+     * 绝不触碰用户收藏、歌单、账号、播放历史与本地音乐数据。
+     */
+    private fun migrateLegacyTestingChannelIfNeeded() {
+        val preferred = store.getPreferredChannel("stable")
+        val auth = betaAuth.getAuthorizationSnapshot()
+        if (auth == null && (preferred == "testing" || preferred == "private_beta")) {
+            store.setPreferredChannel("stable")
+            store.clearChannelCache("testing")
+            store.clearChannelCache("private_beta")
+            store.clearVerifiedApkRecord()
+            downloader.cleanObsoleteFiles()
+        } else if (auth != null && preferred == "testing") {
+            store.setPreferredChannel("private_beta")
+            store.clearChannelCache("testing")
+        }
     }
 
     private fun hydrateFromPersistedPolicy() {
         val now = System.currentTimeMillis()
+        val auth = betaAuth.getAuthorizationSnapshot(now)
+        val ch = activeChannel
+
         // 清理已覆盖安装完毕的旧版本残留 APK
         val readyRecord = store.loadVerifiedApkRecord()
         if (readyRecord != null && readyRecord.versionCode <= currentVersionCode) {
@@ -69,7 +103,7 @@ class UpdateManager private constructor(private val appContext: Context) {
             downloader.cleanObsoleteFiles()
         }
 
-        val persisted = store.loadVerifiedPolicy(activeChannel)
+        val persisted = store.loadVerifiedPolicy(ch)
         if (persisted != null) {
             val decision = UpdatePolicy.evaluateDecision(
                 currentVersionCode = currentVersionCode,
@@ -85,11 +119,25 @@ class UpdateManager private constructor(private val appContext: Context) {
             val restoredDownload = restoreReadyApkSnapshot(persisted.manifest)
             _state.update {
                 it.copy(
-                    channel = activeChannel,
+                    channel = ch,
+                    betaAuthorized = auth != null,
+                    betaRole = auth?.role.orEmpty(),
+                    betaNote = auth?.note.orEmpty(),
+                    betaExpiresAtMs = auth?.expiresAtMs ?: 0L,
                     decision = decision,
                     dialogVisible = showDialog,
                     selectedMirrorId = persisted.manifest.downloadUrls.firstOrNull()?.id.orEmpty(),
                     download = restoredDownload,
+                )
+            }
+        } else {
+            _state.update {
+                it.copy(
+                    channel = ch,
+                    betaAuthorized = auth != null,
+                    betaRole = auth?.role.orEmpty(),
+                    betaNote = auth?.note.orEmpty(),
+                    betaExpiresAtMs = auth?.expiresAtMs ?: 0L,
                 )
             }
         }
@@ -191,9 +239,45 @@ class UpdateManager private constructor(private val appContext: Context) {
         }
 
         checkJob = scope.launch {
-            val minRev = store.getHighestPolicyRevision(channel)
             val now = System.currentTimeMillis()
-            when (val outcome = api.fetchAuthoritativePolicy(channel = channel, minAcceptedRevision = minRev, nowMs = now)) {
+            // 若设备持有内测授权但当前处于 stable，也在后台静默校验内测授权是否被撤销或过期（网络异常不误杀）
+            if (channel != "private_beta" && betaAuth.hasActiveAuthorization(now)) {
+                when (betaAuth.verifyAuthorization(activeChannel = channel)) {
+                    is BetaAuthManager.VerifyResult.Rejected -> handleBetaAuthorizationRevoked(triggerCheck = false)
+                    else -> Unit
+                }
+            }
+
+            val minRev = store.getHighestPolicyRevision(channel)
+            val outcome: UpdateApi.FetchOutcome = if (channel == "private_beta") {
+                when (val betaRes = betaAuth.fetchPrivateBetaPolicy(activeChannel = "private_beta")) {
+                    is BetaAuthManager.PrivatePolicyResult.Success -> {
+                        val selection = UpdatePolicy.selectAuthoritativeManifest(
+                            candidates = listOf(UpdatePolicy.NodeCandidate(betaRes.nodeId, betaRes.rawJson)),
+                            expectedChannel = "private_beta",
+                            nowMs = now,
+                            minAcceptedRevision = minRev,
+                        )
+                        val m = selection.manifest
+                        if (m != null && selection.selectedNodeId != null) {
+                            UpdateApi.FetchOutcome.Success(selection.selectedNodeId, m, selection.rejections)
+                        } else {
+                            UpdateApi.FetchOutcome.Failure("invalid_private_beta_policy", selection.rejections)
+                        }
+                    }
+                    is BetaAuthManager.PrivatePolicyResult.Rejected -> {
+                        handleBetaAuthorizationRevoked(triggerCheck = true)
+                        return@launch
+                    }
+                    is BetaAuthManager.PrivatePolicyResult.NetworkError -> {
+                        UpdateApi.FetchOutcome.Failure(betaRes.reason, emptyList())
+                    }
+                }
+            } else {
+                api.fetchAuthoritativePolicy(channel = channel, minAcceptedRevision = minRev, nowMs = now)
+            }
+
+            when (outcome) {
                 is UpdateApi.FetchOutcome.Success -> {
                     val manifest = outcome.manifest
                     store.saveVerifiedPolicy(manifest, now)
@@ -324,16 +408,44 @@ class UpdateManager private constructor(private val appContext: Context) {
                 mirrorId = initialMirror,
             )
 
-            when (val dl = downloader.downloadApk(manifest, preferredId) { progressSnap ->
+            var activeManifest = manifest
+            var dl = downloader.downloadApk(activeManifest, preferredId) { progressSnap ->
                 _state.update { s -> s.copy(download = progressSnap, selectedMirrorId = progressSnap.activeNodeId.ifBlank { s.selectedMirrorId }) }
-            }) {
+            }
+            // 若私有内测短期下载凭据已过期（HTTP 401/403），且设备仍具备有效内测授权，则自动重新申领凭据并续传一次
+            if (dl is UpdateDownloader.DownloadResult.Failed && activeManifest.channel == "private_beta" && (dl.errorCode == "http_401" || dl.errorCode == "http_403")) {
+                when (val refreshed = betaAuth.fetchPrivateBetaPolicy("private_beta")) {
+                    is BetaAuthManager.PrivatePolicyResult.Success -> {
+                        val sel = UpdatePolicy.selectAuthoritativeManifest(
+                            candidates = listOf(UpdatePolicy.NodeCandidate(refreshed.nodeId, refreshed.rawJson)),
+                            expectedChannel = "private_beta",
+                            nowMs = System.currentTimeMillis(),
+                            minAcceptedRevision = store.getHighestPolicyRevision("private_beta"),
+                        )
+                        val newManifest = sel.manifest
+                        if (newManifest != null) {
+                            store.saveVerifiedPolicy(newManifest, System.currentTimeMillis())
+                            activeManifest = newManifest
+                            dl = downloader.downloadApk(activeManifest, "") { progressSnap ->
+                                _state.update { s -> s.copy(download = progressSnap, selectedMirrorId = progressSnap.activeNodeId.ifBlank { s.selectedMirrorId }) }
+                            }
+                        }
+                    }
+                    is BetaAuthManager.PrivatePolicyResult.Rejected -> {
+                        handleBetaAuthorizationRevoked(triggerCheck = false)
+                        return@launch
+                    }
+                    else -> Unit
+                }
+            }
+            when (dl) {
                 is UpdateDownloader.DownloadResult.Success -> {
                     _state.update {
                         it.copy(
                             download = it.download.copy(
                                 phase = DownloadPhase.VERIFYING,
-                                downloadedBytes = manifest.apkSizeBytes,
-                                totalBytes = manifest.apkSizeBytes,
+                                downloadedBytes = activeManifest.apkSizeBytes,
+                                totalBytes = activeManifest.apkSizeBytes,
                                 speedBytesPerSec = 0L,
                             )
                         )
@@ -342,20 +454,20 @@ class UpdateManager private constructor(private val appContext: Context) {
                         ApkVerifier.verifyDownloadedApk(
                             context = appContext,
                             apkFile = dl.apkFile,
-                            manifest = manifest,
+                            manifest = activeManifest,
                             currentVersionCode = currentVersionCode,
                         )
                     }
                     when (verifyResult) {
                         is ApkVerifyResult.Valid -> {
-                            downloader.cleanObsoleteFiles(manifest.latestVersionCode, manifest.sha256.take(12))
-                            store.saveVerifiedApkRecord(manifest.latestVersionCode, manifest.sha256, verifyResult.apkFile.absolutePath)
+                            downloader.cleanObsoleteFiles(activeManifest.latestVersionCode, activeManifest.sha256.take(12))
+                            store.saveVerifiedApkRecord(activeManifest.latestVersionCode, activeManifest.sha256, verifyResult.apkFile.absolutePath)
                             _state.update {
                                 it.copy(
                                     download = DownloadSnapshot(
                                         phase = DownloadPhase.READY_TO_INSTALL,
-                                        downloadedBytes = manifest.apkSizeBytes,
-                                        totalBytes = manifest.apkSizeBytes,
+                                        downloadedBytes = activeManifest.apkSizeBytes,
+                                        totalBytes = activeManifest.apkSizeBytes,
                                         activeNodeId = dl.node.id,
                                         activeNodeLabel = dl.node.label,
                                         verifiedApkPath = verifyResult.apkFile.absolutePath,
@@ -364,12 +476,12 @@ class UpdateManager private constructor(private val appContext: Context) {
                             }
                             TelemetryManager.getInstance(appContext).reportUpdateEvent(
                                 event = "download_succeeded",
-                                targetVersionCode = manifest.latestVersionCode,
-                                targetVersionName = manifest.latestVersionName,
-                                channel = manifest.channel,
+                                targetVersionCode = activeManifest.latestVersionCode,
+                                targetVersionName = activeManifest.latestVersionName,
+                                channel = activeManifest.channel,
                                 mirrorId = dl.node.id,
                             )
-                            recordDiagnostic("apk-verified", "vc=${manifest.latestVersionCode} node=${dl.node.id}")
+                            recordDiagnostic("apk-verified", "vc=${activeManifest.latestVersionCode} node=${dl.node.id}")
                             launchInstall(activity)
                         }
                         is ApkVerifyResult.Invalid -> {
@@ -386,9 +498,9 @@ class UpdateManager private constructor(private val appContext: Context) {
                             }
                             TelemetryManager.getInstance(appContext).reportUpdateEvent(
                                 event = "verify_failed",
-                                targetVersionCode = manifest.latestVersionCode,
-                                targetVersionName = manifest.latestVersionName,
-                                channel = manifest.channel,
+                                targetVersionCode = activeManifest.latestVersionCode,
+                                targetVersionName = activeManifest.latestVersionName,
+                                channel = activeManifest.channel,
                                 mirrorId = dl.node.id,
                             )
                             recordDiagnostic("apk-verify-rejected", "code=${verifyResult.code}")
@@ -408,9 +520,9 @@ class UpdateManager private constructor(private val appContext: Context) {
                     }
                     TelemetryManager.getInstance(appContext).reportUpdateEvent(
                         event = "download_failed",
-                        targetVersionCode = manifest.latestVersionCode,
-                        targetVersionName = manifest.latestVersionName,
-                        channel = manifest.channel,
+                        targetVersionCode = activeManifest.latestVersionCode,
+                        targetVersionName = activeManifest.latestVersionName,
+                        channel = activeManifest.channel,
                         mirrorId = initialMirror,
                     )
                     recordDiagnostic("apk-download-failed", "code=${dl.errorCode}")
@@ -491,13 +603,20 @@ class UpdateManager private constructor(private val appContext: Context) {
         ApkInstaller.openManualDownloadInBrowser(appContext, chosen.url)
     }
 
-    fun switchChannel(nextChannel: String) {
-        if (nextChannel != "stable" && nextChannel != "testing") return
+    fun switchChannel(nextChannel: String): String {
+        val requested = if (nextChannel == "testing") "private_beta" else nextChannel
+        if (requested != "stable" && requested != "private_beta") return activeChannel
+        // 权限统一在更新管理器层校验：未获有效内测授权者严禁切换至测试通道
+        if (requested == "private_beta" && !betaAuth.hasActiveAuthorization()) {
+            store.setPreferredChannel("stable")
+            hydrateFromPersistedPolicy()
+            return "stable"
+        }
         checkJob?.cancel()
-        store.setPreferredChannel(nextChannel)
+        store.setPreferredChannel(requested)
         _state.update {
             it.copy(
-                channel = nextChannel,
+                channel = requested,
                 checkPhase = CheckPhase.IDLE,
                 checkMessage = "",
                 decision = UpdateDecision(UpdateDecisionMode.NONE, "channel_switched"),
@@ -505,14 +624,124 @@ class UpdateManager private constructor(private val appContext: Context) {
             )
         }
         hydrateFromPersistedPolicy()
-        performCheck(manual = true, reason = "switch-channel-$nextChannel")
+        performCheck(manual = true, reason = "switch-channel-$requested")
+        return requested
+    }
+
+    fun openBetaActivationDialog() {
+        _state.update {
+            it.copy(
+                betaActivation = BetaActivationUiState(
+                    visible = true,
+                    phase = BetaActivationPhase.IDLE,
+                )
+            )
+        }
+    }
+
+    fun dismissBetaActivationDialog() {
+        _state.update {
+            it.copy(betaActivation = BetaActivationUiState(visible = false))
+        }
+    }
+
+    fun redeemBetaInvite(code: String) {
+        if (_state.value.betaActivation.phase == BetaActivationPhase.VERIFYING) return
+        _state.update {
+            it.copy(
+                betaActivation = BetaActivationUiState(
+                    visible = true,
+                    phase = BetaActivationPhase.VERIFYING,
+                    statusMessage = "正在验证内测邀请码…",
+                )
+            )
+        }
+        scope.launch {
+            when (val res = betaAuth.redeemInviteCode(code)) {
+                is BetaAuthManager.RedeemResult.Success -> {
+                    val rec = res.record
+                    val roleLabel = if (rec.role == "developer") "开发者设备长期授权" else "受邀内测设备授权"
+                    store.setPreferredChannel("private_beta")
+                    _state.update {
+                        it.copy(
+                            channel = "private_beta",
+                            betaAuthorized = true,
+                            betaRole = rec.role,
+                            betaNote = rec.note,
+                            betaExpiresAtMs = rec.expiresAtMs,
+                            betaActivation = BetaActivationUiState(
+                                visible = true,
+                                phase = BetaActivationPhase.SUCCESS,
+                                statusCode = "ok",
+                                statusMessage = "激活成功：$roleLabel",
+                            ),
+                        )
+                    }
+                    performCheck(manual = true, reason = "beta-activated")
+                }
+                is BetaAuthManager.RedeemResult.Failed -> {
+                    _state.update {
+                        it.copy(
+                            betaActivation = BetaActivationUiState(
+                                visible = true,
+                                phase = BetaActivationPhase.FAILED,
+                                statusCode = res.code,
+                                statusMessage = res.message,
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun leaveBetaProgram() {
+        scope.launch {
+            betaAuth.leaveBetaProgram()
+            handleBetaAuthorizationRevoked(triggerCheck = true)
+        }
+    }
+
+    internal fun handleBetaAuthorizationRevoked(triggerCheck: Boolean = true) {
+        if (_state.value.decision.manifest?.channel == "private_beta") {
+            downloadJob?.cancel(CancellationException("beta_revoked"))
+            downloadJob = null
+        }
+        betaAuth.clearLocalAuthorization()
+        store.setPreferredChannel("stable")
+        store.clearChannelCache("private_beta")
+        store.clearChannelCache("testing")
+        store.clearVerifiedApkRecord()
+        downloader.cleanObsoleteFiles()
+        _state.update {
+            it.copy(
+                channel = "stable",
+                betaAuthorized = false,
+                betaRole = "",
+                betaNote = "",
+                betaExpiresAtMs = 0L,
+                decision = UpdateDecision(UpdateDecisionMode.NONE, "beta_revoked_to_stable"),
+                dialogVisible = false,
+                download = DownloadSnapshot(),
+                historyVisible = false,
+                historyEntries = emptyList(),
+            )
+        }
+        hydrateFromPersistedPolicy()
+        if (triggerCheck) {
+            performCheck(manual = false, reason = "beta-revoked-fallback")
+        }
     }
 
     fun openReleaseHistoryDialog() {
         val ch = activeChannel
         _state.update { it.copy(historyVisible = true, historyLoading = true) }
         scope.launch {
-            val remote = api.fetchPublishedReleaseHistory(ch, currentVersionCode)
+            val remote = if (ch == "private_beta") {
+                betaAuth.fetchPrivateBetaHistory(currentVersionCode)
+            } else {
+                api.fetchPublishedReleaseHistory(ch, currentVersionCode)
+            }
             val merged = if (remote.isNotEmpty()) {
                 remote
             } else {
@@ -549,6 +778,10 @@ class UpdateManager private constructor(private val appContext: Context) {
             put("currentVersionName", s.currentVersionName)
             put("currentVersionCode", s.currentVersionCode)
             put("channel", s.channel)
+            put("betaAuthorized", s.betaAuthorized)
+            put("betaRole", s.betaRole)
+            put("betaNote", s.betaNote)
+            put("betaExpiresAtMs", s.betaExpiresAtMs)
             put("checkPhase", s.checkPhase.name.lowercase())
             put("checkMessage", s.checkMessage)
             put("lastCheckedAtMs", s.lastCheckedAtMs)

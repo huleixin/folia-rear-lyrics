@@ -123,9 +123,9 @@ public final class NativeLyricsRepository {
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();
         client = new OkHttpClient.Builder()
-                .connectTimeout(8, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .callTimeout(14, TimeUnit.SECONDS)
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .callTimeout(6, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
                 .build();
     }
@@ -198,8 +198,40 @@ public final class NativeLyricsRepository {
         Result cached = readCache(info.songKey);
         if (cached != null) return cached;
         if (System.currentTimeMillis() < retryNotBefore) return networkStatus(Status.RATE_LIMITED, 429, "cooldown");
+        if (info.songKey.startsWith("local:")) {
+            Result localSidecar = requestLocalSidecar(info);
+            if (localSidecar != null && localSidecar.hasTimeline()) {
+                return persist(info, localSidecar);
+            }
+        }
         if (info.title == null || info.title.trim().isEmpty()) {
             return new Result(Status.NO_IDENTITY, null, false, "", 0, "none", 0, 0, -1);
+        }
+
+        // 中文曲目优先走国内可达且毫秒级响应的酷狗接口，避免 lrclib.net 阻塞耗尽预算；
+        // 非中文曲目仍先走 LRCLIB 精准匹配，且单次调用超时收敛至 6s，保障两条链均有机会执行。
+        if (containsCjk(info.title)) {
+            Attempt kugouFirst = requestKugou(info);
+            if (kugouFirst.result.hasTimeline()) return persist(info, kugouFirst.result);
+            if (kugouFirst.result.status == Status.RATE_LIMITED) return kugouFirst.result;
+
+            if (!mayContinue(budget, stillWanted, "get")) return aborted("get", kugouFirst.result);
+            Attempt getAttempt = requestGet(info);
+            if (getAttempt.result.status == Status.RATE_LIMITED) return getAttempt.result;
+            if (getAttempt.result.hasTimeline()) return persist(info, getAttempt.result);
+
+            if (!mayContinue(budget, stillWanted, "search")) return aborted("search", getAttempt.result);
+            Attempt searchAttempt = requestSearch(info);
+            if (searchAttempt.result.status == Status.RATE_LIMITED) return searchAttempt.result;
+            if (searchAttempt.result.hasTimeline()) return persist(info, searchAttempt.result);
+
+            if (searchAttempt.result.status == Status.NOT_FOUND && kugouFirst.result.status == Status.NOT_FOUND) {
+                Result negative = new Result(Status.UNRESOLVED, null, false, "backup-miss", 404,
+                        "search", searchAttempt.result.candidateCount, 0, -1);
+                writeRecord(info.songKey, "miss", null, false, "backup-miss", 0, -1);
+                return negative;
+            }
+            return searchAttempt.result.status == Status.NOT_FOUND ? kugouFirst.result : searchAttempt.result;
         }
 
         // 1) 精准取：LRCLIB 的 /api/get 只在时长匹配（±2s）时才返回，正好就是我们要的防错词行为。
@@ -207,18 +239,17 @@ public final class NativeLyricsRepository {
         if (attempt.result.status == Status.RATE_LIMITED) return attempt.result;
         if (attempt.result.hasTimeline()) return persist(info, attempt.result);
 
-        // 2) 搜索兜底：/api/get 404 不代表库里没有，可能只是时长或专辑名对不上。
-        if (!mayContinue(budget, stillWanted, "search")) return aborted("search", attempt.result);
-        Attempt search = requestSearch(info);
-        if (search.result.status == Status.RATE_LIMITED) return search.result;
-        if (search.result.hasTimeline()) return persist(info, search.result);
-
-        // 3) 国内可达性兜底：LRCLIB 在部分网络下不可达或没有中文曲库，酷狗的公开歌词接口
-        //    在同样的曲目上通常能命中。只用**歌名 + 时长（±2s）**判定，宁可判无也不拿错版本。
-        if (!mayContinue(budget, stillWanted, "kugou")) return aborted("kugou", search.result);
+        // 2) 国内可达性兜底：放在 search 之前，确保一次 /api/get 超时也不会饿死酷狗兜底。
+        if (!mayContinue(budget, stillWanted, "kugou")) return aborted("kugou", attempt.result);
         Attempt kugou = requestKugou(info);
         if (kugou.result.hasTimeline()) return persist(info, kugou.result);
         if (kugou.result.status == Status.RATE_LIMITED) return kugou.result;
+
+        // 3) 搜索兜底：/api/get 404 不代表库里没有，可能只是时长或专辑名对不上。
+        if (!mayContinue(budget, stillWanted, "search")) return aborted("search", kugou.result);
+        Attempt search = requestSearch(info);
+        if (search.result.status == Status.RATE_LIMITED) return search.result;
+        if (search.result.hasTimeline()) return persist(info, search.result);
 
         if (search.result.status == Status.NOT_FOUND && kugou.result.status == Status.NOT_FOUND) {
             // Neither backup catalog owns this track. A miss is not a global no-lyrics verdict.
@@ -229,6 +260,46 @@ public final class NativeLyricsRepository {
         }
         // 网络失败/超时：不要写负缓存，下一次换歌或重试还能再问。
         return search.result.status == Status.NOT_FOUND ? kugou.result : search.result;
+    }
+
+    private static boolean containsCjk(String text) {
+        if (text == null) return false;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if ((ch >= '\u4E00' && ch <= '\u9FFF') || (ch >= '\u3400' && ch <= '\u4DBF')) return true;
+        }
+        return false;
+    }
+
+    private Result requestLocalSidecar(SongInfo info) {
+        try {
+            String rawUri = NativeAudioEngine.uriFor(info.songKey);
+            if (rawUri == null || rawUri.isEmpty()) return null;
+            String path = rawUri;
+            if (rawUri.startsWith("file://")) {
+                path = android.net.Uri.parse(rawUri).getPath();
+            } else if (!rawUri.startsWith("/")) {
+                return null;
+            }
+            if (path == null || path.isEmpty()) return null;
+            int dot = path.lastIndexOf('.');
+            String base = dot > 0 ? path.substring(0, dot) : path;
+            File lrcFile = new File(base + ".lrc");
+            if (!lrcFile.isFile()) lrcFile = new File(base + ".LRC");
+            if (!lrcFile.isFile() || lrcFile.length() <= 0 || lrcFile.length() > 512 * 1024L) return null;
+            byte[] bytes = java.nio.file.Files.readAllBytes(lrcFile.toPath());
+            String text = new String(bytes, StandardCharsets.UTF_8);
+            List<LrcParser.Line> lines = LrcParser.parse(text);
+            if (lines.isEmpty()) return null;
+            LyricInfoPayload.Result payload = LyricInfoPayload.build(
+                    info.title, info.artist, info.album, info.songId(), info.durationMs, lines,
+                    info.generation, "native-local-sidecar");
+            if (payload == null) return null;
+            return new Result(Status.FETCHED, payload.json, payload.hasTranslation,
+                    "local-sidecar", 200, "local-sidecar", 1, 10, 0);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     /** 预算与失效两道闸；两条都通过才允许继续走下一条链。 */

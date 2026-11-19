@@ -84,6 +84,11 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         long duration=engine.player.getDuration();
         return duration>0L?duration:-1L;
     }
+    public static String uriFor(String songKey){
+        NativeAudioEngine engine=instance;
+        if(engine==null||songKey==null||!songKey.equals(engine.songKey))return "";
+        return engine.songUri==null?"":engine.songUri;
+    }
     public static boolean mediaSeek(long positionMs){
         if(!isActive())return false;
         NativeAudioEngine engine=instance;
@@ -140,7 +145,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private boolean sleepStopped;
     private volatile String sourceId="";
     private String shuffleClockKey = "";
-    private String songKey="";
+    private volatile String songKey="";
+    private volatile String songUri="";
     private final PowerManager.WakeLock handoffWake;
     private boolean endedHandoff;
     private long sequence,fadeGeneration,eventRevision;
@@ -178,6 +184,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private volatile String lastQueueDroppedAdopted="",lastQueueAddedFirst="";
     private volatile long lastQueueDiffAtMs;
     /** Last verdict the engine actually honoured; diagnostics only. */
+    private volatile boolean allowSimultaneousPlayback=false;
+    private volatile boolean pausedByCall=false;
+    private android.media.AudioManager audioManager;
     private String lastVerdict="none";
     private long lastQueueAppliedAt;
     /**
@@ -254,6 +263,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         PlaybackTestDiagnostics.note("engine-create-start",new JSObject());
         PlaybackDiagnostics.initialize(context);
         android.media.AudioManager audioManager=(android.media.AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+        this.audioManager=audioManager;
+        if(audioManager!=null&&android.os.Build.VERSION.SDK_INT>=android.os.Build.VERSION_CODES.S){
+            audioManager.addOnModeChangedListener(main::post,this::handleAudioModeChanged);
+        }
         if(audioManager!=null)audioManager.registerAudioDeviceCallback(new android.media.AudioDeviceCallback(){
             private JSObject describe(android.media.AudioDeviceInfo[] devices){
                 JSObject value=new JSObject();
@@ -289,7 +302,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(decoderClaimed)return;
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
                 JSObject queued=(JSObject)item.localConfiguration.tag;
-                songKey=item.mediaId;endedHandoff=false;staleNudges=0;
+                songKey=item.mediaId;songUri=item.localConfiguration.uri.toString();endedHandoff=false;staleNudges=0;
                 listeningTracker.onTrackOrPlayState(player.isPlaying(),SystemClock.elapsedRealtime(),System.currentTimeMillis(),currentListeningMeta(item));
                 replayGain=queued.optDouble("replayGain",1);
                 activeDeck.processing.configure(equalizerSettings,replayGain);
@@ -392,6 +405,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             @Override public void onPlaybackSuppressionReasonChanged(int reason){
                 PlaybackDiagnostics.note("suppression",new JSObject().put("reason",reason)
                     .put("playing",player.isPlaying()).put("song",PlaybackDiagnostics.anonKey(songKey)));
+                if(reason==Player.PLAYBACK_SUPPRESSION_REASON_NONE&&player.getPlayWhenReady()&&!desiredPaused&&!sourceId.isEmpty()){
+                    activeDeck.configureFocus(!allowSimultaneousPlayback,true);
+                    player.setVolume(volume);
+                }
+                syncRearTrack();
+                io.github.huleixin.tingyu.FoliaPlaybackService.nativePlaybackChanged(true);
             }
             @Override public void onEvents(Player p,Player.Events events){
                 if(mixer!=null)mixer.wake();
@@ -509,6 +528,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             public NativeAudioDeck active(){return activeDeck;}
             public NativeAudioDeck create(){return new NativeAudioDeck(context,false,NativeAudioEngine.this::emitSpectrum);}
             public boolean allowed(){return !desiredPaused&&!sourceId.isEmpty()&&!decoderClaimed&&!SleepTimerController.get(context).waiting();}
+            public boolean allowSimultaneous(){return allowSimultaneousPlayback;}
             public float volume(){return volume;}
             public void configure(NativeAudioDeck deck,MediaItem item){
                 org.json.JSONObject tag=item.localConfiguration!=null&&item.localConfiguration.tag instanceof org.json.JSONObject?(org.json.JSONObject)item.localConfiguration.tag:null;
@@ -517,9 +537,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             public void promote(NativeAudioDeck incoming){
                 NativeAudioDeck outgoing=activeDeck;
                 player.removeListener(engineListener);cancelFade();
-                try{outgoing.focus(false);incoming.focus(true);incoming.player.play();}
+                try{outgoing.configureFocus(false,false);incoming.configureFocus(!allowSimultaneousPlayback,true);incoming.player.play();}
                 catch(RuntimeException error){
-                    incoming.focus(false);outgoing.focus(true);outgoing.spectrum.enabled=analysisRequested;
+                    incoming.configureFocus(false,false);outgoing.configureFocus(!allowSimultaneousPlayback,true);outgoing.spectrum.enabled=analysisRequested;
                     outgoing.player.addListener(engineListener);throw error;
                 }
                 activeDeck=incoming;player=incoming.player;spectrum=incoming.spectrum;
@@ -537,6 +557,11 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     public JSObject command(JSObject value){
         String action=value.optString("action");if(action.equals("prepare"))sleepStopped=false;String id=value.optString("id");long seq=value.optLong("sequence");
         lastJsCommandAt=SystemClock.elapsedRealtime();jsCommands++;PlaybackLifecycle.noteJsCommand();
+        if("audioFocusPolicy".equals(action)){
+            boolean allow=value.optBoolean("allowSimultaneous",false);
+            applyAudioFocusPolicy(allow,true);
+            return new JSObject().put("accepted",true).put("allowSimultaneous",allow);
+        }
         if("claim-compatibility".equals(action)){
             String key=value.optString("songKey");long ticket=value.optLong("offer",-1);
             if(offeredDecoderFailure==null||!sourceId.equals(id)||seq<sequence||!songKey.equals(key)||!currentKey().equals(key)||!decoderFallback.current(id,key,ticket,retryGeneration,desiredPaused))return new JSObject().put("accepted",false);
@@ -546,6 +571,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             emit("error",true);return new JSObject().put("accepted",true);
         }
         if(action.equals("prepare")){
+            if(value.has("allowSimultaneous"))applyAudioFocusPolicy(value.optBoolean("allowSimultaneous",false),false);
             decoderClaimed=false;decoderFallback.clear();offeredDecoderFailure=null;
             if(id.isEmpty())throw new IllegalArgumentException("Missing source identity");
             String url=value.optString("uri");Uri uri=Uri.parse(url);
@@ -1591,8 +1617,39 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     }
 
     private void releaseHandoff(){if(handoffWake!=null&&handoffWake.isHeld())handoffWake.release();}
+    private static boolean isCallOrRingtoneMode(int mode){
+        return mode==android.media.AudioManager.MODE_IN_CALL
+            ||mode==android.media.AudioManager.MODE_IN_COMMUNICATION
+            ||mode==android.media.AudioManager.MODE_RINGTONE;
+    }
+    private void applyAudioFocusPolicy(boolean allowSimultaneous,boolean log){
+        this.allowSimultaneousPlayback=allowSimultaneous;
+        if(activeDeck!=null)activeDeck.configureFocus(!allowSimultaneous,true);
+        if(log)PlaybackDiagnostics.note("audio-focus-policy",new JSObject().put("allowSimultaneous",allowSimultaneous));
+    }
+    private void handleAudioModeChanged(int mode){
+        if(isCallOrRingtoneMode(mode)){
+            if(!sourceId.isEmpty()&&!desiredPaused&&player.isPlaying()){
+                pausedByCall=true;
+                mixer.cancel();
+                cancelFade();
+                player.pause();
+                emit("state",true);
+                PlaybackDiagnostics.note("call-pause",new JSObject().put("mode",mode));
+            }
+            return;
+        }
+        if(mode==android.media.AudioManager.MODE_NORMAL&&pausedByCall){
+            pausedByCall=false;
+            if(!sourceId.isEmpty()&&!desiredPaused){
+                player.play();
+                emit("state",true);
+                PlaybackDiagnostics.note("call-resume",new JSObject());
+            }
+        }
+    }
     private void transport(String action,boolean external){
-        if(!action.equals("play"))mixer.cancel();cancelFade();
+        if(!action.equals("play")){mixer.cancel();pausedByCall=false;}cancelFade();
         desiredPaused=!action.equals("play");
         if(desiredPaused)releaseHandoff();
         if(desiredPaused){
@@ -1605,7 +1662,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         if(action.equals("stop")){SleepTimerController.get(context).cancel("stopped");PlaybackSessionPersistence.get(context).observe(songKey,Math.max(0,player.getCurrentPosition()),true,"stop");player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
             // 用户主动停止：洛雪脚本引擎没有理由继续占着内存，脚本本身留着（下次播放再起）。
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();return;}
-        if(action.equals("play")){sleepStopped=false;if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
+        if(action.equals("play")){
+            pausedByCall=false;
+            if(audioManager!=null&&isCallOrRingtoneMode(audioManager.getMode())){
+                pausedByCall=true;
+                emit("state",external);
+                return;
+            }
+            sleepStopped=false;if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
             mixer.wake();boolean fadeIn=fade&&!player.isPlaying()&&!mixer.overlapping();if(!mixer.overlapping())player.setVolume(fadeIn?0:volume);player.play();emit("state",external);
             // Pressing play on a drained window is an explicit "I still want music": re-arm the
             // refill schedule instead of leaving the session parked.

@@ -111,3 +111,27 @@
 3. 目标渠道选择 **`正式稳定渠道 (stable)`**，填写紧急原因，输入独立发布确认密钥（`RELEASE_PUBLISH_SECRET`）。
 4. 点击红色按钮 **「紧急解除强制更新限制」**。
 5. 云端立即签发更高 `policyRevision` 的 `emergency_unlock` 策略，所有客户端实时拉取生效；后续回到电脑旁可再运行 `node tools/release-cli.mjs sync-manifests` 将相同签名文件镜像至 CNB 静态分支。
+
+---
+
+## 6. 私有内测体系 (`private_beta`) 与三层发布架构
+
+### 6.1 渠道隔离与权限边界
+
+| 渠道 | 可见性 | 策略分发与鉴权 | APK 存储与下载 | 用途 |
+| :--- | :--- | :--- | :--- | :--- |
+| **`stable`** | 面向全体用户，设置页隐藏切换开关 | `/api/public/update/stable` + CNB `stable.json` | 公开 CNB / GitHub Release | 正式稳定版本发布 |
+| **`private_beta`** | 仅通过「关于与使用说明」版本卡连续点击 7 次并验证邀请码激活后可见 | `POST /api/beta/policy`（需 `deviceToken` + Android Keystore ECDSA P-256 PoP 签名），禁止公开接口与 CNB 镜像 | Cloudflare R2 私有对象 (`beta-apks/...`)，15 分钟有效 HMAC 签名票据 `GET /api/beta/download?token=...`（支持 HTTP `Range 206`） | 开发者及受邀内测人员私有内测 |
+| **`testing`**（历史兼容） | 新版客户端中对所有用户彻底移除入口 | 冻结新版本发布，仅用于向 `<= v1.5.83 (299)` 旧测试版用户下发双通道迁移清单 | 与 `stable` 指向同一迁移版安装包，支持 `renew` 续期策略防止 30 天过期 | 旧版测试通道自动迁移回 `stable` |
+
+### 6.2 邀请码、设备绑定与撤销机制
+
+1. **单次邀请码**：格式为 `TYB-XXXX-XXXX-XXXX`，后端仅保存加盐 SHA-256 哈希，原子化 `UPDATE ... WHERE ... RETURNING *` 兑换，支持 `developer`（长期有效直至撤销）与 `tester`（默认 30 天，可延期/撤销）。
+2. **设备绑定与 PoP**：客户端生成独立 `beta_install_id` 与硬件级 Keystore ECDSA P-256 密钥对，`deviceToken` 经 Keystore AES-GCM 加密落盘。
+3. **撤销与断网语义**：服务端返回明确 `401/403` 时客户端立即撤回资格、切回 `stable`、清理 `private_beta` 缓存与强更状态；离线或网络异常仅在本地保留已有状态，绝不阻断播放或自动降级已安装的更高版本。
+
+### 6.3 三层发布流程
+
+1. **本地测试层**：仅在 `BuildConfig.DEBUG` 构建下允许通过 Gradle 属性 `-PtingyuLocalUpdateTestBaseUrl` / `-PtingyuLocalUpdateTestSpki` 指向本地测试 Worker；Release 构建若检测到非空测试覆盖项将直接拒绝打包。
+2. **私有内测层**：`node tools/release-cli.mjs prepare --channel private_beta --register` → `upload --channel private_beta`（仅上传至私有 R2，不推送公开仓库）→ 后台审核并发布 `private_beta` 策略。
+3. **正式发布与双通道迁移层**：`stable` 与（在存在旧测试用户过渡期内的）`testing` 均指向上游稳定迁移安装包，必要时使用 `node tools/release-cli.mjs renew --channel testing --confirm` 续签 `testing` 策略有效期。

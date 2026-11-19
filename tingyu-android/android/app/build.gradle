@@ -10,11 +10,17 @@ def playbackTestBuild = (project.findProperty('tingyuPlaybackTest') == 'true')
 def graphicsTestBuild = (project.findProperty('tingyuGraphicsDiagnostics') == 'true')
 def motionTestBuild = (project.findProperty('tingyuMotionTest') == 'true')
 def feedbackTestBuild = (project.findProperty('tingyuFeedbackTest') == 'true')
+def localUpdateTestBaseUrl = (project.findProperty('tingyuLocalUpdateTestBaseUrl') ?: '').toString().trim()
+def localUpdateTestSpki = (project.findProperty('tingyuLocalUpdateTestSpki') ?: '').toString().trim()
 if (feedbackTestBuild && (motionTestBuild || playbackTestBuild || graphicsTestBuild)) {
     throw new GradleException('Feedback test must use the ordinary app configuration')
 }
 if (motionTestBuild && (playbackTestBuild || graphicsTestBuild)) {
     throw new GradleException('Motion test must use the ordinary playback engine; do not combine test modes')
+}
+def isReleaseTaskRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+if (isReleaseTaskRequested && (!localUpdateTestBaseUrl.isEmpty() || !localUpdateTestSpki.isEmpty())) {
+    throw new GradleException('安全拦截：正式 Release 构建严禁注入本地测试更新地址或测试公钥！')
 }
 
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
@@ -69,6 +75,8 @@ android {
         buildConfigField 'boolean', 'NATIVE_PLAYBACK', (System.getenv('TINGYU_NATIVE_PLAYBACK') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', (playbackTestBuild || graphicsTestBuild).toString()
         buildConfigField 'boolean', 'GRAPHICS_DIAGNOSTICS', graphicsTestBuild.toString()
+        buildConfigField 'String', 'LOCAL_UPDATE_TEST_BASE_URL', "\"${localUpdateTestBaseUrl.replace('"', '')}\""
+        buildConfigField 'String', 'LOCAL_UPDATE_TEST_SPKI', "\"${localUpdateTestSpki.replace('"', '')}\""
         buildConfigField 'String', 'BUILD_ID', "\"${packageJson.version}@${gitBuildId}\""
         applicationId (motionTestBuild ? "io.github.huleixin.tingyu.motiontest" : playbackTestBuild ? "io.github.huleixin.tingyu.playbacktest" : "io.github.huleixin.tingyu")
         manifestPlaceholders['tingyuAppLabel'] = motionTestBuild ? '听屿动效测试' : playbackTestBuild ? '听屿播放测试' : '听屿'

@@ -3165,6 +3165,8 @@ export default {
     "playbackFadeDesc": "Fade the sound out briefly before pausing and back in when resuming, instead of cutting it. Skips the fade when audio is not routed through the audio engine.",
     "autoSkipUnplayable": "Skip songs that can't be played",
     "autoSkipUnplayableDesc": "When a song needs a membership or purchase, is preview-only, is blocked in your region or fails for an unknown reason, count down and skip to the next one, as with a taken-down song. Songs that need you to sign in, and network problems, are never skipped.",
+    "allowSimultaneousPlayback": "Allow simultaneous playback with other apps",
+    "allowSimultaneousPlaybackDesc": "When enabled, Tingyu continues playing music while other apps play audio.",
     "audioOutputDevice": "Current Output Device",
     "audioOutputDeviceDesc": "Switch the audio output used by the current player. Electron desktop is the primary target, and browser environments also work when setSinkId is available.",
     "audioOutputRefresh": "Refresh",

@@ -40,7 +40,8 @@ final class NativeAudioDeck {
                 .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")).createDataSource(),AudioCacheStore.get(context)))))
             .setAudioAttributes(ATTRIBUTES,focus).setHandleAudioBecomingNoisy(focus).setWakeMode(C.WAKE_MODE_LOCAL).build();
     }
-    void focus(boolean enabled){player.setAudioAttributes(ATTRIBUTES,enabled);player.setHandleAudioBecomingNoisy(enabled);}
+    void focus(boolean enabled){configureFocus(enabled,enabled);}
+    void configureFocus(boolean handleAudioFocus,boolean handleBecomingNoisy){player.setAudioAttributes(ATTRIBUTES,handleAudioFocus);player.setHandleAudioBecomingNoisy(handleBecomingNoisy);}
     void pcm(){player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon().setAudioOffloadPreferences(
         new TrackSelectionParameters.AudioOffloadPreferences.Builder().setAudioOffloadMode(0).build()).build());}
     void close(){player.release();spectrum.close();}

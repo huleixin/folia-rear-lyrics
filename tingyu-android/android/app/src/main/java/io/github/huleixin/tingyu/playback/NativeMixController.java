@@ -15,6 +15,7 @@ final class NativeMixController {
         NativeAudioDeck create();
         void promote(NativeAudioDeck incoming);
         boolean allowed();
+        default boolean allowSimultaneous(){return false;}
         float volume();
         void configure(NativeAudioDeck deck,MediaItem item);
     }

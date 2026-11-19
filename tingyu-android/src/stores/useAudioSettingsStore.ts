@@ -15,6 +15,8 @@ import { getStoredBoolean, setStoredBoolean } from './storagePrimitives';
 import { setStatusMessage } from './useStatusMessageStore';
 import i18n from '../i18n/config';
 import { shufflePlayback } from '../services/shufflePlayback';
+import { getTingyuPlayback } from '../platform/tingyuPlayback';
+import { isCapacitorAndroid } from '../platform/runtime';
 import {
     nextPlaybackMode,
     resolvePlaybackMode,
@@ -47,6 +49,19 @@ export const PLAYBACK_FADE_KEY = 'folia_playback_fade_enabled';
  * a skip, like a taken-down one (services/playbackRecovery/playbackFailurePolicy). Off unless asked for.
  */
 export const AUTO_SKIP_UNPLAYABLE_KEY = 'folia_auto_skip_unplayable';
+
+/** Whether Tingyu keeps playing when another app requests or plays audio. Off by default. */
+export const ALLOW_SIMULTANEOUS_PLAYBACK_KEY = 'folia_allow_simultaneous_playback';
+
+const syncNativeAudioFocusPolicy = (allowSimultaneous: boolean) => {
+    if (!isCapacitorAndroid()) return;
+    try {
+        const native = getTingyuPlayback<{ command?: (payload: object) => Promise<unknown> }>();
+        void native.command?.({ action: 'audioFocusPolicy', allowSimultaneous })?.catch(() => {});
+    } catch {
+        // Ignore when native bridge is unavailable (e.g. tests or non-Android).
+    }
+};
 
 /** Gigabytes of cached audio to keep. Zero is the listener asking for no ceiling at all. */
 export const DEFAULT_MEDIA_CACHE_LIMIT_GB = 5;
@@ -159,6 +174,8 @@ export type AudioSettingsState = {
     playbackFadeEnabled: boolean;
     /** Count down to a skip when a song is restricted or fails for an unknown reason. Off by default. */
     autoSkipUnplayable: boolean;
+    /** Keep playing even when other apps play audio (without ducking/pausing on media focus loss). Off by default. */
+    allowSimultaneousPlayback: boolean;
     audioOutputDeviceId: string;
     audioEqualizerSettings: AudioEqualizerSettings;
     isAudioEqualizerOpen: boolean;
@@ -178,6 +195,7 @@ export type AudioSettingsState = {
     handleToggleNeteaseScrobble: (enable: boolean) => void;
     handleTogglePlaybackFade: (enable: boolean) => void;
     handleToggleAutoSkipUnplayable: (enable: boolean) => void;
+    handleToggleAllowSimultaneousPlayback: (enable: boolean) => void;
     handleSetAudioOutputDeviceId: (deviceId: string) => void;
     handleSetAudioEqualizerSettings: (settings: AudioEqualizerSettings) => void;
     handleApplyAudioSoundPreset: (modeId: AudioEqualizerModeId) => void;
@@ -207,6 +225,11 @@ export const useAudioSettingsStore = create<AudioSettingsState>((set, get) => ({
     playbackFadeEnabled: getStoredBoolean(PLAYBACK_FADE_KEY, true),
     // Off unless asked for: skipping a song the listener picked is not something to do by default.
     autoSkipUnplayable: getStoredBoolean(AUTO_SKIP_UNPLAYABLE_KEY, false),
+    allowSimultaneousPlayback: (() => {
+        const enabled = getStoredBoolean(ALLOW_SIMULTANEOUS_PLAYBACK_KEY, false);
+        if (enabled) syncNativeAudioFocusPolicy(true);
+        return enabled;
+    })(),
     audioOutputDeviceId: readStoredAudioOutputDeviceId(),
     audioEqualizerSettings: readStoredAudioEqualizerSettings(),
     isAudioEqualizerOpen: false,
@@ -268,6 +291,11 @@ export const useAudioSettingsStore = create<AudioSettingsState>((set, get) => ({
     handleToggleAutoSkipUnplayable: (enable) => {
         setStoredBoolean(AUTO_SKIP_UNPLAYABLE_KEY, enable);
         set({ autoSkipUnplayable: enable });
+    },
+    handleToggleAllowSimultaneousPlayback: (enable) => {
+        setStoredBoolean(ALLOW_SIMULTANEOUS_PLAYBACK_KEY, enable);
+        set({ allowSimultaneousPlayback: enable });
+        syncNativeAudioFocusPolicy(enable);
     },
     handleSetAudioOutputDeviceId: (deviceId) => {
         set({ audioOutputDeviceId: deviceId });
@@ -382,6 +410,7 @@ export const selectAudioSettingsSnapshot = (state: AudioSettingsState) => ({
     neteaseScrobbleEnabled: state.neteaseScrobbleEnabled,
     playbackFadeEnabled: state.playbackFadeEnabled,
     autoSkipUnplayable: state.autoSkipUnplayable,
+    allowSimultaneousPlayback: state.allowSimultaneousPlayback,
     audioOutputDeviceId: state.audioOutputDeviceId,
     audioEqualizerSettings: state.audioEqualizerSettings,
     isAudioEqualizerOpen: state.isAudioEqualizerOpen,
@@ -397,6 +426,7 @@ export const selectAudioSettingsSnapshot = (state: AudioSettingsState) => ({
     handleToggleNeteaseScrobble: state.handleToggleNeteaseScrobble,
     handleTogglePlaybackFade: state.handleTogglePlaybackFade,
     handleToggleAutoSkipUnplayable: state.handleToggleAutoSkipUnplayable,
+    handleToggleAllowSimultaneousPlayback: state.handleToggleAllowSimultaneousPlayback,
     handleSetAudioOutputDeviceId: state.handleSetAudioOutputDeviceId,
     handleSetAudioEqualizerSettings: state.handleSetAudioEqualizerSettings,
     handleApplyAudioSoundPreset: state.handleApplyAudioSoundPreset,

@@ -18,8 +18,8 @@ import {
 } from '../../../../../services/discovery/ranking';
 import { useLibraryInsightsData } from '../../../../core/bindings/useLibraryInsightsData';
 import { getNativeIdentityFailCount } from '../../../../../hooks/useDiscoveryListening';
-import { discoveryDay } from '../../../../../services/discovery/service';
-import { useDiscoveryRoaming, endDiscoveryRoaming } from '../../../../../services/discovery/roaming';
+import { discoveryDay, discoverySources, readDiscovery } from '../../../../../services/discovery/service';
+import { useDiscoveryRoaming, switchRoamingMode, endDiscoveryRoaming, type RoamingFetchMore } from '../../../../../services/discovery/roaming';
 import { useMobileLibraryStore } from '../../../../../stores/useMobileLibraryStore';
 import { buildLocalQueue, LIST_ROW_COVER_SIZE } from '../../../../../services/playbackAdapters';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../../../../utils/appPlaybackGuards';
@@ -228,10 +228,41 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         };
         controls.openSongs(radarNames[kind], list, desc, true, radarCoverMap[kind]);
     };
+    const fetchMoreRoamingCandidates: RoamingFetchMore = async () => {
+        if (isLocalSource) {
+            return buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE);
+        }
+        const enabledProviders = discoverySources()
+            .filter(source => effectiveSource === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === effectiveSource)
+            .map(source => source.providerId);
+        if (!enabledProviders.length) return [];
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+            const tasks = enabledProviders.flatMap(providerId => [
+                readDiscovery(providerId, 'fm', controller.signal).catch(() => null),
+                readDiscovery(providerId, 'daily', controller.signal).catch(() => null),
+            ]);
+            const results = await Promise.all(tasks);
+            return results.flatMap(result => (result?.status === 'ready' ? result.songs : []));
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+    const roamModeLabel = roaming.mode === 'familiar' ? '偏熟悉' : roaming.mode === 'explore' ? '多探索' : '听屿漫游';
+    const roamActiveSubtitle = roaming.status === 'replenishing'
+        ? `正在补充漫游歌曲（${roamModeLabel}）…`
+        : roaming.status === 'error'
+            ? (roaming.notice || '网络波动，稍后自动重试补充歌曲')
+            : roaming.exhausted
+                ? '当前曲库已全部漫游完毕'
+                : `正在漫游（${roamModeLabel}）· 下一首继续发现`;
     const actions: PageActions = { settings: openSettings, sources: onSources, refresh: feed.retry,
-        next: () => setBatch(value => value + 1), roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs),
-        roamFamiliar: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'familiar'),
-        roamExplore: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'explore'),
+        next: () => setBatch(value => value + 1),
+        roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'balanced', fetchMoreRoamingCandidates),
+        roamBalanced: () => roaming.active ? switchRoamingMode('balanced', songs) : controls.roam(songs, 'balanced', fetchMoreRoamingCandidates),
+        roamFamiliar: () => roaming.active ? switchRoamingMode('familiar', songs) : controls.roam(songs, 'familiar', fetchMoreRoamingCandidates),
+        roamExplore: () => roaming.active ? switchRoamingMode('explore', songs) : controls.roam(songs, 'explore', fetchMoreRoamingCandidates),
         allSongs: () => controls.openSongs(isLocalSource ? '常听精选与本地推荐' : '猜你想听', songs), allRadar: () => setRadarOpen(true),
         history: () => setHistoryOpen(true), allCollections: () => setCollectionsOpen(true),
         recentAll: () => controls.openSongs('最近播放', isLocalSource ? localRecentTracks : recent),
@@ -331,10 +362,11 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const localPlaylists = localHome.sections.find(s => s.key === 'playlists')?.groups ?? [];
     const radarCardKinds: RadarKind[] = isLocalSource ? ['local', 'time', 'style'] : ['style', 'time', 'explore'];
     const sections: Record<string, PageSection> = {
-        roam: { id: 'discovery-brand', layout: 'discoveryHero', items: [{ id: 'roam', title: '听屿漫游', subtitle: roaming.active ? (roaming.exhausted ? '本批已全部加入' : '正在漫游 · 下一首继续发现') : roamIdleSubtitle, action: 'roam', secondaryLabel:roaming.active?'退出漫游':'立即漫游',disabled:!roaming.active&&!songs.length }] },
+        roam: { id: 'discovery-brand', layout: 'discoveryHero', items: [{ id: 'roam', title: '听屿漫游', subtitle: roaming.active ? roamActiveSubtitle : roamIdleSubtitle, action: 'roam', secondaryLabel:roaming.active?'退出漫游':'立即漫游',disabled:!roaming.active&&!songs.length }] },
         roamModes: { id: 'discovery-roam-modes', layout: 'chips', items: [
-            { id: 'roam-familiar', title: '偏熟悉', action: 'roamFamiliar' },
-            { id: 'roam-explore', title: '多探索', action: 'roamExplore' },
+            { id: 'roam-balanced', title: '听屿漫游', action: 'roamBalanced', selected: roaming.active && roaming.mode === 'balanced' },
+            { id: 'roam-familiar', title: '偏熟悉', action: 'roamFamiliar', selected: roaming.active && roaming.mode === 'familiar' },
+            { id: 'roam-explore', title: '多探索', action: 'roamExplore', selected: roaming.active && roaming.mode === 'explore' },
         ] },
         shortcuts: { id: 'shortcuts', layout: 'quickLinks', items: shortcuts },
         radars: { id: 'discovery-radars', title: '你的专属雷达', layout: 'radarCards', more: 'allRadar', moreLabel: '全部', items: radarCardKinds.map(kind => {

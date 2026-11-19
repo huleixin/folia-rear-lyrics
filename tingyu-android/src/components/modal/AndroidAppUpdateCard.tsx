@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ChevronRight, History, RefreshCw, ShieldCheck, Smartphone } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronRight, History, LogOut, RefreshCw, ShieldCheck, Smartphone } from 'lucide-react';
 import { chromeNative } from '../../services/nativeChrome';
 
 // src/components/modal/AndroidAppUpdateCard.tsx
@@ -9,6 +9,10 @@ type NativeUpdateStatus = {
     currentVersionName: string;
     currentVersionCode: number;
     channel: string;
+    betaAuthorized?: boolean;
+    betaRole?: 'developer' | 'tester' | string;
+    betaNote?: string;
+    betaExpiresAtMs?: number;
     checkPhase: 'idle' | 'checking' | 'up_to_date' | 'update_available' | 'check_failed';
     checkMessage: string;
     lastCheckedAtMs: number;
@@ -25,7 +29,9 @@ type FoliaUpdatePlugin = {
     checkAppUpdate?: () => Promise<NativeUpdateStatus>;
     openAppUpdateDialog?: () => Promise<NativeUpdateStatus>;
     openAppReleaseHistory?: () => Promise<NativeUpdateStatus>;
-    setAppUpdateChannel?: (options: { channel: 'stable' | 'testing' }) => Promise<NativeUpdateStatus>;
+    setAppUpdateChannel?: (options: { channel: 'stable' | 'private_beta' | 'testing' }) => Promise<NativeUpdateStatus>;
+    openBetaActivationDialog?: () => Promise<NativeUpdateStatus>;
+    leaveBetaProgram?: () => Promise<NativeUpdateStatus>;
     getTelemetryStatus?: () => Promise<{ enabled: boolean; intervalSec?: number }>;
     setTelemetryEnabled?: (options: { enabled: boolean }) => Promise<{ enabled: boolean; intervalSec?: number }>;
 };
@@ -39,6 +45,10 @@ export default function AndroidAppUpdateCard() {
     const [status, setStatus] = useState<NativeUpdateStatus | null>(null);
     const [polling, setPolling] = useState(false);
     const [telemetryEnabled, setTelemetryEnabledState] = useState(true);
+    const [confirmLeaveBeta, setConfirmLeaveBeta] = useState(false);
+    const [tapHint, setTapHint] = useState('');
+    const tapTrackerRef = useRef<{ count: number; lastAt: number }>({ count: 0, lastAt: 0 });
+    const tapHintTimerRef = useRef<number | null>(null);
 
     const refreshStatus = useCallback(async () => {
         const plugin = getFoliaPlugin();
@@ -117,7 +127,7 @@ export default function AndroidAppUpdateCard() {
         }
     };
 
-    const handleSwitchChannel = async (channel: 'stable' | 'testing') => {
+    const handleSwitchChannel = async (channel: 'stable' | 'private_beta') => {
         const plugin = getFoliaPlugin();
         if (!plugin?.setAppUpdateChannel || status?.channel === channel) return;
         setPolling(true);
@@ -126,6 +136,49 @@ export default function AndroidAppUpdateCard() {
             setStatus(next);
         } catch {
             setPolling(false);
+        }
+    };
+
+    const handleVersionCardTap = () => {
+        const now = Date.now();
+        const prev = tapTrackerRef.current;
+        const nextCount = now - prev.lastAt <= 2500 ? prev.count + 1 : 1;
+        tapTrackerRef.current = { count: nextCount, lastAt: now };
+        if (tapHintTimerRef.current !== null) {
+            window.clearTimeout(tapHintTimerRef.current);
+            tapHintTimerRef.current = null;
+        }
+        if (nextCount >= 7) {
+            tapTrackerRef.current = { count: 0, lastAt: 0 };
+            setTapHint('正在打开内测激活窗口…');
+            tapHintTimerRef.current = window.setTimeout(() => setTapHint(''), 2200);
+            void getFoliaPlugin()?.openBetaActivationDialog?.();
+            return;
+        }
+        if (nextCount >= 5) {
+            const remaining = 7 - nextCount;
+            setTapHint(`再点击 ${remaining} 次打开内测激活`);
+            tapHintTimerRef.current = window.setTimeout(() => setTapHint(''), 2500);
+        } else if (tapHint) {
+            setTapHint('');
+        }
+    };
+
+    useEffect(() => () => {
+        if (tapHintTimerRef.current !== null) {
+            window.clearTimeout(tapHintTimerRef.current);
+        }
+    }, []);
+
+    const handleLeaveBeta = async () => {
+        setConfirmLeaveBeta(false);
+        const plugin = getFoliaPlugin();
+        if (!plugin?.leaveBetaProgram) return;
+        try {
+            const next = await plugin.leaveBetaProgram();
+            setStatus(next);
+        } catch {
+            /* Ignore errors */
         }
     };
 
@@ -139,9 +192,18 @@ export default function AndroidAppUpdateCard() {
     };
 
     const currentVer = status?.currentVersionName || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '');
-    const activeChannel = status?.channel === 'testing' ? 'testing' : 'stable';
-    const channelLabel = activeChannel === 'testing' ? '测试验证通道 (testing)' : '正式稳定通道 (stable)';
+    const betaAuthorized = Boolean(status?.betaAuthorized);
+    const activeChannel: 'stable' | 'private_beta' = betaAuthorized && status?.channel === 'private_beta' ? 'private_beta' : 'stable';
+    const channelLabel = activeChannel === 'private_beta' ? '私有内测通道' : '正式稳定通道 (stable)';
     const isChecking = status?.checkPhase === 'checking' || polling;
+    const betaIdentityLabel = (() => {
+        if (!betaAuthorized) return '';
+        const roleTxt = status?.betaRole === 'developer' ? '开发者设备长期授权' : '受邀内测设备授权';
+        const exp = status?.betaExpiresAtMs && status.betaExpiresAtMs > 0
+            ? ` · 有效期至 ${new Date(status.betaExpiresAtMs).toLocaleDateString('zh-CN')}`
+            : '';
+        return `${roleTxt}${exp}`;
+    })();
 
     const statusLine = (() => {
         if (isChecking) return '正在连接更新节点检查新版本…';
@@ -161,77 +223,158 @@ export default function AndroidAppUpdateCard() {
         return '检查更新';
     })();
 
+    const versionSummaryContent = (
+        <>
+            <div className="flex items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
+                <Smartphone size={19} className="shrink-0 opacity-80" aria-hidden="true" />
+                <span className="min-w-0 flex-1" data-settings-style='{"grow":true}' data-settings-layout="column">
+                    <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
+                        {`当前听屿版本 v${currentVer}`}
+                    </span>
+                    <span className="mt-0.5 block text-xs opacity-65" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">
+                        {`${status?.currentVersionCode ? `Build ${status.currentVersionCode} · ` : ''}${channelLabel}`}
+                    </span>
+                    {betaAuthorized && betaIdentityLabel ? (
+                        <span className="mt-0.5 block text-xs opacity-75" data-settings-style='{"font":11.5,"tone":"accent","margin":[0,2,0,0]}' data-settings-layout="column">
+                            {betaIdentityLabel}
+                        </span>
+                    ) : null}
+                </span>
+            </div>
+            {tapHint ? (
+                <p
+                    className="text-xs opacity-75"
+                    style={{ color: 'var(--accent-color)' }}
+                    data-settings-style='{"font":11.5,"tone":"accent","margin":[0,2,0,0]}'
+                    data-settings-layout="column"
+                >
+                    {tapHint}
+                </p>
+            ) : null}
+        </>
+    );
+
     return (
         <div className="space-y-3" data-settings-style='{"gap":10}' data-settings-layout="column">
-            {/* 1. 当前听屿版本与更新通道切换 */}
-            <div
-                data-testid="help-current-version-card"
-                className="rounded-2xl p-4"
-                style={{
-                    color: 'var(--text-primary)',
-                    background: 'color-mix(in srgb, currentColor 5%, transparent)',
-                }}
-                data-settings-style='{"gap":10,"radius":16,"padding":[16,14,16,14],"fill":true}'
-                data-settings-layout="column"
-            >
-                <div className="flex items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
-                    <Smartphone size={19} className="shrink-0 opacity-80" aria-hidden="true" />
-                    <span className="min-w-0 flex-1" data-settings-style='{"grow":true}' data-settings-layout="column">
-                        <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
-                            {`当前听屿版本 v${currentVer}`}
-                        </span>
-                        <span className="mt-0.5 block text-xs opacity-65" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">
-                            {`${status?.currentVersionCode ? `Build ${status.currentVersionCode} · ` : ''}${channelLabel}`}
-                        </span>
-                    </span>
-                </div>
-                <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+            {/* 1. 当前听屿版本（普通用户仅显示正式稳定通道且隐藏切换入口；整卡使用 button 以确保原生 Compose 设置层可点击，连点7次触发隐藏内测激活弹窗） */}
+            {betaAuthorized ? (
+                <div
+                    className="rounded-2xl p-4"
+                    style={{
+                        color: 'var(--text-primary)',
+                        background: 'color-mix(in srgb, currentColor 5%, transparent)',
+                    }}
+                    data-settings-style='{"gap":10,"radius":16,"padding":[16,14,16,14],"fill":true}'
+                    data-settings-layout="column"
+                >
                     <button
                         type="button"
-                        data-testid="help-channel-stable"
-                        disabled={isChecking}
-                        aria-pressed={activeChannel === 'stable'}
-                        onClick={() => void handleSwitchChannel('stable')}
-                        className="flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold transition-colors"
-                        data-settings-style={JSON.stringify({
-                            grow: true,
-                            center: true,
-                            radius: 12,
-                            padding: [12, 8, 12, 8],
-                            font: 12,
-                            weight: 600,
-                            fill: true,
-                            tone: activeChannel === 'stable' ? 'accent' : 'muted',
-                            border: activeChannel === 'stable',
-                        })}
-                        data-settings-layout="row"
+                        data-testid="help-current-version-card"
+                        onClick={handleVersionCardTap}
+                        className="w-full text-left"
+                        data-settings-style='{"gap":10}'
+                        data-settings-layout="column"
                     >
-                        正式通道
+                        {versionSummaryContent}
                     </button>
-                    <button
-                        type="button"
-                        data-testid="help-channel-testing"
-                        disabled={isChecking}
-                        aria-pressed={activeChannel === 'testing'}
-                        onClick={() => void handleSwitchChannel('testing')}
-                        className="flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold transition-colors"
-                        data-settings-style={JSON.stringify({
-                            grow: true,
-                            center: true,
-                            radius: 12,
-                            padding: [12, 8, 12, 8],
-                            font: 12,
-                            weight: 600,
-                            fill: true,
-                            tone: activeChannel === 'testing' ? 'accent' : 'muted',
-                            border: activeChannel === 'testing',
-                        })}
-                        data-settings-layout="row"
-                    >
-                        测试通道
-                    </button>
+                    <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+                            <button
+                                type="button"
+                                data-testid="help-channel-stable"
+                                disabled={isChecking}
+                                aria-pressed={activeChannel === 'stable'}
+                                onClick={(e) => { e.stopPropagation(); void handleSwitchChannel('stable'); }}
+                                className="flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold transition-colors"
+                                data-settings-style={JSON.stringify({
+                                    grow: true,
+                                    center: true,
+                                    radius: 12,
+                                    padding: [12, 8, 12, 8],
+                                    font: 12,
+                                    weight: 600,
+                                    fill: true,
+                                    tone: activeChannel === 'stable' ? 'accent' : 'muted',
+                                    border: activeChannel === 'stable',
+                                })}
+                                data-settings-layout="row"
+                            >
+                                正式通道
+                            </button>
+                            <button
+                                type="button"
+                                data-testid="help-channel-testing"
+                                disabled={isChecking}
+                                aria-pressed={activeChannel === 'private_beta'}
+                                onClick={(e) => { e.stopPropagation(); void handleSwitchChannel('private_beta'); }}
+                                className="flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold transition-colors"
+                                data-settings-style={JSON.stringify({
+                                    grow: true,
+                                    center: true,
+                                    radius: 12,
+                                    padding: [12, 8, 12, 8],
+                                    font: 12,
+                                    weight: 600,
+                                    fill: true,
+                                    tone: activeChannel === 'private_beta' ? 'accent' : 'muted',
+                                    border: activeChannel === 'private_beta',
+                                })}
+                                data-settings-layout="row"
+                            >
+                                测试通道
+                            </button>
+                        </div>
+                        {!confirmLeaveBeta ? (
+                            <button
+                                type="button"
+                                data-testid="help-leave-beta"
+                                onClick={(e) => { e.stopPropagation(); setConfirmLeaveBeta(true); }}
+                                className="flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium opacity-75 transition-opacity hover:opacity-100"
+                                data-settings-style='{"center":true,"radius":10,"padding":[10,6,10,6],"font":12,"tone":"muted"}'
+                                data-settings-layout="row"
+                            >
+                                <LogOut size={13} aria-hidden="true" />
+                                <span>退出内测资格</span>
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setConfirmLeaveBeta(false); }}
+                                    className="flex-1 rounded-xl px-3 py-1.5 text-center text-xs font-semibold"
+                                    data-settings-style='{"grow":true,"center":true,"radius":10,"padding":[10,6,10,6],"font":12,"fill":true,"tone":"muted"}'
+                                    data-settings-layout="row"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    type="button"
+                                    data-testid="help-confirm-leave-beta"
+                                    onClick={(e) => { e.stopPropagation(); void handleLeaveBeta(); }}
+                                    className="flex-1 rounded-xl px-3 py-1.5 text-center text-xs font-semibold text-red-500"
+                                    data-settings-style='{"grow":true,"center":true,"radius":10,"padding":[10,6,10,6],"font":12,"fill":true,"tone":"danger"}'
+                                    data-settings-layout="row"
+                                >
+                                    确认退出内测
+                                </button>
+                            </div>
+                        )}
                 </div>
-            </div>
+            ) : (
+                <button
+                    type="button"
+                    data-testid="help-current-version-card"
+                    onClick={handleVersionCardTap}
+                    className="w-full rounded-2xl p-4 text-left"
+                    style={{
+                        color: 'var(--text-primary)',
+                        background: 'color-mix(in srgb, currentColor 5%, transparent)',
+                    }}
+                    data-settings-style='{"gap":10,"radius":16,"padding":[16,14,16,14],"fill":true}'
+                    data-settings-layout="column"
+                >
+                    {versionSummaryContent}
+                </button>
+            )}
 
             {/* 2. 检查更新 */}
             <button

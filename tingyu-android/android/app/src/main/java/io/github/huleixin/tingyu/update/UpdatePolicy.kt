@@ -1,6 +1,7 @@
 package io.github.huleixin.tingyu.update
 
 import android.util.Base64
+import io.github.huleixin.tingyu.BuildConfig
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
@@ -13,7 +14,7 @@ import java.security.spec.X509EncodedKeySpec
 
 object UpdatePolicy {
     private val HEX_64 = Regex("^[a-f0-9]{64}$")
-    private val ALLOWED_CHANNELS = setOf("stable", "testing", "automotive")
+    private val ALLOWED_CHANNELS = setOf("stable", "testing", "private_beta", "automotive")
     private val ALLOWED_ACTIONS = setOf("normal", "pause", "emergency_unlock")
     const val DEFAULT_OFFLINE_GRACE_HOURS = 168
 
@@ -188,7 +189,9 @@ object UpdatePolicy {
                 val label = item.optString("label", "").trim()
                 val url = item.optString("url", "").trim()
                 val priority = item.optInt("priority", i + 1)
-                if (id.isEmpty() || label.isEmpty() || !url.startsWith("https://")) {
+                val localTestBase = if (BuildConfig.DEBUG) BuildConfig.LOCAL_UPDATE_TEST_BASE_URL.trim().trimEnd('/') else ""
+                val allowedLocalHttp = localTestBase.startsWith("http://") && url.startsWith("$localTestBase/")
+                if (id.isEmpty() || label.isEmpty() || (!url.startsWith("https://") && !allowedLocalHttp)) {
                     return ManifestVerifyResult.Invalid("invalid_download_url_entry")
                 }
                 downloadUrls.add(DownloadMirror(id, label, url, priority))

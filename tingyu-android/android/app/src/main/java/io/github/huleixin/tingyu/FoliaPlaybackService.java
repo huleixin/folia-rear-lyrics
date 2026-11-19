@@ -53,6 +53,15 @@ public class FoliaPlaybackService extends Service {
     private volatile String lastRequestedCoverUrl = "";
     private volatile String cachedTitle = "";
     private volatile String cachedArtist = "";
+    private volatile boolean foregroundStarted = false;
+
+    private void ensureForegroundStarted() {
+        if (foregroundStarted) return;
+        foregroundStarted = true;
+        startForeground(NOTIFICATION_ID,
+            buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
+    }
+
     private volatile String cachedAlbum = "";
     private volatile String cachedCoverUrl = "";
     private volatile String cachedSongKey = "";
@@ -158,7 +167,9 @@ public class FoliaPlaybackService extends Service {
         mediaSession.setPlaybackToLocal(new AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
         mediaSession.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
-        mediaSession.setSessionActivity(PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
+        mediaSession.setSessionActivity(PendingIntent.getActivity(this, 0,
+            new Intent(this, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         mediaSession.setCallback(new MediaSession.Callback() {
             @Override public void onPlay() { emit("play"); }
@@ -313,6 +324,7 @@ public class FoliaPlaybackService extends Service {
                     .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
                     .put("fromMs", previous).put("toMs", engineDuration));
             publishMetadata(appliedArtworkBitmap);
+            io.github.huleixin.tingyu.playback.SongInfoLoader.onDurationResolvedIfAvailable(cachedSongKey, engineDuration);
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) manager.notify(NOTIFICATION_ID, buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
         }
@@ -554,7 +566,10 @@ public class FoliaPlaybackService extends Service {
         // A sleeping UI can still publish the preceding item after Media3 advanced.
         // Native prepare/transition publishes its own metadata, so stale UI cannot replace it.
         long[] nativeClock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(songKey);
-        if(io.github.huleixin.tingyu.playback.NativeAudioEngine.isActive() && nativeClock==null)return START_STICKY;
+        if(io.github.huleixin.tingyu.playback.NativeAudioEngine.isActive() && nativeClock==null){
+            ensureForegroundStarted();
+            return START_STICKY;
+        }
         PlaybackSessionClock state = PlaybackSessionClock.resolve(intent.getBooleanExtra("playing", false),
             intent.getLongExtra("position", 0L), nativeClock);
         boolean playing = state.playing;
@@ -601,6 +616,7 @@ public class FoliaPlaybackService extends Service {
         cachedDurationSource = durationSource;
         if(songChanged)lastSystemSeekAt=0L;
         if (progressOnly) {
+            ensureForegroundStarted();
             // Android extrapolates position from PlaybackState's timestamp. A clock refresh must
             // not restart foreground publication or rebuild artwork/queue/notification metadata.
             lastPlaybackStateAtElapsed = SystemClock.elapsedRealtime();
@@ -634,6 +650,7 @@ public class FoliaPlaybackService extends Service {
         FoliaNativePlugin.notePlaybackArtworkApplied(retainedArtwork != null);
 
         Notification notification = buildNotification(cachedTitle, cachedArtist, cachedPlaying, retainedArtwork);
+        foregroundStarted = true;
         startForeground(NOTIFICATION_ID, notification);
         updatePlaybackLocks(cachedPlaying);
         RearLyricsCoordinator.get(this).playback(cachedPlaying);

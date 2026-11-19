@@ -357,6 +357,10 @@ public final class LocalAudioServer {
             }
             streamMediaStoreFile(output, requestParts, headers, token);
         } catch (Exception error) {
+            if (isClientDisconnect(error)) {
+                Log.d(TAG, "audio client disconnected early: " + error.getMessage());
+                return;
+            }
             // 之前这里连日志都没有：流写到一半断掉，WebView 那边只会报一句
             // Format error，原生侧连发生了什么都不知道。
             Log.w(TAG, "audio request failed", error);
@@ -425,6 +429,24 @@ public final class LocalAudioServer {
      * 设备上任何应用都能连上来，不能让它变成一个任读全盘的口子。
      * 走这条路的歌要求已授予「所有文件访问」，没授权时读流会自己失败。
      */
+    private static boolean isClientDisconnect(Throwable error) {
+        Throwable cur = error;
+        int depth = 0;
+        while (cur != null && depth++ < 6) {
+            if (cur instanceof java.net.SocketException || cur instanceof java.io.EOFException) {
+                String msg = cur.getMessage();
+                if (msg == null) return true;
+                String lower = msg.toLowerCase(java.util.Locale.ROOT);
+                if (lower.contains("broken pipe") || lower.contains("connection reset")
+                        || lower.contains("socket closed") || lower.contains("connection abort")) {
+                    return true;
+                }
+            }
+            cur = cur.getCause();
+        }
+        return false;
+    }
+
     private void streamExternalFile(
         BufferedOutputStream output,
         String[] requestParts,

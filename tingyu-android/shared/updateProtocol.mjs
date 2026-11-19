@@ -5,7 +5,7 @@
 export const UPDATE_SCHEMA_VERSION = 1;
 export const TINGYU_APP_ID = 'io.github.huleixin.tingyu';
 export const UPDATE_SIGNATURE_ALGORITHM = 'ECDSA-P256-SHA256';
-export const ALLOWED_CHANNELS = ['stable', 'testing', 'automotive'];
+export const ALLOWED_CHANNELS = ['stable', 'testing', 'private_beta', 'automotive'];
 export const ALLOWED_POLICY_ACTIONS = ['normal', 'pause', 'emergency_unlock'];
 export const DEFAULT_OFFLINE_GRACE_HOURS = 168; // 7 days
 

@@ -219,13 +219,13 @@ export async function loadOnlineSongLyrics(
         || Boolean(onlineLyricsState?.hasOnlineOverride);
     const sharedLyrics = sharedRecord?.lyrics;
     if (!isCurrent()) return;
-    if (sharedLyrics && !hasAuthoritativeLyricsSelection && (!initialSettingsLyricSettings.autoUseBestLyric || sharedRecord?.userChoice || sharedRecord?.confirmedBy==='stage')) {
-        noteLyricsDiagnostic('cache-hit', song, { source: 'unified-native' });
+    if (sharedLyrics && !hasAuthoritativeLyricsSelection) {
+        noteLyricsDiagnostic('cache-hit', song, { source: 'unified-native', confirmedBy: sharedRecord?.confirmedBy ?? 'unknown' });
         onPureMusicChange?.(false);
         onLyrics(sharedLyrics);
         onDone();
         if (sharedRecord?.confirmedBy === 'native' && !sharedRecord.userChoice) {
-            // Show offline fallback immediately; preserve the existing platform's word-level upgrade.
+            // 立即展示后台原生已取得的权威歌词，同时异步尝试升级为更高精度的逐字舞台版。
             void omni.getLyrics(song, { userId, refreshResourceCache: true }).then(result => {
                 if (isCurrent() && result.lyrics?.lines.length) onLyrics(result.lyrics);
             }).catch(() => {});

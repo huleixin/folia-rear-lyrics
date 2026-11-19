@@ -522,6 +522,54 @@ async function cmdUpload(flags) {
     const apkPath = flags.apk ? path.resolve(flags.apk) : draft.apkLocalPath;
     if (!existsSync(apkPath)) throw new Error(`找不到待上传 APK: ${apkPath}`);
 
+    if (channel === 'private_beta') {
+        const cred = readDpapiSlot('release_prepare');
+        const baseUrl = (cred.url || CONSOLE_API_BASE).replace(/\/+$/, '');
+        draft.cnbTag = `private-beta-${draft.versionName}-${draft.versionCode}`;
+        draft.downloadUrls = [
+            {
+                id: 'beta-r2-primary',
+                label: '听屿私有内测主节点',
+                url: `${baseUrl}/api/beta/download`,
+                priority: 1,
+            },
+        ];
+        writeFileSync(draftPath, JSON.stringify(draft, null, 2) + '\n', 'utf8');
+        if (flags.register !== 'false') {
+            await consoleRequest('/api/admin/releases/candidates', {
+                method: 'POST',
+                slot: 'release_prepare',
+                body: draft,
+            });
+        }
+        const apkBytes = readFileSync(apkPath);
+        const upRes = await fetch(`${baseUrl}/api/admin/beta/apks/${encodeURIComponent(draft.id)}`, {
+            method: 'PUT',
+            headers: {
+                Authorization: `Bearer ${cred.token}`,
+                'Content-Type': 'application/vnd.android.package-archive',
+                'X-Apk-Sha256': draft.sha256,
+            },
+            body: apkBytes,
+        });
+        const upText = await upRes.text();
+        let upJson = null;
+        try { upJson = JSON.parse(upText); } catch { upJson = { raw: upText.slice(0, 300) }; }
+        if (!upRes.ok) {
+            throw new Error(`上传私有内测 APK 至 R2 失败 (HTTP ${upRes.status}): ${upJson?.error || upText.slice(0, 200)}`);
+        }
+        console.log(JSON.stringify({
+            ok: true,
+            stage: 'private_beta_r2_uploaded',
+            updateEnabledChanged: false,
+            releaseId: draft.id,
+            objectKey: upJson.objectKey,
+            sha256: draft.sha256,
+            sizeBytes: upJson.sizeBytes,
+        }, null, 2));
+        return;
+    }
+
     const tag = String(flags.tag || draft.cnbTag || `candidate-${draft.versionName}-${draft.versionCode}`);
     const assetName = `tingyu-${draft.versionName}-release.apk`;
     const isFormalRelease = Boolean(flags['formal-release']);
@@ -706,6 +754,21 @@ async function cmdVerify(flags) {
     const draft = JSON.parse(readFileSync(draftPath, 'utf8'));
     const localCheck = existsSync(draft.apkLocalPath) ? inspectLocalApk(draft.apkLocalPath) : null;
 
+    if (channel === 'private_beta') {
+        const overview = await consoleRequest('/api/admin/beta/overview', { slot: 'read' });
+        const matched = (overview.apks || []).find(a => a.release_id === draft.id && a.sha256 === draft.sha256);
+        if (!matched) {
+            throw new Error(`私有内测 R2 存储中未找到匹配的 APK 记录: ${draft.id}`);
+        }
+        console.log(JSON.stringify({
+            ok: true,
+            mode: 'private_beta_r2_verify',
+            localApk: localCheck,
+            r2Object: matched,
+        }, null, 2));
+        return;
+    }
+
     const nodes = {};
     for (const mirror of draft.downloadUrls || []) {
         const check = await fullDownloadAndVerifyUrl(mirror.url, draft.sha256, draft.apkSizeBytes);
@@ -810,7 +873,12 @@ async function cmdInitCnbManifests() {
 
 async function cmdSyncManifests(flags) {
     const trusted = loadTrustedPublicKeys();
-    const channels = flags.channel ? [String(flags.channel)] : ['stable', 'testing'];
+    const rawChannels = flags.channel ? [String(flags.channel)] : ['stable', 'testing'];
+    const channels = rawChannels.filter(ch => ch !== 'private_beta');
+    if (channels.length === 0) {
+        console.log(JSON.stringify({ ok: true, skipped: true, reason: 'private_beta 策略严格私有，禁止同步至公开 CNB 静态节点' }, null, 2));
+        return;
+    }
     const filesToPush = {};
     const syncedChannels = [];
 
@@ -972,7 +1040,7 @@ async function cmdPublish(flags) {
         },
     });
 
-    if (flags['skip-static-sync'] !== 'true') {
+    if (target.channel !== 'private_beta' && flags['skip-static-sync'] !== 'true') {
         await cmdSyncManifests({ channel: target.channel });
     }
     console.log(JSON.stringify({ ok: true, published: id, policyRevision: pub.policyRevision }, null, 2));
@@ -994,7 +1062,7 @@ async function cmdPolicyAction(mode, flags) {
             reason: String(flags.reason || `CLI 管理员执行 ${mode}`),
         },
     });
-    if (flags['skip-static-sync'] !== 'true') {
+    if (channel !== 'private_beta' && flags['skip-static-sync'] !== 'true') {
         await cmdSyncManifests({ channel });
     }
     console.log(JSON.stringify({ ok: true, mode, channel, policyRevision: res.policyRevision, manifest: res.manifest }, null, 2));
@@ -1066,6 +1134,7 @@ async function main() {
         case 'publish': await cmdPublish(flags); break;
         case 'pause': await cmdPolicyAction('pause', flags); break;
         case 'unlock': await cmdPolicyAction('unlock', flags); break;
+        case 'renew': await cmdPolicyAction('renew', flags); break;
         case 'status': await cmdStatus(); break;
         case 'history': await cmdHistory(flags); break;
         default: printHelp(); break;

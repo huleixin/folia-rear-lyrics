@@ -99,10 +99,28 @@ data class ReleaseHistoryEntry(
     val isCurrentInstalled: Boolean = false,
 )
 
+enum class BetaActivationPhase {
+    IDLE,
+    VERIFYING,
+    SUCCESS,
+    FAILED,
+}
+
+data class BetaActivationUiState(
+    val visible: Boolean = false,
+    val phase: BetaActivationPhase = BetaActivationPhase.IDLE,
+    val statusCode: String = "",
+    val statusMessage: String = "",
+)
+
 data class UpdateUiState(
     val currentVersionName: String,
     val currentVersionCode: Long,
     val channel: String,
+    val betaAuthorized: Boolean = false,
+    val betaRole: String = "",
+    val betaNote: String = "",
+    val betaExpiresAtMs: Long = 0L,
     val checkPhase: CheckPhase = CheckPhase.IDLE,
     val checkMessage: String = "",
     val lastCheckedAtMs: Long = 0L,
@@ -113,6 +131,7 @@ data class UpdateUiState(
     val historyVisible: Boolean = false,
     val historyLoading: Boolean = false,
     val historyEntries: List<ReleaseHistoryEntry> = emptyList(),
+    val betaActivation: BetaActivationUiState = BetaActivationUiState(),
 ) {
     val isForceUpdateActive: Boolean
         get() = decision.mode == UpdateDecisionMode.FORCE_UPDATE && decision.manifest != null

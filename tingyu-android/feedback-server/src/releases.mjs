@@ -46,7 +46,7 @@ export async function computeApprovalDigest({
     return hash(raw);
 }
 
-async function appendAuditLog(env, {
+export async function appendAuditLog(env, {
     actorRole,
     action,
     channel,
@@ -89,7 +89,7 @@ async function appendAuditLog(env, {
     ).run();
 }
 
-function getSigningCredentials(env) {
+export function getSigningCredentials(env) {
     if (!env.UPDATE_SIGNING_PRIVATE_KEY_JWK || !env.RELEASE_PUBLISH_SECRET) {
         return null;
     }
@@ -194,6 +194,9 @@ export async function probeApkDownloadUrl(url, expectedSizeBytes = 0) {
 }
 
 export async function publicUpdatePolicy(req, env, channel) {
+    if (channel === 'private_beta') {
+        return json({ error: 'private_beta_auth_required' }, 403);
+    }
     if (!ALLOWED_CHANNELS.includes(channel)) {
         return json({ error: 'invalid_channel' }, 404);
     }
@@ -219,6 +222,9 @@ export async function publicUpdatePolicy(req, env, channel) {
 
 export async function publicReleaseHistory(req, env, url) {
     const channel = String(url.searchParams.get('channel') || 'stable');
+    if (channel === 'private_beta') {
+        return json({ error: 'private_beta_auth_required' }, 403);
+    }
     if (!ALLOWED_CHANNELS.includes(channel)) {
         return json({ error: 'invalid_channel' }, 404);
     }
@@ -938,39 +944,54 @@ export async function publishApprovedRelease(req, env, id, role) {
     }
 
     const downloadUrls = parseJsonSafe(release.download_urls_json, []);
-    if (!downloadUrls.length) {
-        return json({ error: 'missing_download_urls' }, 400);
-    }
-
-    // 正式策略生效前，必须在服务端实时核验至少一个主/备下载节点真实可下载且文件大小一致，并将探测结果立即回写持久化！
+    const isPrivateBeta = release.channel === 'private_beta';
     let reachableCount = 0;
     const probeNow = Date.now();
-    for (const mirror of downloadUrls) {
-        const probe = await probeApkDownloadUrl(mirror.url, release.apk_size_bytes);
-        if (probe.accessible) reachableCount++;
-        const nodeId = `${release.id}:${mirror.id}`;
-        const prev = await env.DB.prepare('SELECT verified_sha256, integrity_ok FROM download_nodes WHERE id=?').bind(nodeId).first();
-        const shaOk = Boolean(prev?.integrity_ok) && prev?.verified_sha256 === release.sha256;
-        await env.DB.prepare(
-            `INSERT OR REPLACE INTO download_nodes(
-                id, release_id, node_type, label, url, accessible, http_status,
-                verified_size_bytes, verified_sha256, integrity_ok, latency_ms, last_checked_at, detail
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        ).bind(
-            nodeId,
-            release.id,
-            mirror.id,
-            mirror.label || mirror.id,
-            mirror.url,
-            probe.accessible ? 1 : 0,
-            probe.httpStatus,
-            probe.sizeBytes,
-            prev?.verified_sha256 || '',
-            shaOk ? 1 : 0,
-            probe.latencyMs,
-            probeNow,
-            probe.detail,
-        ).run();
+
+    if (isPrivateBeta) {
+        const betaApk = await env.DB.prepare('SELECT * FROM beta_apk_objects WHERE release_id=?').bind(release.id).first();
+        if (!betaApk || betaApk.sha256 !== release.sha256) {
+            return json({ error: 'private_beta_r2_apk_missing' }, 400);
+        }
+        const obj = await env.LOGS_BUCKET.get(betaApk.r2_key, { range: { offset: 0, length: 1 } });
+        if (!obj) {
+            return json({ error: 'private_beta_r2_object_unreachable' }, 502);
+        }
+        try { await obj.body?.cancel(); } catch { /* ignore */ }
+        reachableCount = 1;
+    } else {
+        if (!downloadUrls.length) {
+            return json({ error: 'missing_download_urls' }, 400);
+        }
+
+        // 正式策略生效前，必须在服务端实时核验至少一个主/备下载节点真实可下载且文件大小一致，并将探测结果立即回写持久化！
+        for (const mirror of downloadUrls) {
+            const probe = await probeApkDownloadUrl(mirror.url, release.apk_size_bytes);
+            if (probe.accessible) reachableCount++;
+            const nodeId = `${release.id}:${mirror.id}`;
+            const prev = await env.DB.prepare('SELECT verified_sha256, integrity_ok FROM download_nodes WHERE id=?').bind(nodeId).first();
+            const shaOk = Boolean(prev?.integrity_ok) && prev?.verified_sha256 === release.sha256;
+            await env.DB.prepare(
+                `INSERT OR REPLACE INTO download_nodes(
+                    id, release_id, node_type, label, url, accessible, http_status,
+                    verified_size_bytes, verified_sha256, integrity_ok, latency_ms, last_checked_at, detail
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            ).bind(
+                nodeId,
+                release.id,
+                mirror.id,
+                mirror.label || mirror.id,
+                mirror.url,
+                probe.accessible ? 1 : 0,
+                probe.httpStatus,
+                probe.sizeBytes,
+                prev?.verified_sha256 || '',
+                shaOk ? 1 : 0,
+                probe.latencyMs,
+                probeNow,
+                probe.detail,
+            ).run();
+        }
     }
     if (reachableCount === 0) {
         await appendAuditLog(env, {
@@ -1126,6 +1147,11 @@ export async function mutateChannelPolicy(req, env, channel, mode, role) {
         updateEnabled = false;
         minSupported = Math.max(1, Number(body.safeMinVersionCode || 1));
         if (body.reason) releaseNotes = scrubText(String(body.reason)).slice(0, 2000);
+    } else if (mode === 'renew') {
+        if (!baseManifest) return json({ error: 'no_existing_policy_to_renew' }, 404);
+        policyAction = existing.policy_action === 'emergency_unlock' ? 'emergency_unlock' : existing.policy_action === 'pause' ? 'pause' : 'normal';
+        updateEnabled = Boolean(existing.update_enabled);
+        minSupported = existing.min_supported_version_code;
     } else if (mode === 'adjust') {
         if (!baseManifest) return json({ error: 'no_existing_policy_to_adjust' }, 404);
         policyAction = 'normal';

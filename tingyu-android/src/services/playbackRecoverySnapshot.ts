@@ -38,29 +38,40 @@ export const readPlaybackRecovery=async():Promise<RecoveryReply|null>=>{
     if(!isCapacitorAndroid())return null;
     return getTingyuPlayback<Bridge>().readPlaybackRecovery();
 };
-/** Keep identity and stable metadata; exclude transport URLs, credentials and resource payloads. */
+const MAX_RECOVERY_QUEUE_ITEMS = 400;
+
+/** Keep identity and stable metadata; exclude transport URLs, credentials and bloated payloads to prevent Capacitor bridge OOM. */
 export const sanitizeRecoverySong=(song:SongResult):SongResult=>{
     song=normalizePlaybackSongSource(song);
-    const fields=['id','name','artists','artist','album','durationMs','sourceRef','localRef','isLocal','isNavidrome','navidromeData','qqMid','hash','catalogAudioSpecs','catalogAccess','sourceType','t'];
-    const clean=(value:unknown):unknown=>{
-        if(Array.isArray(value))return value.map(clean);
+    const fields=['id','name','artists','artist','album','durationMs','sourceRef','localRef','isLocal','isNavidrome','qqMid','hash','sourceType','t'];
+    const clean=(value:unknown, depth=0):unknown=>{
+        if(depth>4)return undefined;
+        if(Array.isArray(value))return value.slice(0,20).map(item=>clean(item,depth+1)).filter(v=>v!==undefined);
         if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([key])=>
-            !/^(url|uri|audioSrc|audioUrl|streamUrl|playUrl|playbackUrl|downloadUrl|cookie|token|password|authorization|lyrics|onlineLyricsState)$/i.test(key)
-        ).map(([key,value])=>[key,clean(value)]));
+            !/^(url|uri|audioSrc|audioUrl|streamUrl|playUrl|playbackUrl|downloadUrl|cookie|token|password|authorization|lyrics|rawLyric|translationLyric|matchedLyrics|lrc|onlineLyricsState|catalogAudioSpecs|catalogAccess|privilege|ar|al|mv|fee)$/i.test(key)
+        ).map(([key,v])=>[key,clean(v,depth+1)]).filter(([,v])=>v!==undefined));
         return value;
     };
     return clean(Object.fromEntries(fields.filter(key=>key in song).map(key=>[key,(song as unknown as Record<string,unknown>)[key]]))) as SongResult;
 };
 export const createQueueSnapshot=(song:SongResult|null,queue:SongResult[],mode:QueueSnapshot['mode'],order:string[],positionMs=0,origin:unknown=null,loopMode:'off'|'all'|'one'=mode==='shuffle'?'all':mode):QueueSnapshot=>{
     const seen=new Set<string>();
-    const rows=queue.filter(item=>!isStagePlaybackSong(item)).flatMap(item=>{
+    const allRows=queue.filter(item=>!isStagePlaybackSong(item)).flatMap(item=>{
         const key=getPlaybackSongKey(item);if(!key||seen.has(key))return[];seen.add(key);
         return[{songKey:key,song:sanitizeRecoverySong(item)}];
     });
     const currentKey=song?getPlaybackSongKey(song):'';
-    const cleared=rows.length===0||!song;
-    if(!cleared&&!seen.has(currentKey)){rows.unshift({songKey:currentKey,song:sanitizeRecoverySong(song!)});seen.add(currentKey);}
-    const ordered=[...new Set([...order,...rows.map(row=>row.songKey)])].filter(key=>seen.has(key));
+    const cleared=allRows.length===0||!song;
+    if(!cleared&&!seen.has(currentKey)){allRows.unshift({songKey:currentKey,song:sanitizeRecoverySong(song!)});seen.add(currentKey);}
+    let rows=allRows;
+    if(allRows.length>MAX_RECOVERY_QUEUE_ITEMS){
+        const curIdx=Math.max(0,allRows.findIndex(r=>r.songKey===currentKey));
+        const half=Math.floor(MAX_RECOVERY_QUEUE_ITEMS/2);
+        const start=Math.max(0,Math.min(allRows.length-MAX_RECOVERY_QUEUE_ITEMS,curIdx-half));
+        rows=allRows.slice(start,start+MAX_RECOVERY_QUEUE_ITEMS);
+    }
+    const keptKeys=new Set(rows.map(r=>r.songKey));
+    const ordered=[...new Set([...order,...rows.map(row=>row.songKey)])].filter(key=>keptKeys.has(key));
     return{v:1,loopMode,queue:cleared?[]:rows,order:cleared?[]:ordered,currentKey:cleared?'':currentKey,
         positionMs:Number.isFinite(positionMs)?Math.max(0,Math.round(positionMs)):0,mode,origin,cleared};
 };

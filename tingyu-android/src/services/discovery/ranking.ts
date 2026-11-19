@@ -73,7 +73,7 @@ export function mixRoaming(songs: SongResult[], preferences: PreferenceMap, mode
         else if (song.artists.some(artist => knownArtists.has(artist.name.trim().toLowerCase()))) adjacent.push(song);
         else fresh.push(song);
     });
-    const ratios = mode === 'familiar' ? [.75, .2, .05] : mode === 'explore' ? [.25, .25, .5] : [.5, .3, .2];
+    const ratios = mode === 'familiar' ? [.75, .2, .05] : mode === 'explore' ? [.2, .3, .5] : [.5, .3, .2];
     const buckets = [familiar, adjacent, fresh].map(bucket => [...bucket].sort((a, b) =>
         stableHash(seed + getPlaybackSongKey(a)) - stableHash(seed + getPlaybackSongKey(b))));
     const result: SongResult[] = [];

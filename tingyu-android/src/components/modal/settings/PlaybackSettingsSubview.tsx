@@ -54,11 +54,13 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         neteaseScrobbleEnabled,
         playbackFadeEnabled,
         autoSkipUnplayable,
+        allowSimultaneousPlayback,
         queueAddBehavior,
         onToggleTranscodeFallback,
         onToggleNeteaseScrobble,
         onTogglePlaybackFade,
         onToggleAutoSkipUnplayable,
+        onToggleAllowSimultaneousPlayback,
         onQueueAddBehaviorChange,
     } = useAudioSettingsStore(useShallow(state => ({
         audioOutputDeviceId: state.audioOutputDeviceId,
@@ -66,11 +68,13 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         neteaseScrobbleEnabled: state.neteaseScrobbleEnabled,
         playbackFadeEnabled: state.playbackFadeEnabled,
         autoSkipUnplayable: state.autoSkipUnplayable,
+        allowSimultaneousPlayback: state.allowSimultaneousPlayback,
         queueAddBehavior: state.queueAddBehavior,
         onToggleTranscodeFallback: state.handleToggleTranscodeFallback,
         onToggleNeteaseScrobble: state.handleToggleNeteaseScrobble,
         onTogglePlaybackFade: state.handleTogglePlaybackFade,
         onToggleAutoSkipUnplayable: state.handleToggleAutoSkipUnplayable,
+        onToggleAllowSimultaneousPlayback: state.handleToggleAllowSimultaneousPlayback,
         onQueueAddBehaviorChange: state.handleSetQueueAddBehavior,
     })));
     // Subscribed to rather than read once: the panel has to grey out the moment the NetEase account
@@ -240,6 +244,17 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                             </div>
                         </div>
                         {renderToggle(autoSkipUnplayable, () => onToggleAutoSkipUnplayable(!autoSkipUnplayable))}
+                    </div>
+                    <div className="flex items-start justify-between gap-3 border-t border-current/10 pt-4" data-settings-style='{"align":"between","gap":12,"padding":[0,16,0,0]}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
+                                {t('options.allowSimultaneousPlayback')}
+                            </div>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
+                                {t('options.allowSimultaneousPlaybackDesc')}
+                            </div>
+                        </div>
+                        {renderToggle(allowSimultaneousPlayback, () => onToggleAllowSimultaneousPlayback(!allowSimultaneousPlayback))}
                     </div>
                 </div>
             </SettingsAnchor>

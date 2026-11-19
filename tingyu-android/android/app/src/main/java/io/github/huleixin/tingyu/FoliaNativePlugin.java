@@ -2545,6 +2545,30 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openBetaActivationDialog(PluginCall call) {
+        try {
+            io.github.huleixin.tingyu.update.UpdateManager manager =
+                io.github.huleixin.tingyu.update.UpdateManager.getInstance(getContext());
+            manager.openBetaActivationDialog();
+            call.resolve(JSObject.fromJSONObject(manager.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("打开内测激活弹窗失败", error);
+        }
+    }
+
+    @PluginMethod
+    public void leaveBetaProgram(PluginCall call) {
+        try {
+            io.github.huleixin.tingyu.update.UpdateManager manager =
+                io.github.huleixin.tingyu.update.UpdateManager.getInstance(getContext());
+            manager.leaveBetaProgram();
+            call.resolve(JSObject.fromJSONObject(manager.toBridgeJson()));
+        } catch (Exception error) {
+            call.reject("退出内测资格失败", error);
+        }
+    }
+
+    @PluginMethod
     public void getTelemetryStatus(PluginCall call) {
         try {
             io.github.huleixin.tingyu.telemetry.TelemetryManager telemetry =

@@ -26,6 +26,21 @@ import {
   updateAdminTelemetryConfig,
   invalidateTelemetrySummaryCache,
 } from './telemetry.mjs';
+import {
+  redeemBetaInvite,
+  verifyBetaDevice,
+  leaveBetaProgram,
+  getPrivateBetaPolicy,
+  getPrivateBetaHistory,
+  downloadPrivateBetaApk,
+  getAdminBetaOverview,
+  createAdminBetaInvite,
+  cancelAdminBetaInvite,
+  updateAdminBetaDevice,
+  revokeAdminBetaDevice,
+  revokeAllTesters,
+  uploadPrivateBetaApk,
+} from './beta.mjs';
 import { adminPage, adminScript, adminStyle } from './ui.mjs';
 import { pwaManifest, pwaIconSvg, pwaServiceWorker } from './pwa.mjs';
 import { tracedEnvironment } from './trace.mjs';
@@ -48,6 +63,14 @@ async function route(req, env, trace) {
   if (p === '/api/public/releases/history' && req.method === 'GET') return publicReleaseHistory(req, env, url);
   if (p === '/api/public/telemetry/heartbeat' && req.method === 'POST') return submitTelemetryHeartbeat(req, env);
   if (p === '/api/public/telemetry/update-event' && req.method === 'POST') return submitTelemetryUpdateEvent(req, env);
+
+  // Private Beta invite redemption & device-bound authenticated endpoints (zero public unauthenticated beta exposure)
+  if (p === '/api/beta/redeem' && req.method === 'POST') return redeemBetaInvite(req, env);
+  if (p === '/api/beta/verify' && req.method === 'POST') return verifyBetaDevice(req, env);
+  if (p === '/api/beta/leave' && req.method === 'POST') return leaveBetaProgram(req, env);
+  if (p === '/api/beta/policy' && req.method === 'POST') return getPrivateBetaPolicy(req, env, url);
+  if (p === '/api/beta/history' && req.method === 'POST') return getPrivateBetaHistory(req, env);
+  if (p === '/api/beta/download' && (req.method === 'GET' || req.method === 'HEAD')) return downloadPrivateBetaApk(req, env, url);
 
   // Unified Developer Console static assets & PWA shell
   if (p === '/admin' || p === '/admin/app.js' || p === '/admin/app.css') {
@@ -108,6 +131,8 @@ async function route(req, env, trace) {
       if (p === '/api/admin/releases' && req.method === 'GET') return listReleases(url, env);
       if (p === '/api/admin/overview' && req.method === 'GET') return getConsoleOverview(env, url);
       if (p === '/api/admin/policy/sync-report' && req.method === 'POST') return recordExternalNodeSync(req, env, role);
+      const betaApkUp = /^\/api\/admin\/beta\/apks\/([a-zA-Z0-9._-]{1,96})$/.exec(p);
+      if (betaApkUp && req.method === 'PUT') return uploadPrivateBetaApk(req, env, betaApkUp[1], role);
       return json({ error: 'prepare_role_restricted' }, 403);
     }
 
@@ -161,10 +186,23 @@ async function route(req, env, trace) {
     const relPublishMatch = /^\/api\/admin\/releases\/([a-zA-Z0-9._-]{1,96})\/publish$/.exec(p);
     if (relPublishMatch && req.method === 'POST') return publishApprovedRelease(req, env, relPublishMatch[1], role);
     if (p === '/api/admin/nodes/probe' && req.method === 'POST') return probeReleaseNodes(req, env, role);
-    const policyMutMatch = /^\/api\/admin\/policy\/([a-z0-9_-]{1,32})\/(pause|unlock|adjust)$/.exec(p);
+    const policyMutMatch = /^\/api\/admin\/policy\/([a-z0-9_-]{1,32})\/(pause|unlock|adjust|renew)$/.exec(p);
     if (policyMutMatch && req.method === 'POST') return mutateChannelPolicy(req, env, policyMutMatch[1], policyMutMatch[2], role);
     if (p === '/api/admin/policy/sync-report' && req.method === 'POST') return recordExternalNodeSync(req, env, role);
     if (p === '/api/admin/audit' && req.method === 'GET') return listAuditLogs(url, env);
+
+    // Private Beta management endpoints
+    if (p === '/api/admin/beta/overview' && req.method === 'GET') return getAdminBetaOverview(env);
+    if (p === '/api/admin/beta/invites' && req.method === 'POST') return createAdminBetaInvite(req, env, role);
+    const betaInviteCancel = /^\/api\/admin\/beta\/invites\/([a-zA-Z0-9_-]{1,64})\/cancel$/.exec(p);
+    if (betaInviteCancel && req.method === 'POST') return cancelAdminBetaInvite(env, betaInviteCancel[1], role);
+    if (p === '/api/admin/beta/devices/revoke-testers' && req.method === 'POST') return revokeAllTesters(req, env, role);
+    const betaDevUpd = /^\/api\/admin\/beta\/devices\/([a-zA-Z0-9_-]{1,64})$/.exec(p);
+    if (betaDevUpd && req.method === 'PATCH') return updateAdminBetaDevice(req, env, betaDevUpd[1], role);
+    const betaDevRevoke = /^\/api\/admin\/beta\/devices\/([a-zA-Z0-9_-]{1,64})\/revoke$/.exec(p);
+    if (betaDevRevoke && req.method === 'POST') return revokeAdminBetaDevice(req, env, betaDevRevoke[1], role);
+    const betaApkUp = /^\/api\/admin\/beta\/apks\/([a-zA-Z0-9._-]{1,96})$/.exec(p);
+    if (betaApkUp && req.method === 'PUT') return uploadPrivateBetaApk(req, env, betaApkUp[1], role);
 
     // Feedback & Issue endpoints (100% backward compatible + release linkage)
     if (p === '/api/admin/stats' && req.method === 'GET') return stats(env);

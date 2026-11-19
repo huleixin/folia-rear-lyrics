@@ -8,7 +8,7 @@ import { omni } from '../../../../../services/onlineMusic/omni';
 import { readDiscovery, discoveryOwner } from '../../../../../services/discovery/service';
 import { useDiscoverySettingsStore } from '../../../../../stores/useDiscoverySettingsStore';
 import { recordDiscoveryFeedback } from '../../../../../services/discovery/preferences';
-import { startDiscoveryRoaming, endDiscoveryRoaming } from '../../../../../services/discovery/roaming';
+import { startDiscoveryRoaming, switchRoamingMode, endDiscoveryRoaming, type RoamingFetchMore } from '../../../../../services/discovery/roaming';
 import { setStatusMessage } from '../../../../../stores/useStatusMessageStore';
 import { usePlaybackStore } from '../../../../../stores/usePlaybackStore';
 import { excludeSongs, mixRoaming } from '../../../../../services/discovery/ranking';
@@ -42,11 +42,18 @@ export function useDiscoveryActions(props: NativeHomeProps['props']) {
         } catch { setNotice('推荐来源已变化，请重新打开。'); }
         finally { pending.current = false; setBusy(false); }
     };
-    const roam = (songs: SongResult[], mode: 'balanced' | 'familiar' | 'explore' = 'balanced') => {
+    const roam = (songs: SongResult[], mode: 'balanced' | 'familiar' | 'explore' = 'balanced', fetchMore?: RoamingFetchMore) => {
+        if (switchRoamingMode(mode, songs)) return;
         if (!songs.length) { setNotice('暂时没有可漫游的歌曲。'); return; }
-        const mixed = mixRoaming(songs, useDiscoveryPreferences.getState().values, mode, new Date().toLocaleDateString('sv-SE'));
+        const seed = new Date().toLocaleDateString('sv-SE');
+        const mixed = mixRoaming(songs, useDiscoveryPreferences.getState().values, mode, seed, Math.max(songs.length, 60));
         const before = usePlaybackStore.getState().playQueue;
-        startDiscoveryRoaming(mixed, (song, queue) => props.onPlaySong(song, queue, false), songs => { props.onAddAllToQueue?.(songs, { suppressToast: true }); });
+        startDiscoveryRoaming(
+            mixed,
+            (song, queue) => props.onPlaySong(song, queue, false),
+            nextBatch => { props.onAddAllToQueue?.(nextBatch, { suppressToast: true }); },
+            { mode, fetchMore, seed },
+        );
         if (usePlaybackStore.getState().playQueue === before) endDiscoveryRoaming(false);
     };
     const menuAction = async (id: string) => {

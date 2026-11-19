@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -22,10 +23,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -195,6 +199,21 @@ fun UpdateOverlayHost(
             safeTopDp = safeTopDp,
             safeBottomDp = safeBottomDp,
             onClose = { manager.dismissReleaseHistoryDialog() },
+            modifier = modifier,
+        )
+        return
+    }
+
+    if (uiState.betaActivation.visible) {
+        BackHandler(enabled = true) {
+            manager.dismissBetaActivationDialog()
+        }
+        BetaActivationDialogSurface(
+            activation = uiState.betaActivation,
+            safeTopDp = safeTopDp,
+            safeBottomDp = safeBottomDp,
+            onVerify = { manager.redeemBetaInvite(it) },
+            onClose = { manager.dismissBetaActivationDialog() },
             modifier = modifier,
         )
     }
@@ -894,5 +913,187 @@ private fun formatSpeed(bytesPerSec: Long): String {
         String.format("%.1f MB/s", bytesPerSec.toDouble() / (1024.0 * 1024.0))
     } else {
         String.format("%d KB/s", (bytesPerSec / 1024L).coerceAtLeast(1L))
+    }
+}
+
+@Composable
+internal fun BetaActivationDialogSurface(
+    activation: BetaActivationUiState,
+    safeTopDp: Float,
+    safeBottomDp: Float,
+    onVerify: (String) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = rememberUpdateDialogColors()
+    val clipboard = LocalClipboardManager.current
+    var inviteCode by remember { mutableStateOf("") }
+    val verifying = activation.phase == BetaActivationPhase.VERIFYING
+    val succeeded = activation.phase == BetaActivationPhase.SUCCESS
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.scrim)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { if (!verifying) onClose() },
+            )
+            .padding(
+                start = 20.dp,
+                end = 20.dp,
+                top = (safeTopDp + 16f).dp,
+                bottom = (safeBottomDp + 16f).dp,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 400.dp)
+                .fillMaxWidth()
+                .shadow(22.dp, RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.dialogBg)
+                .border(1.dp, colors.border, RoundedCornerShape(24.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "内测资格激活",
+                color = colors.ink,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "请输入或粘贴听屿开发者后台生成的一次性内测邀请码。兑换后将与当前设备安全绑定。",
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.cardBg)
+                    .border(1.dp, colors.border, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                BasicTextField(
+                    value = inviteCode,
+                    onValueChange = { if (!verifying) inviteCode = it.uppercase() },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = colors.ink,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    cursorBrush = SolidColor(colors.primaryBtnBg),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (inviteCode.isEmpty()) {
+                            Text(
+                                text = "TYB-XXXX-XXXX-XXXX",
+                                color = colors.muted.copy(alpha = 0.65f),
+                                fontSize = 14.sp,
+                            )
+                        }
+                        inner()
+                    },
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(colors.secondaryBtnBg)
+                        .clickable(enabled = !verifying, role = Role.Button) {
+                            val clipText = clipboard.getText()?.text?.trim().orEmpty()
+                            if (clipText.isNotEmpty()) inviteCode = clipText.uppercase()
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        text = "粘贴",
+                        color = colors.secondaryBtnText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            if (activation.statusMessage.isNotBlank()) {
+                val msgBg = when (activation.phase) {
+                    BetaActivationPhase.FAILED -> colors.errorBg
+                    BetaActivationPhase.SUCCESS -> colors.badgeNormalBg
+                    else -> colors.cardBg
+                }
+                val msgColor = when (activation.phase) {
+                    BetaActivationPhase.FAILED -> colors.errorText
+                    BetaActivationPhase.SUCCESS -> colors.badgeNormalText
+                    else -> colors.ink
+                }
+                Text(
+                    text = activation.statusMessage,
+                    color = msgColor,
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(msgBg)
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(colors.secondaryBtnBg)
+                        .clickable(enabled = !verifying, role = Role.Button, onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (succeeded) "完成" else "取消",
+                        color = colors.secondaryBtnText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                if (!succeeded) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1.4f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(if (verifying || inviteCode.trim().length < 6) colors.primaryBtnBg.copy(alpha = 0.55f) else colors.primaryBtnBg)
+                            .clickable(enabled = !verifying && inviteCode.trim().length >= 6, role = Role.Button) {
+                                onVerify(inviteCode)
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (verifying) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = colors.primaryBtnText, strokeWidth = 2.dp)
+                                Text("验证中…", color = colors.primaryBtnText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        } else {
+                            Text("验证并激活", color = colors.primaryBtnText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

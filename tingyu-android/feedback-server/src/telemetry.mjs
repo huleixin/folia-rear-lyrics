@@ -161,7 +161,7 @@ export async function submitTelemetryHeartbeat(req, env) {
         return json({ error: 'invalid_version' }, 400);
     }
 
-    const channel = body.channel === 'testing' ? 'testing' : 'stable';
+    const channel = body.channel === 'private_beta' ? 'private_beta' : body.channel === 'testing' ? 'testing' : 'stable';
     const androidVersion = cleanShortText(String(body.androidVersion || ''), 24);
     const deviceModel = cleanShortText(String(body.deviceModel || ''), 48);
     const isForeground = body.isForeground === true ? 1 : 0;
@@ -379,7 +379,7 @@ export async function submitTelemetryUpdateEvent(req, env) {
     if (!Number.isInteger(targetVersionCode) || targetVersionCode < 1 || targetVersionCode > 2_000_000_000) {
         return json({ error: 'invalid_target_version' }, 400);
     }
-    const channel = body.channel === 'testing' ? 'testing' : 'stable';
+    const channel = body.channel === 'private_beta' ? 'private_beta' : body.channel === 'testing' ? 'testing' : 'stable';
     const rawMirror = cleanShortText(String(body.mirrorId || 'unknown'), 32).toLowerCase();
     const mirrorId = rawMirror.startsWith('cnb')
         ? 'cnb-primary'
@@ -1063,20 +1063,24 @@ export async function getAdminTelemetrySummary(url, env) {
     const latestStableCode = Number(stablePolicyRow?.latest_version_code || 0);
     const latestStableName = stablePolicyRow?.latest_version_name || '';
     let latestStableDevices = 0;
-    let testingChannelDevices = 0;
+    let privateBetaDevices = 0;
+    let legacyTestingDevices = 0;
 
     const byVersion = versionDistRows.results.map(r => {
         const count = Number(r.devices || 0);
         if (latestStableCode > 0 && r.version_code === latestStableCode && r.channel === 'stable') {
             latestStableDevices += count;
         }
-        if (r.channel === 'testing') {
-            testingChannelDevices += count;
+        if (r.channel === 'private_beta') {
+            privateBetaDevices += count;
+        } else if (r.channel === 'testing') {
+            legacyTestingDevices += count;
         }
         return {
             versionName: r.version_name,
             versionCode: r.version_code,
             channel: r.channel,
+            channelLabel: r.channel === 'private_beta' ? '私有内测 (private_beta)' : r.channel === 'testing' ? '旧公开测试 (待迁移)' : '正式稳定 (stable)',
             devices: count,
             activeRecent: Number(r.active_recent || 0),
             sharePercent: active30Total > 0 ? Number(((count / active30Total) * 100).toFixed(1)) : null,
@@ -1087,7 +1091,7 @@ export async function getAdminTelemetrySummary(url, env) {
         ? Number(((latestStableDevices / active30Total) * 100).toFixed(1))
         : null;
     const testingSharePercent = active30Total > 0
-        ? Number(((testingChannelDevices / active30Total) * 100).toFixed(1))
+        ? Number((((privateBetaDevices + legacyTestingDevices) / active30Total) * 100).toFixed(1))
         : null;
 
     // 软件内更新漏斗聚合
@@ -1184,6 +1188,9 @@ export async function getAdminTelemetrySummary(url, env) {
             latestStableVersionName: latestStableName,
             latestStableSharePercent,
             testingSharePercent,
+            privateBetaDevices,
+            legacyTestingDevices,
+            stableDevices: Math.max(0, active30Total - privateBetaDevices - legacyTestingDevices),
         },
         retention: {
             day1: ret1d,

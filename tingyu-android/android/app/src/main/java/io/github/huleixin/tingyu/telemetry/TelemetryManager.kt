@@ -174,12 +174,16 @@ class TelemetryManager internal constructor(
             pendingFromVc in 1 until currentVersionCode -> pendingFromVc
             else -> 0
         }
-        val channel = runCatching { UpdateManager.getInstance(appContext).activeChannel }.getOrDefault("stable")
+        val channel = when (runCatching { UpdateManager.getInstance(appContext).activeChannel }.getOrDefault("stable")) {
+            "private_beta" -> "private_beta"
+            "testing" -> "testing"
+            else -> "stable"
+        }
         return JSONObject().apply {
             put("installId", getOrCreateInstallId())
             put("versionName", currentVersionName)
             put("versionCode", currentVersionCode)
-            put("channel", if (channel == "testing") "testing" else "stable")
+            put("channel", channel)
             put("androidVersion", Build.VERSION.RELEASE ?: "")
             put("deviceModel", Build.MODEL ?: "")
             put("isForeground", isForeground)
@@ -237,7 +241,11 @@ class TelemetryManager internal constructor(
             put("event", event)
             put("targetVersionCode", targetVersionCode)
             put("targetVersionName", targetVersionName)
-            put("channel", if (channel == "testing") "testing" else "stable")
+            put("channel", when (channel) {
+                "private_beta" -> "private_beta"
+                "testing" -> "testing"
+                else -> "stable"
+            })
             put("mirrorId", mirrorId.ifBlank { "unknown" })
         }
         if (transport != null) {

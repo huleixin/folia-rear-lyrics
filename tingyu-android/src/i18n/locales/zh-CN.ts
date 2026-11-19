@@ -3156,6 +3156,8 @@ export default {
     "playbackFadeDesc": "暂停前先短暂淡出声音，恢复播放时再淡入，而不是瞬间切断。音频未接入音频引擎时会直接暂停。",
     "autoSkipUnplayable": "无法播放时自动跳过",
     "autoSkipUnplayableDesc": "歌曲需要会员或购买、只能试听、所在地区不可播放，或原因不明无法播放时，像已下架的歌曲一样倒计时后跳到下一首。需要登录的歌曲和网络问题不会跳过。",
+    "allowSimultaneousPlayback": "允许与其他应用同时播放",
+    "allowSimultaneousPlaybackDesc": "开启后，其他应用播放声音时，听屿可继续播放音乐。",
     "audioOutputDevice": "当前播放声卡",
     "audioOutputDeviceDesc": "切换当前播放器的音频输出设备。在支持 setSinkId 时可使用。",
     "audioOutputRefresh": "刷新",

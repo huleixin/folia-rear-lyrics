@@ -110,12 +110,20 @@ class UpdateStateStore(context: Context) {
 
     fun getPreferredChannel(defaultChannel: String): String {
         val saved = prefs.getString(KEY_PREFERRED_CHANNEL, null)
-        return if (saved == "testing" || saved == "stable") saved else defaultChannel
+        return if (saved == "private_beta" || saved == "testing" || saved == "stable") saved else defaultChannel
     }
 
     fun setPreferredChannel(channel: String) {
-        if (channel != "testing" && channel != "stable") return
+        if (channel != "private_beta" && channel != "testing" && channel != "stable") return
         prefs.edit().putString(KEY_PREFERRED_CHANNEL, channel).apply()
+    }
+
+    fun clearChannelCache(channel: String) {
+        prefs.edit()
+            .remove(keyForChannel(KEY_VERIFIED_MANIFEST, channel))
+            .remove(keyForChannel(KEY_VERIFIED_AT_MS, channel))
+            .remove(keyForChannel(KEY_HIGHEST_REVISION, channel))
+            .apply()
     }
 
     private fun keyForChannel(base: String, channel: String): String = "$base:$channel"

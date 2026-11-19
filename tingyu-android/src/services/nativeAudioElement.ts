@@ -236,7 +236,8 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             event('loadstart');if(!uri)return;
             const preparing=id;
             const {playbackAttempt:_attempt,...nativeMetadata}=sourceMetadata;
-            void send('prepare',{...nativeMetadata,uri,songKey:key,adopt:adoptions.delete(key),volume:muted?0:volume,...options}).catch(reason=>{
+            const allowSimultaneous = typeof localStorage !== 'undefined' && localStorage.getItem('folia_allow_simultaneous_playback') === 'true';
+            void send('prepare',{...nativeMetadata,uri,songKey:key,adopt:adoptions.delete(key),volume:muted?0:volume,allowSimultaneous,...options}).catch(reason=>{
                 if(disposed||preparing!==id)return;error=Object.assign({code:4,message:String(reason)} as MediaError,{nativeCacheFailure:(reason as {nativeCacheFailure?:boolean})?.nativeCacheFailure});rejectPending(reason);event('error');
             });
         },

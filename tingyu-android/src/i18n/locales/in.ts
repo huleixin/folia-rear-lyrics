@@ -2613,6 +2613,8 @@ export default {
     "playbackFadeDesc": "Kecilkan suara sebentar sebelum menjeda dan naikkan kembali saat melanjutkan, bukan memotongnya. Fade dilewati bila audio tidak melalui mesin audio.",
     "autoSkipUnplayable": "Lewati lagu yang tidak dapat diputar",
     "autoSkipUnplayableDesc": "Bila lagu memerlukan langganan atau pembelian, hanya tersedia pratinjau, diblokir di wilayah Anda, atau gagal diputar tanpa alasan yang jelas, hitung mundur lalu lewati ke lagu berikutnya, seperti lagu yang telah dihapus. Lagu yang memerlukan login dan masalah jaringan tidak pernah dilewati.",
+    "allowSimultaneousPlayback": "Izinkan pemutaran bersamaan dengan aplikasi lain",
+    "allowSimultaneousPlaybackDesc": "Saat diaktifkan, Tingyu dapat terus memutar musik meskipun aplikasi lain memutar suara.",
     "audioOutputDevice": "Perangkat Output Saat Ini",
     "audioOutputDeviceDesc": "Ganti output audio yang digunakan oleh pemutar saat ini. Target utama adalah desktop Electron, dan lingkungan browser juga berfungsi bila setSinkId tersedia.",
     "audioOutputRefresh": "Segarkan",

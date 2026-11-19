@@ -1,5 +1,7 @@
 package io.github.huleixin.tingyu.update
 
+import io.github.huleixin.tingyu.BuildConfig
+
 // android/app/src/main/java/io/github/huleixin/tingyu/update/UpdateTrustAnchors.kt
 // 听屿客户端内置可信配置验证公钥、正式包签名指纹与多节点渠道配置。严禁内置任何私钥或写入凭据。
 
@@ -21,82 +23,124 @@ object UpdateTrustAnchors {
      * 内置更新策略验证公钥（X.509 SubjectPublicKeyInfo Base64，ECDSA P-256）。
      * 同时预置 k1 主用公钥与 k2 备用轮换公钥，支持未来平滑密钥轮换。
      */
-    val TRUSTED_PUBLIC_KEYS_SPKI: Map<String, String> = mapOf(
-        "tingyu-policy-2026-k1" to "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbVJK6ih4OY2wmjWjgUgPl+8yKOKEbYKDz5xAAMj5+zXIuarUBqLUdPNU1Wmo06AuSssy4cD/ksB/Zhr9nro4dw==",
-        "tingyu-policy-2026-k2-backup" to "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENCxOfBCUyskXdIV113Y4oCYOKn3fDE4M/+h2CsIygob0nL7oETur+iJpqopBZuz3qXwwmelHczXIDX5noXW0hw==",
-    )
+    val TRUSTED_PUBLIC_KEYS_SPKI: Map<String, String>
+        get() {
+            val base = linkedMapOf(
+                "tingyu-policy-2026-k1" to "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbVJK6ih4OY2wmjWjgUgPl+8yKOKEbYKDz5xAAMj5+zXIuarUBqLUdPNU1Wmo06AuSssy4cD/ksB/Zhr9nro4dw==",
+                "tingyu-policy-2026-k2-backup" to "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENCxOfBCUyskXdIV113Y4oCYOKn3fDE4M/+h2CsIygob0nL7oETur+iJpqopBZuz3qXwwmelHczXIDX5noXW0hw==",
+            )
+            // 仅限非 Release 调试构建在显式传入本地隔离测试公钥时生效；Release 构建由 Gradle 门禁与 !BuildConfig.DEBUG 双重阻断
+            if (BuildConfig.DEBUG && BuildConfig.LOCAL_UPDATE_TEST_SPKI.isNotBlank()) {
+                base["tingyu-local-test-k1"] = BuildConfig.LOCAL_UPDATE_TEST_SPKI.trim()
+            }
+            return base
+        }
 
-    fun endpointsForChannel(channel: String): List<UpdateEndpointNode> = when (channel) {
-        "testing" -> listOf(
-            UpdateEndpointNode(
-                id = "cnb-testing-root",
-                label = "CNB 国内测试配置主节点",
-                url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/testing.json",
-                priority = 1,
-            ),
-            UpdateEndpointNode(
-                id = "cnb-testing-channel",
-                label = "CNB 测试渠道分支节点",
-                url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/channels/testing.json",
-                priority = 2,
-            ),
-            UpdateEndpointNode(
-                id = "cf-primary-testing",
-                label = "听屿云端签名策略节点",
-                url = "https://feedback.20262000.xyz/api/public/update/testing",
-                priority = 3,
-            ),
-            UpdateEndpointNode(
-                id = "cf-backup-testing",
-                label = "听屿备用签名策略节点",
-                url = "https://tingyu-feedback-api.2473297053.workers.dev/api/public/update/testing",
-                priority = 4,
-            ),
-        )
-        "automotive" -> listOf(
-            UpdateEndpointNode(
-                id = "cnb-automotive",
-                label = "CNB 车机渠道配置节点",
-                url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/channels/automotive.json",
-                priority = 1,
-            ),
-            UpdateEndpointNode(
-                id = "cf-primary-automotive",
-                label = "听屿车机云端策略节点",
-                url = "https://feedback.20262000.xyz/api/public/update/automotive",
-                priority = 2,
-            ),
-        )
-        else -> listOf(
-            UpdateEndpointNode(
-                id = "cnb-stable",
-                label = "CNB 国内主节点",
-                url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/stable.json",
-                priority = 1,
-            ),
-            UpdateEndpointNode(
-                id = "cf-primary-stable",
-                label = "听屿实时签名策略节点",
-                url = "https://feedback.20262000.xyz/api/public/update/stable",
-                priority = 2,
-            ),
-            UpdateEndpointNode(
-                id = "cf-backup-stable",
-                label = "听屿备用签名策略节点",
-                url = "https://tingyu-feedback-api.2473297053.workers.dev/api/public/update/stable",
-                priority = 3,
-            ),
-            UpdateEndpointNode(
-                id = "github-stable",
-                label = "GitHub 备用节点",
-                url = "https://raw.githubusercontent.com/huleixin/folia-rear-lyrics/feat/library-search-v2/tingyu-android/releases/update-manifests/stable.json",
-                priority = 4,
-            ),
+    fun betaBaseUrls(): List<String> {
+        if (BuildConfig.DEBUG && BuildConfig.LOCAL_UPDATE_TEST_BASE_URL.isNotBlank()) {
+            return listOf(BuildConfig.LOCAL_UPDATE_TEST_BASE_URL.trimEnd('/'))
+        }
+        return listOf(
+            "https://feedback.20262000.xyz",
+            "https://tingyu-feedback-api.2473297053.workers.dev",
         )
     }
 
-    fun releaseHistoryUrlsForChannel(channel: String): List<String> = listOf(
-        "https://feedback.20262000.xyz/api/public/releases/history?channel=$channel",
-        "https://tingyu-feedback-api.2473297053.workers.dev/api/public/releases/history?channel=$channel",
-    )
+    fun endpointsForChannel(channel: String): List<UpdateEndpointNode> {
+        if (channel == "private_beta") {
+            // 私有内测渠道严禁回退至任何公开静态 JSON 地址，必须经 BetaAuthManager 鉴权拉取
+            return emptyList()
+        }
+        if (BuildConfig.DEBUG && BuildConfig.LOCAL_UPDATE_TEST_BASE_URL.isNotBlank()) {
+            val base = BuildConfig.LOCAL_UPDATE_TEST_BASE_URL.trimEnd('/')
+            return listOf(
+                UpdateEndpointNode(
+                    id = "local-test-$channel",
+                    label = "本地隔离测试节点",
+                    url = "$base/api/public/update/$channel",
+                    priority = 1,
+                )
+            )
+        }
+        return when (channel) {
+            "testing" -> listOf(
+                UpdateEndpointNode(
+                    id = "cnb-testing-root",
+                    label = "CNB 国内测试配置主节点",
+                    url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/testing.json",
+                    priority = 1,
+                ),
+                UpdateEndpointNode(
+                    id = "cnb-testing-channel",
+                    label = "CNB 测试渠道分支节点",
+                    url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/channels/testing.json",
+                    priority = 2,
+                ),
+                UpdateEndpointNode(
+                    id = "cf-primary-testing",
+                    label = "听屿云端签名策略节点",
+                    url = "https://feedback.20262000.xyz/api/public/update/testing",
+                    priority = 3,
+                ),
+                UpdateEndpointNode(
+                    id = "cf-backup-testing",
+                    label = "听屿备用签名策略节点",
+                    url = "https://tingyu-feedback-api.2473297053.workers.dev/api/public/update/testing",
+                    priority = 4,
+                ),
+            )
+            "automotive" -> listOf(
+                UpdateEndpointNode(
+                    id = "cnb-automotive",
+                    label = "CNB 车机渠道配置节点",
+                    url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/channels/automotive.json",
+                    priority = 1,
+                ),
+                UpdateEndpointNode(
+                    id = "cf-primary-automotive",
+                    label = "听屿车机云端策略节点",
+                    url = "https://feedback.20262000.xyz/api/public/update/automotive",
+                    priority = 2,
+                ),
+            )
+            else -> listOf(
+                UpdateEndpointNode(
+                    id = "cnb-stable",
+                    label = "CNB 国内主节点",
+                    url = "https://cnb.cool/tingyu-2026/releases/-/git/raw/main/stable.json",
+                    priority = 1,
+                ),
+                UpdateEndpointNode(
+                    id = "cf-primary-stable",
+                    label = "听屿实时签名策略节点",
+                    url = "https://feedback.20262000.xyz/api/public/update/stable",
+                    priority = 2,
+                ),
+                UpdateEndpointNode(
+                    id = "cf-backup-stable",
+                    label = "听屿备用签名策略节点",
+                    url = "https://tingyu-feedback-api.2473297053.workers.dev/api/public/update/stable",
+                    priority = 3,
+                ),
+                UpdateEndpointNode(
+                    id = "github-stable",
+                    label = "GitHub 备用节点",
+                    url = "https://raw.githubusercontent.com/huleixin/folia-rear-lyrics/feat/library-search-v2/tingyu-android/releases/update-manifests/stable.json",
+                    priority = 4,
+                ),
+            )
+        }
+    }
+
+    fun releaseHistoryUrlsForChannel(channel: String): List<String> {
+        if (channel == "private_beta") return emptyList()
+        if (BuildConfig.DEBUG && BuildConfig.LOCAL_UPDATE_TEST_BASE_URL.isNotBlank()) {
+            val base = BuildConfig.LOCAL_UPDATE_TEST_BASE_URL.trimEnd('/')
+            return listOf("$base/api/public/releases/history?channel=$channel")
+        }
+        return listOf(
+            "https://feedback.20262000.xyz/api/public/releases/history?channel=$channel",
+            "https://tingyu-feedback-api.2473297053.workers.dev/api/public/releases/history?channel=$channel",
+        )
+    }
 }

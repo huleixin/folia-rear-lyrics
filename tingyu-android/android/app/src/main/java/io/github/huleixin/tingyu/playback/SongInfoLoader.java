@@ -201,6 +201,25 @@ public final class SongInfoLoader {
         }
     }
 
+    /** 播放器真实容器时长解析完成时触发：若此前因 duration=0 未命中精准歌词，立即用真实时长补问一次。 */
+    public static void onDurationResolvedIfAvailable(String songKey, long durationMs) {
+        SongInfoLoader loader = instance;
+        if (loader == null || songKey == null || songKey.isEmpty() || durationMs <= 0L) return;
+        if (!loader.isCurrent(songKey)) return;
+        UnifiedLyricsStore.Record existing = loader.unified.get(songKey);
+        if (existing != null && existing.hasTimeline()) return;
+        if ("ready".equals(ColorOsLyricBridge.stateOf(songKey))) return;
+        JSObject tag = io.github.huleixin.tingyu.playback.NativeAudioEngine.currentTrackTag();
+        if (tag == null) return;
+        SongInfo base = SongInfo.fromTag(tag, loader.generation.get());
+        if (base == null || !songKey.equals(base.songKey)) return;
+        if (base.durationMs > 0L && Math.abs(base.durationMs - durationMs) <= 1_000L) return;
+        SongInfo updated = new SongInfo(base.songKey, base.title, base.artist, base.album,
+                durationMs, base.artworkUrl, base.providerId, base.mediaId, loader.generation.get());
+        loader.lyricsCooldown.remove(songKey);
+        loader.submitLyrics(updated);
+    }
+
     /** 队列同步/服务重建时补一次：不换代次，只保证当前窗口的都已经被安排过。 */
     public void refresh(SongInfo current, List<SongInfo> upcoming) {
         if (current == null) return;
@@ -254,7 +273,18 @@ public final class SongInfoLoader {
         if (info == null || info.songKey.isEmpty()) return;
         // 已经有时间轴（前台 JS 推过 / 上一轮原生取到过）就不用再取：任务里会检查并发。
         if ("ready".equals(ColorOsLyricBridge.stateOf(info.songKey))) {
-            PlaybackDiagnostics.note("lyrics-cache-hit", describe("bridge", info, true)
+            UnifiedLyricsStore.Record confirmed = unified.get(info.songKey);
+            if (confirmed != null && confirmed.hasTimeline() && isCurrent(info.songKey)) {
+                lyricsExecutor.execute(() -> {
+                    try {
+                        publishUnified(info, confirmed);
+                    } catch (Throwable error) {
+                        crash("lyrics-publish-ready", error);
+                    }
+                });
+                return;
+            }
+            PlaybackDiagnostics.note("lyrics-cache-hit", describe("bridge", info, isCurrent(info.songKey))
                     .put("state", "ready"));
             return;
         }
