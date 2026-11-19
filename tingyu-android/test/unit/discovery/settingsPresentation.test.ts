@@ -17,8 +17,10 @@ const base=()=>structuredClone(defaultDiscoverySettings);
 describe('discovery settings presentation preserves existing business values',()=>{
     it('groups the native document and combines source switches and weights',()=>{
         const nodes=discoverySettingsModel(base(),[{providerId:'kugou',displayName:'KuGou Music'}]).nodes;
-        expect(nodes.filter(n=>n.kind==='group')).toHaveLength(5);
-        expect(nodes.filter(n=>n.id.startsWith('source:'))).toEqual([expect.objectContaining({kind:'source',title:'酷狗音乐',value:'1',detail:'1'})]);
+        expect(nodes.filter(n=>n.kind==='group')).toHaveLength(6);
+        const sourceOrder=nodes.find(n=>n.id==='sourceOrder');
+        expect(sourceOrder?.kind).toBe('sourceOrder');
+        expect(JSON.parse(sourceOrder!.value!)).toEqual([expect.objectContaining({id:'kugou',label:'酷狗音乐',enabled:true,weight:'1'})]);
         expect(nodes.filter(n=>n.kind==='slider').map(n=>[n.id,n.value,n.min,n.max])).toEqual([
             ['exploration','20',0,100],['crossArtist','30',0,100],['familiarity','50',0,100]]);
     });

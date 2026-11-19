@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { DiscoveryRequestCache } from '../../../src/services/discovery/requestCache';
 describe('discovery request budget', () => {
+    it('allows refresh to repopulate a previously empty section without waiting for its TTL', async () => {
+        const cache=new DiscoveryRequestCache();let calls=0;
+        const work=async()=>++calls===1?[]:['new content'];
+        expect(await cache.read('section',900000,work)).toEqual([]);
+        expect(await cache.read('section',900000,work,undefined,true)).toEqual(['new content']);
+        expect(await cache.read('section',900000,work)).toEqual(['new content']);
+        expect(calls).toBe(2);
+    });
     it('shares concurrent requests and cached answers', async () => {
         const cache = new DiscoveryRequestCache(); let calls = 0;
         const work = async () => ++calls;

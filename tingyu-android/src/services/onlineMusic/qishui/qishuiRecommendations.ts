@@ -1,9 +1,8 @@
-import type { OnlineRecommendationProvider, ProviderCollection } from '../../../types/onlineMusic';
+import type { OnlineRecommendationProvider } from '../../../types/onlineMusic';
 type PersonalFmCatalog = { modes: Array<{ id: string }>; categories: Array<{ id: string; labelKey: string; labelFallback: string }>; scenes: Array<{ id: string; category: string; labelKey: string; labelFallback: string; keywords: string[] }> };
 import { PERSONAL_FM_MODES } from '../fmModes';
 import { requestQishui } from './qishuiTransport';
-import { createQishuiSceneCover } from './qishuiSceneCover';
-import { normalizeQishuiSong, qishuiImage } from './qishuiNormalize';
+import { normalizeQishuiSong } from './qishuiNormalize';
 
 // The live car scene list supplies both radio cards and the existing FM mode picker.
 type Scene = { id: string; name: string; group: string; coverUrl?: unknown };
@@ -47,11 +46,5 @@ export const qishuiRecommendations: OnlineRecommendationProvider = {
             ...(selected.mode === 'FAMILIAR' ? { preference: 'familiar' } : selected.mode === 'EXPLORE' ? { preference: 'fresh' } : {}) });
         return data.items.map(normalizeQishuiSong);
     },
-    async getRecommendedCollections(limit): Promise<ProviderCollection[]> {
-        await getQishuiFmCatalog();
-        return Promise.all(scenes.slice(0, limit).map(async scene => ({
-            providerId: 'qishui', id: `scene-${scene.id}`, type: 'radio', name: scene.name,
-            description: scene.group, coverUrl: await createQishuiSceneCover(scene.id, qishuiImage(scene.coverUrl)), personalFm: { mode: 'SCENE_RCMD', scene: scene.id },
-        })));
-    },
+    // Scene radio modes are not playlists. Keep them in the FM catalogue only.
 };

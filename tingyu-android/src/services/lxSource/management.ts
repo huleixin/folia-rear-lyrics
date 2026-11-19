@@ -34,9 +34,15 @@ export async function checkLxScript(script:Omit<LxScript,'capabilities'>,permit?
     if(options?.signal?.aborted)throw new DOMException('已取消导入','AbortError');
     const installed=state.scripts.some(s=>s.id===script.id&&s.code===script.code);
     if(!installed){if(!permit)throw Error('请先确认实验性功能风险');assertLxImportPermit(permit);}
-    const timeoutMs=options?.timeoutMs??20000;
+    const timeoutMs=Math.max(1000,Math.min(60000,options?.timeoutMs??60000));
     const runtime=new LxRuntime(script,timeoutMs);
-    const onAbort=()=>runtime.stop(new DOMException('已取消导入','AbortError'));
+    const requestId=crypto.randomUUID();
+    const native=Capacitor.isNativePlatform()?getTingyuPlayback<{
+        validateLxScript(value:typeof script & {requestId:string;timeoutMs:number}):Promise<{valid:boolean;reason?:string}>;
+        cancelLxValidation?(value:{requestId:string}):Promise<void>;
+    }>():null;
+    const cancelNative=()=>{void native?.cancelLxValidation?.({requestId}).catch(()=>{});};
+    const onAbort=()=>{cancelNative();runtime.stop(new DOMException('已取消导入','AbortError'));};
     options?.signal?.addEventListener('abort',onAbort,{once:true});
     const unsubscribe=useLxSourceStore.subscribe(next=>{
         if(!next.extensionEnabled){runtime.stop();return;}
@@ -45,7 +51,7 @@ export async function checkLxScript(script:Omit<LxScript,'capabilities'>,permit?
     try{
         const workerCheck=runtime.ready;
         const nativeCheck=Capacitor.isNativePlatform()
-            ?raceAbort(getTingyuPlayback<{validateLxScript(value:typeof script):Promise<{valid:boolean;reason?:string}>}>().validateLxScript(script),options?.signal)
+            ?raceAbort(native!.validateLxScript({...script,requestId,timeoutMs}),options?.signal)
                 .then(result=>{if(!result.valid)throw Error(`原生 JS 初始化失败：${result.reason||'未知错误'}`);})
             :Promise.resolve();
         const [capabilities]=await Promise.all([workerCheck,nativeCheck]);
@@ -53,5 +59,5 @@ export async function checkLxScript(script:Omit<LxScript,'capabilities'>,permit?
         if(options?.signal?.aborted)throw new DOMException('已取消导入','AbortError');
         if(permit)assertLxImportPermit(permit);
         return {capabilities,updateAlert:runtime.updateAlert};
-    }catch(error){noteLx('import',classifyLx(error),error);throw error;}finally{options?.signal?.removeEventListener('abort',onAbort);unsubscribe();runtime.stop();}
+    }catch(error){noteLx('import',classifyLx(error),error);throw error;}finally{cancelNative();options?.signal?.removeEventListener('abort',onAbort);unsubscribe();runtime.stop();}
 }

@@ -210,8 +210,8 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         lastIntent=sequence+1;if(id)void send('pause').catch(()=>{});if(!wasPaused)event('pause');
     }});
     set('play',{value:()=>{
-        requestedPlaying=true;
         if(!source)return Promise.reject(new DOMException('No playback source','NotSupportedError'));
+        requestedPlaying=true;
         if(playing&&!paused)return Promise.resolve();
         rejectPending(abort());error=null;paused=false;ended=false;lastIntent=sequence+1;event('play');
         const playId=id,playIntent=lastIntent;

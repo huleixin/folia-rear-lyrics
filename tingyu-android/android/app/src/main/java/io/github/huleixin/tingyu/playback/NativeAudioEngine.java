@@ -639,7 +639,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             if(!sourceId.equals(id)||seq<sequence)return new JSObject().put("accepted",false);
             sequence=seq;
             switch(action){
-                case "play":case "pause":case "stop":transport(action,false);if("play".equals(action))noteLiveness("play");break;
+                case "play":case "pause":case "stop":
+                    PlaybackDiagnostics.note("transport-command",new JSObject().put("reason",action).put("state","bridge").put("positionMs",Math.max(0,player.getCurrentPosition())));
+                    transport(action,false);if("play".equals(action))noteLiveness("play");break;
                 case "detach":mixer.cancel();io.github.huleixin.tingyu.RearNativeTrack.clear();BackgroundContinuation.get().cancel();desiredPaused=true;retryGeneration++;cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
                         .put("positionMs",Math.max(0,player.getCurrentPosition())));sourceId="";player.stop();player.clearMediaItems();io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).nativeDetached();main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
                 case "seek":mixer.cancel();player.seekTo(Math.max(0,value.optLong("position")));break;

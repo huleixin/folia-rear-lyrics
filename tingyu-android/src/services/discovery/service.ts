@@ -20,7 +20,7 @@ export function discoveryOwner(providerId: string) {
     const source = omni.getProviderSummaries().find(item => item.providerId === providerId);
     return JSON.stringify([providerId, source?.user?.id ?? 'guest', source?.status, source?.hydration]);
 }
-export async function readDiscovery(providerId: string, kind: DiscoveryKind, signal?: AbortSignal): Promise<DiscoveryResult> {
+export async function readDiscovery(providerId: string, kind: DiscoveryKind, signal?: AbortSignal, refresh = false): Promise<DiscoveryResult> {
     const base = { providerId, kind, songs: [], collections: [] };
     const source = discoverySources().find(item => item.providerId === providerId);
     let capabilities;
@@ -33,12 +33,12 @@ export async function readDiscovery(providerId: string, kind: DiscoveryKind, sig
     try {
         const result = await requests.read<DiscoveryResult>(key, kind === 'daily' ? 6 * 3600_000 : 15 * 60_000, async () => {
             const collections = kind === 'collections' ? await omni.getProviderRecommendedCollections(providerId, 20) : [];
-            const songs = kind === 'daily' ? await omni.getProviderDailySongs(providerId)
+            const songs = kind === 'daily' ? await omni.getProviderDailySongs(providerId, refresh)
                 : kind === 'fm' ? await omni.getProviderPersonalFm(providerId) : [];
             const seen = new Set<string>();
             const unique = songs.filter(song => { const id = getPlaybackSongKey(song); if (seen.has(id)) return false; seen.add(id); return true; });
             return { providerId, kind, songs: unique, collections, status: unique.length || collections.length ? 'ready' : 'empty' };
-        }, signal);
+        }, signal, refresh);
         if (signal?.aborted || discoveryOwner(providerId) !== owner) throw new DOMException('Owner changed', 'AbortError');
         return result;
     } catch (error) {

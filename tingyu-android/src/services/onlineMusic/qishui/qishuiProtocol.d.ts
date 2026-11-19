@@ -10,7 +10,7 @@ export type QishuiOperation = 'login_status' | 'logout' | 'login_qr_key' | 'logi
 export type QishuiJsonValue = string | number | boolean | null | QishuiJsonValue[] | { [key: string]: QishuiJsonValue };
 export type QishuiParams = Record<string, QishuiJsonValue | undefined>;
 export type QishuiErrorCode = 'unsupported' | 'invalid-response' | 'auth-required' | 'unavailable' | 'network' | 'not-playable';
-export type QishuiLoginStage = 'access-code' | 'ticket' | 'account';
+export type QishuiLoginStage = 'qr-code' | 'access-code' | 'ticket' | 'account';
 export type QishuiBridgeResult<T = unknown> = { ok: true; data: T } | {
     ok: false;
     error: { code: QishuiErrorCode; message: string; upstreamCode?: string; stage?: QishuiLoginStage };

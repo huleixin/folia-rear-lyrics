@@ -13,10 +13,10 @@ export class DiscoveryRequestCache {
         finally { const next = this.waiting.shift(); if (next) next(); else this.active--; }
     }
 
-    read<T>(key: string, ttl: number, work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    read<T>(key: string, ttl: number, work: () => Promise<T>, signal?: AbortSignal, refresh = false): Promise<T> {
         if (signal?.aborted) return Promise.reject(new DOMException('Cancelled', 'AbortError'));
         const cached = this.cache.get(key);
-        if (cached && cached.expires > Date.now()) return Promise.resolve(cached.value as T);
+        if (!refresh && cached && cached.expires > Date.now()) return Promise.resolve(cached.value as T);
         let task = this.pending.get(key) as Promise<T> | undefined;
         if (!task) {
             task = this.run(work).then(value => {

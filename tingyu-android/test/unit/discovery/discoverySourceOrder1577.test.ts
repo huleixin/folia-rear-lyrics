@@ -85,7 +85,7 @@ describe('1.5.77 Discovery source drag-reorder, hiding, and state isolation', ()
         const flow = discoverySettingsModel(settings, ALL_SOURCES);
         const node = flow.nodes.find(n => n.id === 'sourceOrder');
         expect(node?.kind).toBe('sourceOrder');
-        expect(node?.hint).toBe('长按右侧手柄调整顺序，关闭开关可隐藏对应推荐来源。');
+        expect(node?.hint).toBe('按住右侧手柄即可上下拖动排序；关闭开关将同步在推荐页与资料库隐藏该平台。');
 
         const parsed = JSON.parse(node!.value!) as Array<{ id: string; label: string; status: string; enabled: boolean; weight: string }>;
         expect(parsed.map(p => p.id)).toEqual(['qq', 'netease', 'qishui', 'kugou', 'bodian']);

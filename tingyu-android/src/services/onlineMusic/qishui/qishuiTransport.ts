@@ -11,7 +11,7 @@ export type { QishuiOperation, QishuiParams, QishuiBridgeResult } from './qishui
 export const QISHUI_NEEDS_DESKTOP = 'Qishui requires the desktop app';
 export const QISHUI_BRIDGE_FAILED = 'Qishui desktop request failed';
 export const QISHUI_ANDROID_FAILED = 'Qishui Android bridge request failed';
-const STAGES = ['access-code', 'ticket', 'account'] as const;
+const STAGES = ['qr-code', 'access-code', 'ticket', 'account'] as const;
 export type QishuiLoginStage = typeof STAGES[number];
 // The last failure of a sign-in operation (login_*), for the sign-in diagnostics. Other requests made
 // while signing in (lyrics, radio, covers) are not the sign-in's, and are not kept here.

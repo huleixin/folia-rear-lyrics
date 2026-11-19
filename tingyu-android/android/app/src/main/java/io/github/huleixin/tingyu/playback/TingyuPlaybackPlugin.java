@@ -8,8 +8,10 @@ import java.util.function.Consumer;
 @CapacitorPlugin(name="TingyuPlayback")
 public final class TingyuPlaybackPlugin extends Plugin {
     private static final java.util.concurrent.ExecutorService LX_HTTP_IO=java.util.concurrent.Executors.newFixedThreadPool(4);
+    private static final java.util.concurrent.ExecutorService LX_VALIDATION_IO=java.util.concurrent.Executors.newFixedThreadPool(2);
     private static final java.util.concurrent.ConcurrentHashMap<String,okhttp3.Call> LX_HTTP_CALLS=new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Set<String> LX_HTTP_CANCELLED=java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.FutureTask<Void>> LX_VALIDATIONS=new java.util.concurrent.ConcurrentHashMap<>();
     /** The Worker and native engine share the same credential-free, public-network transport. */
     @PluginMethod public void lxHttp(PluginCall call) {
         final String id=call.getString("id","");
@@ -469,12 +471,31 @@ if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enq
     @PluginMethod public void validateLxScript(PluginCall call) {
         final org.json.JSONObject metadata=call.getData()!=null?call.getData():new org.json.JSONObject();
         final String code=call.getString("code","");
-        LX_HTTP_IO.execute(()->{
+        final String requestId=call.getString("requestId",java.util.UUID.randomUUID().toString());
+        final long timeoutMs=Math.max(1000,Math.min(60000,call.getInt("timeoutMs",60000)));
+        if(requestId.length()>80||LX_VALIDATIONS.size()>=4){call.reject("音源校验任务过多，请取消后重试");return;}
+        final java.util.concurrent.atomic.AtomicBoolean replied=new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.FutureTask<Void> task=new java.util.concurrent.FutureTask<>(()->{
             try {
-                String reason=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.validate(code,metadata);
-                call.resolve(new JSObject().put("valid",reason.isEmpty()).put("reason",reason));
-            } catch(Throwable error) {call.reject("LX validation failed: "+error.getClass().getSimpleName());}
-        });
+                String reason=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.validate(code,metadata,timeoutMs);
+                if(replied.compareAndSet(false,true))call.resolve(new JSObject().put("valid",reason.isEmpty()).put("reason",reason));
+            } catch(Throwable error) {if(replied.compareAndSet(false,true))call.reject("LX validation failed: "+error.getClass().getSimpleName());}
+            return null;
+        }) {
+            @Override protected void done() {
+                LX_VALIDATIONS.remove(requestId,this);
+                // Cancellation can happen while queued, before the callable's finally ever runs.
+                if(isCancelled()&&replied.compareAndSet(false,true))call.reject("已取消导入");
+            }
+        };
+        if(LX_VALIDATIONS.putIfAbsent(requestId,task)!=null){call.reject("音源校验已在进行");return;}
+        LX_VALIDATION_IO.execute(task);
+    }
+
+    @PluginMethod public void cancelLxValidation(PluginCall call) {
+        java.util.concurrent.FutureTask<Void> task=LX_VALIDATIONS.remove(call.getString("requestId",""));
+        if(task!=null)task.cancel(true);
+        call.resolve();
     }
 
     /** 洛雪原生引擎的运行状态，进诊断报告。 */

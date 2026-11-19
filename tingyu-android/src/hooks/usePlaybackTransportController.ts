@@ -212,7 +212,8 @@ export function usePlaybackTransportController({
             // 这条 3 秒后消失的提示都会把它连同按钮一起盖掉。
             setStatusMsg(prev => (isPlaybackFailureStatus(prev) ? prev : { type: 'error', text }));
             setPlayerState(PlayerState.PAUSED);
-            throw error;
+            // The transport already surfaced the failure. UI/media callbacks do not await rejections.
+            return;
         }
     }, [activePlaybackContext, audioContextRef, audioRef, audioSrc, currentTime, duration, getSyntheticStageLyricsTime, getTargetPlaybackVolume, isNowPlayingStageActive, isTransitionAudible, recoverOnlinePlaybackSource, setPlayerState, setStatusMsg, setupAudioAnalyzer, shouldRefreshCurrentOnlineAudioSource, stageActiveEntryKind, stageLyricsClockRef, syncOutputGain, syncStageLyricsClock, t]);
 

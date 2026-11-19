@@ -24,11 +24,16 @@ internal class NativeStageExit {
         if(active)return
         returning=page;this.minimal=minimal;completed=false;lastFinished=false;active=true;suppressReturnMotion=true
     }
-    fun finish(){completed=true;lastFinished=true;val callbacks=replies.toList();replies.clear();callbacks.forEach{it()}}
+    fun finish(){if(!active||completed)return;completed=true;lastFinished=true;val callbacks=replies.toList();replies.clear();callbacks.forEach{it()}}
     fun clear(){if(replies.isNotEmpty())finish();active=false;completed=false;returning=null;minimal=false}
 }
 @Composable internal fun rememberStageExitProgress(exit:NativeStageExit,reduced:Boolean,reference:Boolean=false,immersive:Boolean=false):State<Float>{
     val progress=remember{Animatable(0f)}
+    // A configuration/style change may cancel the animation before it releases the route reply.
+    DisposableEffect(exit.active) {
+        val wasActive=exit.active
+        onDispose { if(wasActive && exit.active && !exit.completed) exit.finish() }
+    }
     LaunchedEffect(exit.active,reduced,reference,immersive){
         if(exit.active){progress.animateTo(1f,if(immersive&&!reduced)io.github.huleixin.tingyu.minimal.immersive.immersiveSettleSpec() else tween(if(reduced)0 else if(reference)SaltPlayerTimeline.ExitMs else if(exit.minimal)TingYuMotion.StageCollapseMinimalMs else TingYuMotion.StageCollapseClassicMs,easing=if(reference)androidx.compose.animation.core.LinearEasing else if(exit.minimal)TingYuMotion.Collapse else TingYuMotion.Emphasized));exit.finish()}
         else progress.snapTo(0f)

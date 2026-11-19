@@ -303,11 +303,23 @@ public final class QqResolver implements SourceResolver {
             String body = response.body() == null ? "" : response.body().string();
             String[] parsed = parseAuthedMusicu(body);
             if (!isPlayable(parsed[0])) {
-                return SourceResolution.failure("authed musicu returned no purl (login may be expired)");
+                return SourceResolution.failure(missingAuthedAddressReason(body));
             }
             return SourceResolution.okDirect(parsed[0], parsed[1], System.currentTimeMillis());
         } catch (IOException error) {
             return SourceResolution.failure("authed musicu unreachable: " + error.getClass().getSimpleName());
+        }
+    }
+
+    /** Empty playback addresses do not prove session expiry; retain only numeric upstream evidence. */
+    static String missingAuthedAddressReason(String body) {
+        try {
+            org.json.JSONObject root = new org.json.JSONObject(body);
+            org.json.JSONObject request = root.optJSONObject("req_0");
+            return "qq playback address missing; upstream code=" + root.optInt("code", -1)
+                + ", request code=" + (request == null ? -1 : request.optInt("code", -1));
+        } catch (Exception ignored) {
+            return "qq playback address missing; invalid response";
         }
     }
 

@@ -57,9 +57,9 @@ public class FoliaPlaybackService extends Service {
 
     private void ensureForegroundStarted() {
         if (foregroundStarted) return;
-        foregroundStarted = true;
         startForeground(NOTIFICATION_ID,
             buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
+        foregroundStarted = true;
     }
 
     private volatile String cachedAlbum = "";
@@ -156,13 +156,15 @@ public class FoliaPlaybackService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        // Satisfy the foreground-service deadline before disk IO, hooks or playback metadata.
+        createNotificationChannel();
+        ensureForegroundStarted();
         // 后台播放服务单独特拉起进程时不算「主界面启动」：它不加载 React，不该计入启动失败。
         io.github.huleixin.tingyu.diagnostics.StartupGuard.noteEntry("service");
         running = true;
         if (LspRearBridge.selected(this)) LspRearBridge.request(this);
         // 恢复 JS 同步过的歌词偏移（进程重建后、WebView 启动前，原生兜底取词就要用）。
         io.github.huleixin.tingyu.playback.LyricOffsetPersistence.loadOnce(this);
-        createNotificationChannel();
         mediaSession = new MediaSession(this, "FoliaPlayback");
         mediaSession.setPlaybackToLocal(new AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
@@ -224,6 +226,8 @@ public class FoliaPlaybackService extends Service {
     /** 播放中周期性刷新 PlaybackState：消费端靠它的时间戳外推播放位置。 */
     private void refreshSessionClock() {
         if (mediaSession == null || !running) return;
+        // Reconcile a missed pause/buffering callback before a stopped clock suppresses the heartbeat.
+        refreshNativePlayback(false);
         // 门控用 Media3 的真实时钟：后台没有 WebView 推状态，cachedPlaying 可能停在
         // 几分钟前的结论上；而发布内容由 buildPlaybackState 自己取真实时钟，这里只判断
         // 「要不要发」。
@@ -985,10 +989,9 @@ public class FoliaPlaybackService extends Service {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .addAction(android.R.drawable.ic_media_previous, "Previous", previousIntent)
             .addAction(playPauseIcon, playing ? "Pause" : "Play", playPauseIntent)
-            .addAction(android.R.drawable.ic_media_next, "Next", nextIntent)
-            .setStyle(new Notification.MediaStyle()
-                .setMediaSession(mediaSession.getSessionToken())
-                .setShowActionsInCompactView(0, 1, 2));
+            .addAction(android.R.drawable.ic_media_next, "Next", nextIntent);
+        if (mediaSession != null) builder.setStyle(new Notification.MediaStyle()
+            .setMediaSession(mediaSession.getSessionToken()).setShowActionsInCompactView(0, 1, 2));
         if (artwork != null) builder.setLargeIcon(artwork);
         return builder.build();
     }

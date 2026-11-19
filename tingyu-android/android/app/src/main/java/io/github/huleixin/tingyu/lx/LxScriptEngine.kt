@@ -4,6 +4,9 @@ import com.dokar.quickjs.QuickJs
 import com.dokar.quickjs.binding.asyncFunction
 import com.dokar.quickjs.binding.function
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -88,8 +91,7 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
             withTimeout(timeoutMs) {
                 engine.evaluate<Any?>(LxBootstrap.SHIM)
                 engine.evaluate<Any?>("lx.currentScriptInfo=" + JSONObject(info.toString()).put("rawScript", code).toString() + ";__seal();")
-                engine.evaluate<Any?>(code)
-                initResult!!.await()
+                evaluateUntil(engine, code, initResult!!)
             }
             if (capabilities.isEmpty()) throw IllegalStateException("音源脚本未声明可用的 musicUrl 平台")
             started = true
@@ -113,8 +115,7 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
         pending[id] = deferred
         try {
             withTimeout(timeoutMs) {
-                engine.evaluate<Any?>("__request(" + JSONObject().put("id", id).put("payload", payload).toString() + ");")
-                deferred.await()
+                evaluateUntil(engine, "__request(" + JSONObject().put("id", id).put("payload", payload).toString() + ");", deferred)
             }
         } catch (_: TimeoutCancellationException) {
             calls.values.forEach { it.cancel() }
@@ -139,6 +140,16 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
     /** 关闭引擎。必须在引擎自己的线程上释放 QuickJS 句柄，所以是 suspend。 */
     suspend fun close() {
         withContext(dispatcher) { closeLocked() }
+    }
+
+    /** QuickJS evaluate waits for every host job, including recurring timers. LX completes by event. */
+    private suspend fun <T> evaluateUntil(engine: QuickJs, code: String, result: CompletableDeferred<T>): T {
+        val evaluation = scope.launch {
+            try { engine.evaluate<Any?>(code) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Throwable) { result.completeExceptionally(failure) }
+        }
+        return try { result.await() } finally { evaluation.cancelAndJoin() }
     }
 
     private fun closeLocked() {

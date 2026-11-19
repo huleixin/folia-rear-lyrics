@@ -84,9 +84,9 @@ describe('QQ recommendations', () => {
         });
 
         // 与波点的 FM 一样：上游拒绝（22006）只是这次没有歌，不让首页电台整块失败。
-        it('turns a failed batch into no songs', async () => {
+        it('preserves a failed batch as an error so it is not hidden as empty content', async () => {
             requestMock.mockRejectedValueOnce(upstreamFailure());
-            await expect(qqRecommendations.getPersonalFm!()).resolves.toEqual([]);
+            await expect(qqRecommendations.getPersonalFm!()).rejects.toMatchObject({ httpStatus: 502 });
             expect(console.warn).toHaveBeenCalledWith('[QQProvider] personal-fm:failed', expect.objectContaining({ name: 'OnlineProviderError' }));
         });
     });
@@ -131,9 +131,9 @@ describe('QQ recommendations', () => {
         });
 
         // 首页三块推荐一起取：推荐歌单失败不该把 FM 与日推一起拖下去。
-        it('degrades to no playlists when the request fails', async () => {
+        it('distinguishes a network failure from an empty playlist response', async () => {
             requestMock.mockRejectedValueOnce(upstreamFailure()).mockRejectedValueOnce(emptyAnswer());
-            await expect(qqRecommendations.getRecommendedCollections!(10)).resolves.toEqual([]);
+            await expect(qqRecommendations.getRecommendedCollections!(10)).rejects.toMatchObject({ httpStatus: 502 });
             await expect(qqRecommendations.getRecommendedCollections!(10)).resolves.toEqual([]);
             expect(console.warn).toHaveBeenCalledTimes(1);
         });

@@ -49,12 +49,18 @@ describe('Bodian provider', () => {
             if (operation === 'ai_playlist_detail') return { title: '潮趣日推', musicList: [track] };
             return { lists: [{ playLists: [{ id: 123, name: '普通推荐' }] }] };
         });
-        const [fm, collections] = await Promise.all([
+        const [fm, collections] = await Promise.allSettled([
             bodianProvider.recommendations!.getPersonalFm!(),
             bodianProvider.recommendations!.getRecommendedCollections!(10),
         ]);
-        expect(fm).toEqual([]);
-        expect(collections.map(item => item.id)).toEqual(['discover-0', '123']);
+        expect(fm.status).toBe('rejected');
+        expect(collections.status).toBe('fulfilled');
+        if (collections.status === 'fulfilled') expect(collections.value.map(item => item.id)).toEqual(['discover-0', '123']);
+    });
+
+    it('keeps complete recommendation failure visible for retry', async () => {
+        request.mockRejectedValue(new Error('offline'));
+        await expect(bodianProvider.recommendations!.getRecommendedCollections!(10)).rejects.toThrow('offline');
     });
 
     it('uses the source media ID for lyrics even when the display ID differs', async () => {

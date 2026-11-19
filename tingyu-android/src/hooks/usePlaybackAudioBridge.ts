@@ -338,10 +338,12 @@ export function usePlaybackAudioBridge({
                 }
 
                 syncOutputGain(getTargetPlaybackVolume(), 0);
-                const playPromise = audioRef.current.play();
+                const playingElement = audioRef.current;
+                const playPromise = playingElement.play();
                 if (playPromise !== undefined) {
                     playPromise
                         .then(() => {
+                            if (audioRef.current !== playingElement || playingElement.getAttribute('src') !== audioSrc) return;
                             setPlayerState(PlayerState.PLAYING);
                             setupAudioAnalyzer();
                             // Playback has really started. The transport hands a refreshed source (its TTL
@@ -351,6 +353,7 @@ export function usePlaybackAudioBridge({
                             setStatusMsg(prev => (isPlaybackFailureStatus(prev) ? null : prev));
                         })
                         .catch(error => {
+                            if (audioRef.current !== playingElement || playingElement.getAttribute('src') !== audioSrc) return;
                             if (audioRef.current && !audioRef.current.paused && !audioRef.current.ended) {
                                 setPlayerState(PlayerState.PLAYING);
                                 return;
@@ -370,7 +373,10 @@ export function usePlaybackAudioBridge({
                             if (error.name === 'NotAllowedError') {
                                 setStatusMsg({ type: 'info', text: t('status.clickToPlay') });
                                 setPlayerState(PlayerState.PAUSED);
+                                return;
                             }
+                            setPlayerState(PlayerState.PAUSED);
+                            setStatusMsg(previous => isPlaybackFailureStatus(previous) ? previous : { type: 'error', text: t('status.playbackError') });
                         });
                 }
             }

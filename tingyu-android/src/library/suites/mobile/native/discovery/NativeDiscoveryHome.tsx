@@ -26,6 +26,7 @@ import { getPlaybackSongKey, getPlaybackSourceRef } from '../../../../../utils/a
 import { getSongArtistLabel, getSongCoverUrl } from '../../../../../services/onlineMusic/songMetadata';
 import { absolutePageImage } from '../../../../../services/nativePages';
 import { omni } from '../../../../../services/onlineMusic/omni';
+import { visibleDiscoverySection } from '../../../../../services/discovery/visibility';
 import { catalogBadgePageFields } from '../../../../../utils/catalogAudioLabels';
 import type { NativePageModel, PageActions, PageSection } from '../../../../../types/nativePages';
 import type { SongResult } from '../../../../../types';
@@ -361,7 +362,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             actions[entry.id] = entry.run;
             return { id: entry.id, title: entry.title, action: entry.id, image: entry.image, disabled: entry.disabled };
         })
-        : (['daily','heart','fm','charts'] as const).map(kind=>{
+        : (['daily','heart','fm','charts'] as const).filter(kind => kind === 'heart' ? songs.length > 0 : capableSources(kind).length > 0).map(kind=>{
             const targets = kind==='heart' ? [] : capableSources(kind);
             const available = kind==='heart' ? songs.length>0 : targets.length>0;
             const action='quick:'+kind;
@@ -416,7 +417,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             { id: 'roam-explore', title: '多探索', action: 'roamExplore', selected: roaming.active && roaming.mode === 'explore' },
         ] },
         shortcuts: { id: 'shortcuts', layout: 'quickLinks', items: shortcuts },
-        radars: { id: 'discovery-radars', title: '你的专属雷达', layout: 'radarCards', more: 'allRadar', moreLabel: '全部', items: radarCardKinds.map(kind => {
+        radars: { id: 'discovery-radars', title: '你的专属雷达', layout: 'radarCards', more: 'allRadar', moreLabel: '全部', items: radarCardKinds.filter(kind => radar(kind).length > 0).map(kind => {
             const action = 'radar:' + kind, list = radar(kind);
             actions[action] = () => openRadar(kind);
             actions[action+':play'] = () => { if(list.length)props.onPlaySong(list[0],list); };
@@ -442,7 +443,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
                 more: 'openLocalSubpage',
                 moreLabel: '全部',
             }
-            : { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: scopedResults.flatMap(result => result.collections).slice(0, 24).map(collection => {
+            : { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: scopedResults.flatMap(result => result.collections).filter(collection => collection.id && collection.name && collection.trackCount !== 0).slice(0, 24).map(collection => {
                 const action = 'collection:' + collection.providerId + ':' + collection.id; actions[action] = () => controls.openCollection(collection);
                 return { id: action, title: collection.name, subtitle: omni.getProviderLabel(collection.providerId) + (collection.trackCount != null ? ' · ' + collection.trackCount + '首' : ''), image: absolutePageImage(collection.coverUrl), action };
             }), more: 'allCollections', moreLabel: '全部' },
@@ -489,7 +490,8 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
                 }),
             },
     };
-    const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id]).flatMap(id => {
+    const collectionsSupported = isLocalSource || selectedSources.some(source => omni.getRecommendationCapabilities(source.providerId).collections);
+    const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id] && visibleDiscoverySection(id, sections[id], collectionsSupported)).flatMap(id => {
         if(id==='roam'&&roaming.active)return [sections[id],sections.roamModes];
         return [sections[id]];
     })];

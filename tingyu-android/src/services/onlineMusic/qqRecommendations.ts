@@ -35,7 +35,7 @@ const loadRecommendedSongs = async (operation: QqOperation): Promise<UnifiedSong
 /**
  * 私人 FM 一批（猜你喜欢，每批几首）。批内去重；跨批的重复交给续歌的地方按队列去掉（utils/fmQueue）——
  * 这里分不清这一批是进了播放队列，还是只给首页电台卡当封面。
- * 与波点的 FM 一样，失败只记日志、回空：FM 续歌和首页电台卡都按「这次没有歌」处理，不让一次上游拒绝（22006）拖垮整页。
+ * 保留真实请求错误，由发现页和 Omni 按区块隔离处理，避免把网络失败缓存成空内容。
  */
 const getPersonalFm = async (): Promise<UnifiedSong[]> => {
     try {
@@ -43,7 +43,7 @@ const getPersonalFm = async (): Promise<UnifiedSong[]> => {
         return batch.filter((song, index) => batch.findIndex(other => other.qqMid === song.qqMid) === index);
     } catch (error) {
         console.warn('[QQProvider] personal-fm:failed', errorFields(error));
-        return [];
+        throw error;
     }
 };
 
@@ -65,7 +65,8 @@ const getRecommendedCollections = async (limit: number): Promise<ProviderCollect
     } catch (error) {
         // 首页三块推荐一起取，推荐歌单失败不该连 FM 和日推一起拖下去（与酷狗的推荐卡片同理）。
         if (!isEmptyAnswer(error)) console.warn('[QQProvider] recommended-playlists:failed', errorFields(error));
-        return [];
+        if (isEmptyAnswer(error)) return [];
+        throw error;
     }
 };
 

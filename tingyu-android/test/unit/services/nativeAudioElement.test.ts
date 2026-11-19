@@ -7,6 +7,12 @@ import {setNativeAudioCommandsBlocked} from '@/services/nativeAudioElement';
 
 // test/unit/services/nativeAudioElement.test.ts
 afterEach(()=>vi.useRealTimers());
+it('does not retain a playback intent when Play has no source',async()=>{
+    const f=await fixture();f.adapter.setSource('','');await f.flush();
+    await expect(f.element.play()).rejects.toMatchObject({name:'NotSupportedError'});
+    expect(f.adapter.snapshot().requestedPlaying).toBe(false);
+    await f.adapter.dispose();
+});
 it('a failed cache prepare retires the last acknowledged native lease rather than an unaccepted new id',async()=>{
     const f=await fixture(),accepted=f.commands.find(c=>c.action==='prepare')!.id;
     const spy=vi.spyOn(cacheSource,'prepareNativeAudioSource').mockRejectedValueOnce(Error('cache unavailable'));

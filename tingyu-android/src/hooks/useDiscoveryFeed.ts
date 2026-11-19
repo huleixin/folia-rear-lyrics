@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { omni } from '../services/onlineMusic/omni';
 import { useOnlineProviderAccountStore } from '../stores/useOnlineProviderAccountStore';
 import {
@@ -50,11 +50,14 @@ export function useDiscoveryFeed(active: boolean) {
         busy: true,
     });
     const [refresh, setRefresh] = useState(0);
+    const appliedRefresh = useRef(0);
     const songsVisible = ['roam', 'shortcuts', 'radars', 'songs'].some(module => !settings.hidden.includes(module as 'songs'));
     const collectionsVisible = !settings.hidden.includes('collections');
 
     useEffect(() => {
         if (!active) return;
+        const forceRefresh = refresh !== appliedRefresh.current;
+        appliedRefresh.current = refresh;
         const controller = new AbortController();
         setState(previous => ({ owner, results: previous.owner === owner ? previous.results : [], busy: true }));
         void (async () => {
@@ -64,7 +67,7 @@ export function useDiscoveryFeed(active: boolean) {
                 const capability = omni.getRecommendationCapabilities(source.providerId);
                 const kind = capability.daily ? 'daily' : 'fm';
                 if (!capability[kind]) continue;
-                const result = await readDiscovery(source.providerId, kind, controller.signal);
+                const result = await readDiscovery(source.providerId, kind, controller.signal, forceRefresh);
                 if (!controller.signal.aborted) {
                     setState(previous => ({
                         owner,
@@ -76,7 +79,8 @@ export function useDiscoveryFeed(active: boolean) {
             if (collectionsVisible) {
                 for (const source of selected) {
                     if (controller.signal.aborted) break;
-                    const result = await readDiscovery(source.providerId, 'collections', controller.signal);
+                    if (!omni.getRecommendationCapabilities(source.providerId).collections) continue;
+                    const result = await readDiscovery(source.providerId, 'collections', controller.signal, forceRefresh);
                     if (!controller.signal.aborted) {
                         setState(previous => ({
                             owner,

@@ -8,6 +8,12 @@ import org.junit.Test;
 
 /** QQ 解析器的纯协议部分：请求体构造、响应解析、通道可用性判定。不发真实网络请求。 */
 public class QqResolverTest {
+    @org.junit.Test public void missingAddressDoesNotInventExpiredAuthentication() {
+        String reason=QqResolver.missingAuthedAddressReason("{\"code\":0,\"req_0\":{\"code\":0,\"data\":{\"midurlinfo\":[]}}}");
+        org.junit.Assert.assertTrue(reason.contains("code=0"));
+        org.junit.Assert.assertFalse(reason.contains("expired"));
+        org.junit.Assert.assertFalse(reason.contains("login"));
+    }
 
     @Test
     public void anonymousMusicuNeedsNoUserCredential() {

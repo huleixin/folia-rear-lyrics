@@ -1177,10 +1177,16 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
     }
   }
   return {
-    async start() {
+    async start() { return step('qr-code', async () => {
       clean(); pending.clear();
       const mine = ++generation;
-      const result = await http(`https://open.douyin.com/oauth/get_qrcode/?${new URLSearchParams(qrParams())}`);
+      const url = `https://open.douyin.com/oauth/get_qrcode/?${new URLSearchParams(qrParams())}`;
+      let result;
+      try { result = await http(url); }
+      catch (error) {
+        if (!(error instanceof QishuiError) || error.code !== 'network' || mine !== generation) throw error;
+        result = await http(url);
+      }
       const data = result.data.data;
       if (!data?.token || !data.qrcode) throw new QishuiError('invalid-response', 'QR code is missing');
       if (mine !== generation) throw new QishuiError('unavailable', 'Sign-in was cancelled');
@@ -1188,7 +1194,7 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
       pending.set(key, { token: data.token, qr: `data:image/png;base64,${data.qrcode}`, expires: Date.now() + QR_TTL_MS });
       log('[Qishui] Sign-in QR created');
       return { key };
-    },
+    }); },
     qr(key) {
       clean();
       const value = pending.get(key);

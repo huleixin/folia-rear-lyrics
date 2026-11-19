@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
     isNative: true,
     lxHttp: vi.fn(),
     validateLxScript: vi.fn(),
+    cancelLxValidation: vi.fn(async () => {}),
     pickLxSourceFile: vi.fn(),
     activateLxSource: vi.fn(),
     workerShouldFail: false,
@@ -15,7 +16,7 @@ vi.mock('@capacitor/core', () => ({
     Capacitor: { isNativePlatform: () => mocks.isNative },
 }));
 vi.mock('@/platform/tingyuPlayback', () => ({
-    getTingyuPlayback: () => ({ validateLxScript: mocks.validateLxScript }),
+    getTingyuPlayback: () => ({ validateLxScript: mocks.validateLxScript, cancelLxValidation: mocks.cancelLxValidation }),
 }));
 vi.mock('@/platform/foliaNative', () => ({
     getFoliaNative: () => ({ pickLxSourceFile: mocks.pickLxSourceFile }),
@@ -155,5 +156,20 @@ describe('LxSource import reliability & progress stages', () => {
             ),
         ).rejects.toThrow('原生 JS 初始化失败');
         expect(useLxSourceStore.getState().scripts).toHaveLength(0);
+    });
+
+    it('cancels native initialization and preserves the installed source when the user cancels', async () => {
+        mocks.validateLxScript.mockImplementationOnce(() => new Promise(() => {}));
+        const permitTask=useLxSourceStore.getState().requestImport();confirmRisk();
+        const permit=await permitTask,controller=new AbortController();
+        const task=checkLxScript({id:'candidate',name:'Candidate',version:'1',description:'',author:'',homepage:'',code:VALID_CODE},permit!,{signal:controller.signal});
+        const rejected=expect(task).rejects.toSatisfy(isLxAbortError);
+        await vi.waitFor(()=>expect(mocks.validateLxScript).toHaveBeenCalledOnce());
+        const request=mocks.validateLxScript.mock.calls[0][0];
+        expect(request.timeoutMs).toBe(60000);
+        controller.abort();await rejected;
+        expect(mocks.cancelLxValidation).toHaveBeenCalledWith({requestId:request.requestId});
+        expect(useLxSourceStore.getState().scripts).toHaveLength(0);
+        expect(mocks.activateLxSource).not.toHaveBeenCalled();
     });
 });

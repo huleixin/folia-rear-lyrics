@@ -18,6 +18,7 @@ sourceSets {
         kotlin {
             srcDirs = ['src/main/kotlin', '../../android/app/src/main/java/io/github/huleixin/tingyu/lx']
             exclude 'LxRuntimeHost.kt'
+            exclude 'LxScriptChain.kt'
         }
     }
 }
@@ -65,4 +66,10 @@ tasks.register('compatibility', JavaExec) {
     group = 'verification'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'io.github.huleixin.tingyu.probe.LxCompatibilityKt'
+}
+
+tasks.register('importProbe', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.github.huleixin.tingyu.probe.LxImportProbeKt'
 }

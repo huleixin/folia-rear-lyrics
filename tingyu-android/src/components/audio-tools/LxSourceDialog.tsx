@@ -18,7 +18,7 @@ const IMPORT_STAGE_LABELS: Record<LxImportStage, string> = {
     picking: '等待选择文件…',
     reading: '正在读取文件…',
     downloading: '正在下载音源…',
-    validating: '正在验证脚本…',
+    validating: '正在校验脚本与原生初始化…',
     saving: '正在保存音源…',
 };
 

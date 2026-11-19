@@ -100,6 +100,12 @@ android {
         unitTests {
             // Robolectric 需要真实的合并清单与资源，才能渲染真实的 Compose 组合。
             includeAndroidResources = true
+            all {
+                // Native Compose screenshots and large audio fixtures share this test VM.
+                maxHeapSize = '1536m'
+                maxParallelForks = 1
+                forkEvery = 50
+            }
         }
     }
     signingConfigs {

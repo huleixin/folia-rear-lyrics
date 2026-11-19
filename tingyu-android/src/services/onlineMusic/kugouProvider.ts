@@ -1630,11 +1630,13 @@ export const kugouProvider: OnlineMusicProvider = {
         },
         async getRecommendedCollections(limit) {
             const pagesize = Math.min(Math.max(Math.floor(limit) || KUGOU_RECOMMENDATION_PAGE_SIZE, 1), KUGOU_RECOMMENDATION_PAGE_SIZE);
+            const failures: unknown[] = [];
             const collections = await Promise.all(KUGOU_RECOMMENDATION_CARDS.map(async card => {
                 try {
                     const { response, songs } = await getKugouRecommendationCard(card.id, pagesize);
                     return songs.length > 0 ? createKugouRecommendationCollection(card, response, songs) : null;
                 } catch (error) {
+                    failures.push(error);
                     console.warn('[KugouProvider] recommendation-card:failed', {
                         cardId: card.id,
                         error: error instanceof Error ? error.message : String(error),
@@ -1642,7 +1644,9 @@ export const kugouProvider: OnlineMusicProvider = {
                     return null;
                 }
             }));
-            return collections.filter((collection): collection is ProviderCollection => Boolean(collection));
+            const available = collections.filter((collection): collection is ProviderCollection => Boolean(collection));
+            if (!available.length && failures.length) throw failures[0];
+            return available;
         },
         async getHistoryEntries() {
             const response = await requestKugou('everyday_history', { mode: 'list' });

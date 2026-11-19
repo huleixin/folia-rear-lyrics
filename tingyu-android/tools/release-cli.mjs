@@ -6,7 +6,7 @@
 // 2. prepare / upload / verify 仅处理候选包与预发布附件，绝不将正式渠道 updateEnabled 置为 true。
 // 3. 正式推送策略必须经人工审核（approved_digest 绑定）并显式提供独立发布确认权限。
 
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import {
     existsSync,
     mkdirSync,
@@ -43,6 +43,16 @@ const CNB_RAW_BASE = 'https://cnb.cool/tingyu-2026/releases/-/git/raw/main';
 const GITHUB_REPO = 'huleixin/folia-rear-lyrics';
 const CONSOLE_API_BASE = 'https://feedback.20262000.xyz';
 const EXPECTED_CERT_SHA256 = 'a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d';
+
+/** A metadata-only check cannot authorize a private release; both protected nodes must match. */
+export function privateBetaVerificationReady(draft, target, now = Date.now()) {
+    const receipt = draft?.verification;
+    const age = now - Number(receipt?.verifiedAt);
+    return draft?.id === target.id && receipt?.sha256 === target.sha256 && receipt?.fullPrivateDownload === true
+        && age >= 0 && age <= 3600000
+        && ['primary', 'backup'].every(id => receipt.nodes?.[id]?.accessible === true
+            && receipt.nodes[id].rangeVerified === true && receipt.nodes[id].sha256 === target.sha256);
+}
 
 function parseArgs(argv) {
     const positional = [];
@@ -246,7 +256,7 @@ async function fullDownloadAndVerifyUrl(url, expectedSha256, expectedSizeBytes) 
     try {
         const res = await fetch(url, {
             headers: { 'User-Agent': 'Tingyu-ReleaseCLI-FullVerifier/1.0' },
-            redirect: 'follow',
+            redirect: new URL(url).pathname === '/api/beta/download' ? 'error' : 'follow',
         });
         const contentType = (res.headers.get('content-type') || '').toLowerCase();
         if (!res.ok) {
@@ -769,11 +779,32 @@ async function cmdVerify(flags) {
         if (!matched) {
             throw new Error(`私有内测 R2 存储中未找到匹配的 APK 记录: ${draft.id}`);
         }
+        // Verify the actual protected download path before approval, using an existing authorized device.
+        const device = (overview.devices || []).find(d => d.role === 'developer' && d.status === 'active' && (!d.expiresAt || d.expiresAt > Date.now()));
+        if (!device) throw new Error('完整回验需要现有有效的个人内测设备，不会自动创建或更改设备授权');
+        const admin = readDpapiSlot('admin');
+        const payload = Buffer.from(JSON.stringify({ kind: 'beta_dl', deviceId: device.id, releaseId: draft.id, sha256: draft.sha256, exp: Date.now() + 300000 })).toString('base64');
+        const ticket = payload + '.' + createHmac('sha256', admin.token).update(payload).digest('hex');
+        const nodes = {};
+        for (const [id, origin] of [['primary', CONSOLE_API_BASE], ['backup', 'https://tingyu-feedback-api.2473297053.workers.dev']]) {
+            const url = `${origin}/api/beta/download?token=${encodeURIComponent(ticket)}`;
+            const result = await fullDownloadAndVerifyUrl(url, draft.sha256, draft.apkSizeBytes);
+            if (!result.accessible) throw new Error(`私有内测 ${id} 完整下载校验失败: ${result.detail}`);
+            const range = await fetch(url, { headers: { Range: 'bytes=0-0' }, redirect: 'error' });
+            const bytes = new Uint8Array(await range.arrayBuffer());
+            if (range.status !== 206 || bytes.length !== 1 || range.headers.get('content-range') !== `bytes 0-0/${draft.apkSizeBytes}`) {
+                throw new Error(`私有内测 ${id} 断点续传校验失败`);
+            }
+            nodes[id] = { ...result, rangeVerified: true };
+        }
+        draft.verification = { sha256: draft.sha256, verifiedAt: Date.now(), fullPrivateDownload: true, nodes };
+        writeFileSync(draftPath, JSON.stringify(draft, null, 2) + '\n', 'utf8');
         console.log(JSON.stringify({
             ok: true,
             mode: 'private_beta_r2_verify',
             localApk: localCheck,
             r2Object: matched,
+            verification: draft.verification,
         }, null, 2));
         return;
     }
@@ -1037,6 +1068,13 @@ async function cmdPublish(flags) {
     if (target.status !== 'approved' || !target.approved_digest) {
         throw new Error(`候选版本 ${id} 当前状态为 ${target.status}，请先在后台审核确认！`);
     }
+    if (target.channel === 'private_beta') {
+        const file = path.join(WORK_DIR, 'candidate-private_beta.json');
+        const verified = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+        if (!privateBetaVerificationReady(verified, target)) {
+            throw new Error('私有内测发布前必须完成本候选的双节点完整下载及断点续传回验，请先运行 verify --channel private_beta');
+        }
+    }
     if (target.channel === 'testing') {
         const stableMatch = (list.items || []).find(r =>
             r.channel === 'stable' && r.status === 'published' &&
@@ -1058,7 +1096,10 @@ async function cmdPublish(flags) {
             stableCode: sRes?.latestVersionCode ?? null,
             testingRev: tRes?.policyRevision ?? null,
             testingCode: tRes?.latestVersionCode ?? null,
+            stableManifest: JSON.stringify(sRes),
+            testingManifest: JSON.stringify(tRes),
         };
+        if (!sRes || !tRes) throw new Error('无法读取正式/迁移通道的完整保护快照，已停止内测发布');
     }
 
     const pub = await consoleRequest(`/api/admin/releases/${id}/publish`, {
@@ -1078,7 +1119,8 @@ async function cmdPublish(flags) {
             fetch(`${CONSOLE_API_BASE}/api/public/update/testing`).then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
         if (sPost?.policyRevision !== prePublicSnapshot.stableRev || sPost?.latestVersionCode !== prePublicSnapshot.stableCode ||
-            tPost?.policyRevision !== prePublicSnapshot.testingRev || tPost?.latestVersionCode !== prePublicSnapshot.testingCode) {
+            tPost?.policyRevision !== prePublicSnapshot.testingRev || tPost?.latestVersionCode !== prePublicSnapshot.testingCode ||
+            JSON.stringify(sPost) !== prePublicSnapshot.stableManifest || JSON.stringify(tPost) !== prePublicSnapshot.testingManifest) {
             throw new Error('严重隔离告警：发布 private_beta 后检测到公开 stable/testing 策略发生意外变化！');
         }
     }

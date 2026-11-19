@@ -11,17 +11,28 @@ import {redactLx} from '@/services/lxSource/diagnostics';
 // test/unit/services/lxMobileConformance.test.ts
 let vm:QuickJSContext|undefined;
 afterEach(()=>{vm?.dispose();vm=undefined;});
-async function harness(){
+async function harness(fixturePath='test/fixtures/lx-mobile/contract.js'){
     vm=(await getQuickJS()).newContext();const context=vm,events:any[]=[];
+    let deadline=Date.now()+5000;
+    context.runtime.setInterruptHandler(()=>Date.now()>deadline);
     context.newFunction('emit',value=>{events.push(JSON.parse(context.getString(value)));}).consume(h=>context.setProp(context.global,'__emit',h));
     context.newFunction('utility',value=>context.newString(lxUtility(context.getString(value)))).consume(h=>context.setProp(context.global,'__utility',h));
-    const run=(code:string)=>{context.unwrapResult(context.evalCode(code)).dispose();context.runtime.executePendingJobs().unwrap();};
-    const fixture=readFileSync(resolve('test/fixtures/lx-mobile/contract.js'),'utf8');
+    const run=(code:string)=>{deadline=Date.now()+5000;context.unwrapResult(context.evalCode(code)).dispose();context.runtime.executePendingJobs().unwrap();};
+    const fixture=readFileSync(resolve(fixturePath),'utf8');
     run(lxBootstrap);run(`lx.currentScriptInfo=${JSON.stringify({name:'Tingyu mobile conformance',rawScript:fixture})};__seal();`);run(fixture);
-    for(let i=0;i<events.length;i++)if(events[i].kind==='timer')run(`__deliver(${JSON.stringify({id:events[i].id,timer:true})});`);
+    for(let i=0;i<events.length && !events.some(event=>event.kind==='inited');i++){
+        if(i>512)throw Error('Fixture initialization did not settle');
+        if(events[i].kind==='timer')run(`__deliver(${JSON.stringify({id:events[i].id,timer:true})});`);
+    }
     const request=(source:string,action:string,test='ok')=>{const id=events.length+1;run(`__request(${JSON.stringify({id,payload:{source,action,info:{type:source==='local'?null:'flac24bit',musicInfo:{test}}}})});`);return events.find(e=>e.kind==='result'&&e.id===id);};
     return {events,run,request};
 }
+it.skipIf(!process.env.TINGYU_LX_IMPORT_FIXTURE)('initializes a supplied real script in the actual Worker protocol',async()=>{
+    const {events}=await harness(process.env.TINGYU_LX_IMPORT_FIXTURE);
+    const ready=events.find(event=>event.kind==='inited');
+    expect(ready).toBeTruthy();
+    expect(Object.keys(validateCapabilities(ready.data.sources)).length).toBeGreaterThan(0);
+});
 it('uses identical protocol semantics in WASM and the native shim',()=>{
     const native=readFileSync(resolve('android/app/src/main/java/io/github/huleixin/tingyu/lx/LxBootstrap.kt'),'utf8');
     expect(native.split('// BEGIN SHARED MOBILE PROTOCOL')[1].split('// END SHARED MOBILE PROTOCOL')[0].trim().replace(/\r\n/g,'\n')).toBe(lxProtocol.trim().replace(/\r\n/g,'\n'));

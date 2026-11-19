@@ -154,15 +154,15 @@ object LxRuntimeHost {
     fun lastInitError(): String? = lastError
 
     /** Validate a candidate without replacing or stopping the active source. */
-    fun validate(code: String, metadata: JSONObject): String {
+    fun validate(code: String, metadata: JSONObject, timeoutMs: Long = 60_000L): String {
         if (code.toByteArray(Charsets.UTF_8).size > 1_048_576) return "音源脚本不能超过 1 MB"
         val candidate=LxScriptEngine(hooks)
         val info = JSONObject().apply { listOf("name","version","description","author","homepage").forEach { put(it, metadata.optString(it).take(160)) } }
         return try {
-            runBlocking { candidate.start(code, info, timeoutMs = 20_000L) }
+            runBlocking { candidate.start(code, info, timeoutMs = timeoutMs.coerceIn(1_000L, 60_000L)) }
             ""
         } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
-            "原生 JS 初始化超时（超过 20 秒）"
+            "初始化未完成（${timeoutMs.coerceIn(1_000L, 60_000L) / 1000} 秒），请检查音源网络或重试"
         } catch (failure: Throwable) {
             redact(failure.message ?: failure.javaClass.simpleName)
         } finally {

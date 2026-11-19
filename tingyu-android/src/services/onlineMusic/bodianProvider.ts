@@ -33,7 +33,6 @@ const normalizeBodianDiscoverCollection = (detail: BodianDiscoverDetail, index: 
 };
 
 async function getBodianDiscoverCollections(): Promise<ProviderCollection[]> {
-    try {
         const module = await requestBodian<any>('home_module', { moduleId: BODIAN_DISCOVER_MODULE_ID });
         const cards = Array.isArray(module.songList) ? module.songList : [];
         const results = await Promise.allSettled(cards.map(async (card: any) => {
@@ -42,10 +41,12 @@ async function getBodianDiscoverCollections(): Promise<ProviderCollection[]> {
             const detail = await requestBodian<BodianDiscoverDetail>('ai_playlist_detail', { index });
             return normalizeBodianDiscoverCollection(detail, index, card?.title);
         }));
-        return results.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : []);
-    } catch {
-        return [];
-    }
+        const available = results.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : []);
+        if (!available.length) {
+            const failed = results.find(result => result.status === 'rejected');
+            if (failed?.status === 'rejected') throw failed.reason;
+        }
+        return available;
 }
 
 export const bodianProvider: OnlineMusicProvider = {
@@ -116,12 +117,17 @@ export const bodianProvider: OnlineMusicProvider = {
     mutations: bodianMutations,
     recommendations: {
         async getRecommendedCollections(limit) {
-            const [regular, discover] = await Promise.all([
+            const results = await Promise.allSettled([
                 requestBodian<any>('recommendations').then(data => (
                     (data.lists || []).flatMap((group: any) => group.playLists || []).map((item: unknown) => normalizeBodianCollection(item))
-                )).catch(() => [] as ProviderCollection[]),
+                )),
                 getBodianDiscoverCollections(),
             ]);
+            const [regular, discover] = results.map(result => result.status === 'fulfilled' ? result.value : []);
+            if (!regular.length && !discover.length) {
+                const failure = results.find(result => result.status === 'rejected');
+                if (failure?.status === 'rejected') throw failure.reason;
+            }
             const seen = new Set<string>();
             return [...discover, ...regular].filter(collection => {
                 const key = `${collection.providerId}:${collection.id}`;
@@ -132,8 +138,7 @@ export const bodianProvider: OnlineMusicProvider = {
         },
         async getPersonalFm() {
             return requestBodian<any>('personal_fm')
-                .then(data => (data.musicList || []).map(normalizeBodianSong))
-                .catch(() => []);
+                .then(data => (data.musicList || []).map(normalizeBodianSong));
         },
     },
 };
