@@ -7,7 +7,7 @@ import type {RearSettingsController} from './useRearSettingsController';
 import type { SettingsNavGroup, SettingsSectionId } from './navigation/settingsNavModel';
 import type { NativePageModel, PageActions, PageSection, PageItem } from '../../../types/nativePages';
 import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../services/nativeLyrics';
-import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
+import { dispatchSettingsSplitAction } from './settingsSplitNavigation';
 
 // src/components/modal/settings/useNativeSettingsPage.ts
 // Same index groups and rear-display controls as MobileSettingsNavigation / AndroidRearLyricsSetting.
@@ -15,7 +15,7 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:Rear
     groups:SettingsNavGroup[],onSelect:(section:SettingsSectionId)=>void,onHelp:()=>void,rear:RearSettingsController,onBack:()=>void,
     onDiscovery?:()=>void,onSearch?:()=>void,onAccounts?:()=>void) {
     const {t}=useTranslation();
-    const actions:PageActions={close:onClose,help:onHelp,...rearControlActions(rear,onPage,onBack)};
+    const actions:PageActions={close:onClose,help:onHelp,...rearControlActions(rear,onPage,onBack),__splitSelect:event=>{if(event?.text)dispatchSettingsSplitAction(event.text);}};
     const sections:PageSection[]=[];
     if (onAccounts) {
         actions['settings:accounts'] = onAccounts;

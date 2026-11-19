@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -48,7 +49,11 @@ private fun discoveryAssetFileName(kind: String): String = when (kind) {
 }
 
 @Composable
-internal fun DiscoveryAssetImage(kind: String, modifier: Modifier = Modifier) {
+internal fun DiscoveryAssetImage(
+    kind: String,
+    modifier: Modifier = Modifier,
+    alignment: Alignment = Alignment.Center,
+) {
     val context = LocalContext.current
     val fileName = discoveryAssetFileName(kind)
     val request = remember(fileName, context) {
@@ -70,6 +75,7 @@ internal fun DiscoveryAssetImage(kind: String, modifier: Modifier = Modifier) {
         model = request,
         contentDescription = null,
         modifier = modifier,
+        alignment = alignment,
         contentScale = ContentScale.Crop
     )
 }
@@ -154,6 +160,9 @@ internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Mo
     val palette = LocalInterfacePalette.current
     val window = LocalPadWindow.current
     val wideRadar = window.tablet && window.landscape
+    val cropAlignment = remember(wideRadar) {
+        if (wideRadar) BiasAlignment(0f, 0.16f) else Alignment.Center
+    }
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (window.tablet) 14.dp else 10.dp)) {
         section.items.forEach { item ->
             val canPlay = item.secondary.isNotBlank() && !item.disabled
@@ -161,51 +170,54 @@ internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Mo
                 Modifier
                     .weight(1f)
                     .testTag("discovery-radar:" + item.id)
-                    .chromeClickable(enabled = !item.disabled, role = Role.Button, corner = 14.dp) { action(item.action, "", 0.0) }
+                    .chromeClickable(enabled = !item.disabled, role = Role.Button, corner = 14.dp, scaleTo = 0.985f) { action(item.action, "", 0.0) }
             ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .then(
-                            when {
-                                wideRadar -> Modifier.heightIn(max = 176.dp).aspectRatio(16f / 9f)
-                                window.tablet -> Modifier.heightIn(max = 220.dp).aspectRatio(1f)
-                                else -> Modifier.aspectRatio(1f)
-                            }
-                        )
-                        .clip(RoundedCornerShape(14.dp))
-                ) {
-                    DiscoveryAssetImage(item.id, Modifier.matchParentSize())
-                    // 右下角 32dp 播放按钮（距右/底 8dp），触区 48dp；数据不足时仅禁用播放，不禁用/灰化卡片
+                // Compute explicit height before clipping so capped 2:1 / 1:1 covers never overflow onto text below.
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val coverHeight = when {
+                        wideRadar -> minOf(maxWidth / 2f, 160.dp)
+                        window.tablet -> minOf(maxWidth, 212.dp)
+                        else -> maxWidth
+                    }
                     Box(
                         Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(48.dp)
-                            .then(
-                                if (canPlay) {
-                                    Modifier
-                                        .semantics { contentDescription = "播放" + item.title }
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null,
-                                            role = Role.Button
-                                        ) { action(item.secondary, "", 0.0) }
-                                } else Modifier
-                            )
-                            .padding(end = 8.dp, bottom = 8.dp),
-                        contentAlignment = Alignment.BottomEnd
+                            .fillMaxWidth()
+                            .height(coverHeight)
+                            .testTag("discovery-radar-cover:" + item.id)
+                            .clip(RoundedCornerShape(14.dp))
                     ) {
+                        DiscoveryAssetImage(item.id, Modifier.fillMaxSize(), alignment = cropAlignment)
+                        // 右下角 32dp 播放按钮（距右/底 8dp），触区 48dp；无全图蒙层，保持原图真实色彩与对比度
                         Box(
                             Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (canPlay) DiscoveryCardColors.RadarPlayBg
-                                    else DiscoveryCardColors.RadarPlayBg.copy(alpha = 0.42f)
-                                ),
-                            contentAlignment = Alignment.Center
+                                .align(Alignment.BottomEnd)
+                                .size(48.dp)
+                                .then(
+                                    if (canPlay) {
+                                        Modifier
+                                            .semantics { contentDescription = "播放" + item.title }
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null,
+                                                role = Role.Button
+                                            ) { action(item.secondary, "", 0.0) }
+                                    } else Modifier
+                                )
+                                .padding(end = 8.dp, bottom = 8.dp),
+                            contentAlignment = Alignment.BottomEnd
                         ) {
-                            PageIcon("play", Color.White.copy(alpha = if (canPlay) 1f else 0.55f), Modifier.size(14.dp))
+                            Box(
+                                Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (canPlay) DiscoveryCardColors.RadarPlayBg
+                                        else DiscoveryCardColors.RadarPlayBg.copy(alpha = 0.42f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PageIcon("play", Color.White.copy(alpha = if (canPlay) 1f else 0.55f), Modifier.size(14.dp))
+                            }
                         }
                     }
                 }
@@ -217,7 +229,7 @@ internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Mo
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 10.dp)
                 )
                 Text(
                     item.subtitle,

@@ -26,18 +26,28 @@ import androidx.compose.ui.unit.sp
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeRearControlPage.kt
 // Presentation-only: state and capability decisions come from the shared React page model.
-@Composable internal fun NativeRearControlPage(page:NativePage,modifier:Modifier,fontScale:Float,action:PageAction){
+@Composable internal fun NativeRearControlPage(
+    page:NativePage,
+    modifier:Modifier,
+    fontScale:Float,
+    splitPane:Boolean=false,
+    showBack:Boolean=!splitPane,
+    action:PageAction,
+){
     val density=LocalDensity.current
+    val hostBottom=with(density){LocalNativePageBottomPx.current.toDp()}
     CompositionLocalProvider(LocalDensity provides Density(density.density,fontScale)){
         BoxWithConstraints(modifier){
             val inset=if(maxWidth<374.dp)18.dp else 22.dp
             // 沉浸式毛玻璃顶栏（TopGlassBar）：背屏控制分组全幅滚动进入固定返回栏玻璃后方。
             val colors=page.surfaceColors()
-            val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+84f)
+            val topPad=if(splitPane)16.dp else (page.safeTop+24).dp
+            val bottomPad=if(splitPane)maxOf(hostBottom,(page.safeBottom+if(LocalPadWindow.current.expanded)96 else 36).dp) else (24+page.safeBottom).dp
+            val glass=rememberTyTopGlassState(estimateHeaderBottomDp=(if(splitPane)16f else page.safeTop+24f)+60f)
             Box(Modifier.fillMaxSize()){
                 TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
                 val list = rememberLazyListState()
-                LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.contentTop,bottom=(24+page.safeBottom).dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
+                LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.contentTop,bottom=bottomPad),verticalArrangement=Arrangement.spacedBy(16.dp)){
                     page.sections.forEach{section->item(key=section.id){
                         Column{
                             if(section.title.isNotBlank())Text(section.title,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,modifier=Modifier.padding(start=2.dp,bottom=8.dp))
@@ -59,9 +69,9 @@ import androidx.compose.ui.unit.sp
                 TyTopGlassSurface(glass,colors)
                 // 顶栏内容（清晰层）：返回按钮 + 标题，绘制在玻璃之上。
                 TyTopGlassForeground {
-                    Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp)
+                    Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=topPad,bottom=20.dp)
                         .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.chromeClickable(corner=999.dp){action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
+                        if(showBack)Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.chromeClickable(corner=999.dp){action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
                         Text(page.title,color=PageInk,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
                     }
                 }

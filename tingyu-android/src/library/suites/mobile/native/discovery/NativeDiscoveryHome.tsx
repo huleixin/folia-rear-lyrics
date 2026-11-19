@@ -44,6 +44,8 @@ import {
 import { loadNewReleaseChart } from '../../../../../services/onlineMusic/newReleaseCharts';
 import DiscoveryHistoryPanel from './DiscoveryHistoryPanel';
 import { useDiscoveryActions } from './useDiscoveryActions';
+import { useUnifiedLibrary } from '../../../../core/bindings/useUnifiedLibrary';
+import { useOnlineProviderAccountStore } from '../../../../../stores/useOnlineProviderAccountStore';
 
 // Niche is declared by the engine, but its card only appears when the source supplies trustworthy
 // popularity; no such field exists in the current provider contract, so this UI does not show it.
@@ -63,6 +65,8 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         }
     }, [settingsHydrated, effectiveSource, settings.source]);
     const feed = useDiscoveryFeed(props.isInteractive), controls = useDiscoveryActions(props);
+    const unifiedPlaylists = useUnifiedLibrary(props.isInteractive && effectiveSource !== 'local', effectiveSource === 'local' ? 'all' : effectiveSource, 'playlists');
+    const onlineAccounts = useOnlineProviderAccountStore(state => state.accounts);
     const insightsData = useLibraryInsightsData(props, props.isInteractive, effectiveSource);
     const recent = useMobileLibraryStore(state => state.recentTracks);
     const roaming = useDiscoveryRoaming();
@@ -377,6 +381,32 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const roamIdleSubtitle = activePlatformLabel ? `在${activePlatformLabel}发现属于你的下一首` : '让熟悉与未知，在下一首相遇';
     const localAlbums = localHome.sections.find(s => s.key === 'albums')?.groups ?? [];
     const localPlaylists = localHome.sections.find(s => s.key === 'playlists')?.groups ?? [];
+    const myOnlinePlaylists = useMemo(() => {
+        if (isLocalSource) return [];
+        const providerOrder = effectiveSource === 'all'
+            ? [
+                ...feed.visibleSources.map(source => source.providerId),
+                ...(sources.online.providerId && settings.enabled[sources.online.providerId] !== false ? [sources.online.providerId] : []),
+            ]
+            : [effectiveSource];
+        const orderedPids = [...new Set(providerOrder)];
+        const pageByProvider = new Map(unifiedPlaylists.pages.map(page => [page.providerId, page.items]));
+        const seen = new Set<string>();
+        const merged = [];
+        for (const pid of orderedPids) {
+            const unifiedItems = pageByProvider.get(pid) ?? [];
+            const accountItems = onlineAccounts[pid]?.collections ?? [];
+            const activeItems = pid === sources.online.providerId ? sources.online.collections : [];
+            // Prefer unified library's complete playlist list while preserving any account/snapshot extras.
+            for (const collection of [...unifiedItems, ...accountItems, ...activeItems]) {
+                const key = `${collection.providerId || pid}:${collection.type}:${String(collection.id)}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                merged.push(collection);
+            }
+        }
+        return merged;
+    }, [isLocalSource, effectiveSource, feed.visibleSources, sources.online.providerId, sources.online.collections, settings.enabled, unifiedPlaylists.pages, onlineAccounts]);
     const radarCardKinds: RadarKind[] = isLocalSource ? ['local', 'time', 'style'] : ['style', 'time', 'explore'];
     const sections: Record<string, PageSection> = {
         roam: { id: 'discovery-brand', layout: 'discoveryHero', items: [{ id: 'roam', title: '听屿漫游', subtitle: roaming.active ? roamActiveSubtitle : roamIdleSubtitle, action: 'roam', secondaryLabel:roaming.active?'退出漫游':'立即漫游',disabled:!roaming.active&&!songs.length }] },
@@ -398,7 +428,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
                 id: 'discovery-collections',
                 title: '本地专辑精选',
                 layout: 'cards',
-                items: localAlbums.slice(0, 16).map((group, idx) => {
+                items: localAlbums.slice(0, 24).map((group, idx) => {
                     const action = `local-album:${idx}:${group.id}`;
                     actions[action] = () => props.homeResources.actions.openLocalGroup(group, props.onOpenGridView);
                     return {
@@ -424,7 +454,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
                 layout: 'cards',
                 more: 'openLocalSubpage',
                 moreLabel: '全部',
-                items: localPlaylists.slice(0, 12).map((group, idx) => {
+                items: localPlaylists.slice(0, 24).map((group, idx) => {
                     const action = `local-pl:${idx}:${group.id}`;
                     actions[action] = () => props.homeResources.actions.openLocalGroup(group, props.onOpenGridView);
                     return {
@@ -442,8 +472,8 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
                 layout: 'cards',
                 more: 'library',
                 moreLabel: '全部',
-                items: sources.online.collections.slice(0, 12).map(collection => {
-                    const action = 'mine:' + collection.id;
+                items: myOnlinePlaylists.slice(0, 24).map(collection => {
+                    const action = 'mine:' + collection.providerId + ':' + collection.id;
                     actions[action] = () => controls.openCollection(collection);
                     const subtitle = [
                         collection.providerId ? omni.getProviderLabel(collection.providerId) : '',

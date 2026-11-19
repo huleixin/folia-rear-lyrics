@@ -31,7 +31,7 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     const recent=useMobileLibraryStore(s=>s.recentTracks);
     const play=useLibraryTrackPlayback(props.onPlaySong,props.onTogglePlayback);
     const playlists=useMemo(()=>buildOnlinePlaylistCards(sources.online.collections,t),[sources.online.collections,t]);
-    const topPlaylists=useMemo(()=>playlists.slice(0,4),[playlists]);
+    const topPlaylists=playlists;
     useWarmCachedOnlineCollections(topPlaylists,sources.online.providerId,sources.online.user?.id,sources.online.accountView!=='resolving');
     const [all,setAll]=useState(false),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
     const [menu,setMenu]=useState<{kind:'track';song:SongResult}|{kind:'playlist';card:LibraryHomeCard}|null>(null);

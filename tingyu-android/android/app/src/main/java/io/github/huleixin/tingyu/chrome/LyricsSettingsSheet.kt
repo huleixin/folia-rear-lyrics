@@ -10,8 +10,15 @@ import io.github.huleixin.tingyu.lyrics.*
 
 // Existing settings controls and sheet frame, including all classic/glacier palette tokens.
 @Composable
-internal fun LyricsSettingsSheet(activity: Activity, mode: String = "desktop", requestBluetooth: () -> Unit = {}, onClose: () -> Unit) {
-    if (mode == "bluetooth") { BluetoothLyricsSettingsSheet(activity, requestBluetooth, onClose); return }
+internal fun LyricsSettingsSheet(
+    activity: Activity,
+    mode: String = "desktop",
+    requestBluetooth: () -> Unit = {},
+    splitPane: Boolean = false,
+    showBack: Boolean = !splitPane,
+    onClose: () -> Unit,
+) {
+    if (mode == "bluetooth") { BluetoothLyricsSettingsSheet(activity, requestBluetooth, splitPane = splitPane, showBack = showBack, onClose = onClose); return }
     val preferences = remember { LyricsPreferences.get(activity) }
     val settings by preferences.state.collectAsState()
     val status by DesktopLyricsController.status.collectAsState()
@@ -19,7 +26,7 @@ internal fun LyricsSettingsSheet(activity: Activity, mode: String = "desktop", r
     fun text(cn: String, en: String) = if (zh) cn else en
     val theme = settingsFlowTheme()
     fun style(change: (DesktopLyricsStyle) -> DesktopLyricsStyle) { preferences.update { it.copy(style = change(it.style)) } }
-    SettingsFullScreenFrame(theme, text("桌面歌词", "Desktop lyrics"), text("复用当前播放时间轴；后台同步，锁屏隐藏。", "Uses the current playback timeline; hides on the lock screen."), onClose) {
+    SettingsFullScreenFrame(theme, text("桌面歌词", "Desktop lyrics"), text("复用当前播放时间轴；后台同步，锁屏隐藏。", "Uses the current playback timeline; hides on the lock screen."), onClose, splitPane = splitPane, showBack = showBack) {
         SettingsGroup(theme, text("显示与权限", "Display and permission")) {
             SettingsSwitch(theme, text("启用桌面歌词", "Enable desktop lyrics"),
                 hint = if (Settings.canDrawOverlays(activity)) text("权限已授予", "Permission granted") else text("请授权后再开启", "Grant overlay permission, then enable"), checked = settings.desktop) { enabled ->

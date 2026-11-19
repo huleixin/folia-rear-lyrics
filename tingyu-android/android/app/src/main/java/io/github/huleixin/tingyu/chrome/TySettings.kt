@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -655,13 +656,31 @@ internal fun TySettingsPageView(
 @Composable
 internal fun TySettingsContent(page: TySettingsPage, theme: TyPanelTheme, onAction: PageAction) {
     val padGroups=groupSettingsNodes(page.nodes)
-    if(LocalPadWindow.current.settingsDualPane&&page.layout==null&&padGroups.size>1){
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(24.dp)){
-            repeat(2){column->Column(Modifier.weight(1f)){
-                padGroups.filterIndexed{index,_->index%2==column}.forEach{(group,nodes)->
-                    TySettingsContent(page.copy(nodes=listOfNotNull(group)+nodes),theme,onAction)
+    if(page.layout==null&&padGroups.size>1){
+        BoxWithConstraints(Modifier.fillMaxWidth()){
+            if(maxWidth>=680.dp){
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(24.dp)){
+                    repeat(2){column->Column(Modifier.weight(1f)){
+                        padGroups.filterIndexed{index,_->index%2==column}.forEach{(group,nodes)->
+                            TySettingsContent(page.copy(nodes=listOfNotNull(group)+nodes),theme,onAction)
+                        }
+                    }}
                 }
-            }}
+            }else{
+                Column(Modifier.fillMaxWidth()){
+                    padGroups.forEach{(group,items)->
+                        key(group?.id?:"ungrouped"){
+                            @Composable fun Items(){
+                                items.forEachIndexed{index,node->
+                                    if(index>0&&node.kind!="note"&&items[index-1].kind!="note")SettingsDivider(theme)
+                                    key(node.id){TySettingItemView(theme,node,onAction)}
+                                }
+                            }
+                            if(group!=null)SettingsGroup(theme,group.title,group.hint){Items()} else Items()
+                        }
+                    }
+                }
+            }
         }
         return
     }

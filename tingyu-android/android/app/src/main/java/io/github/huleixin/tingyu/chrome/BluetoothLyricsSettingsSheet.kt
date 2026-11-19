@@ -8,7 +8,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import io.github.huleixin.tingyu.lyrics.*
 
 // Same native settings primitives. Vehicle compatibility is opt-in and always described as unverified.
-@Composable internal fun BluetoothLyricsSettingsSheet(activity: Activity, requestPermission: () -> Unit, onClose: () -> Unit) {
+@Composable internal fun BluetoothLyricsSettingsSheet(
+    activity: Activity,
+    requestPermission: () -> Unit,
+    splitPane: Boolean = false,
+    showBack: Boolean = !splitPane,
+    onClose: () -> Unit,
+) {
     val prefs = remember { LyricsPreferences.get(activity) }
     val settings by prefs.state.collectAsState()
     val monitor = remember { A2dpLyricsDevices(activity) }
@@ -23,7 +29,7 @@ import io.github.huleixin.tingyu.lyrics.*
     fun text(cn: String, en: String) = if (zh) cn else en
     var testStatus by remember { mutableStateOf("") }
     val theme = settingsFlowTheme()
-    SettingsFullScreenFrame(theme, text("车载蓝牙歌词", "Bluetooth lyrics"), text("实验功能 · 默认关闭", "Experimental · off by default"), onClose) {
+    SettingsFullScreenFrame(theme, text("车载蓝牙歌词", "Bluetooth lyrics"), text("实验功能 · 默认关闭", "Experimental · off by default"), onClose, splitPane = splitPane, showBack = showBack) {
         SettingsGroup(theme, text("兼容性说明", "Compatibility")) {
             SettingsItem(theme, text("仅兼容部分车机", "Some vehicles only"), text(
                 "AVRCP 没有通用歌词字段。开启后尝试用当前歌词替换系统媒体标题，锁屏也可能显示歌词；通知按钮和音频不变。请停车后测试。",

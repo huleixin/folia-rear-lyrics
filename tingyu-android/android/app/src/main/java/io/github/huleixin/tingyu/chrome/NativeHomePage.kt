@@ -224,9 +224,10 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.id=="playlists"&&tablet -> {
-                            val plCols = padWindow.adaptiveColumns(viewport, minItemWidth = 180f, gap = 12f, minColumns = 2, maxColumns = 4)
+                            val plCols = padWindow.adaptiveColumns(viewport, minItemWidth = 156f, gap = 12f, minColumns = 2, maxColumns = 6)
+                            val plItems = if (discovery) section.items.take(plCols * 2) else section.items
                             item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=24.dp,bottom=12.dp),action)}
-                            items(section.items.chunked(plCols),key={"${section.id}:${it.first().id}"}){row->
+                            items(plItems.chunked(plCols),key={"${section.id}:${it.first().id}"}){row->
                                 Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                     row.forEach{NativeHomePlaylist(it,Modifier.weight(1f),action)}
                                     repeat((plCols-row.size).coerceAtLeast(0)){Spacer(Modifier.weight(1f))}

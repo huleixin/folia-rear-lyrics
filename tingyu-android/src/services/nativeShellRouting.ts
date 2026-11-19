@@ -6,7 +6,7 @@ import { useSettingsModalStore } from '../stores/useSettingsModalStore';
 import { useSearchNavigationStore } from '../stores/useSearchNavigationStore';
 import { useCollectionNavigationStore } from '../stores/useCollectionNavigationStore';
 import { useMobileLibraryStore } from '../stores/useMobileLibraryStore';
-import { nativeShellRoute, nativeShellHasWebOverlay, resolveSettingsOverlayBacking } from '../utils/nativeShellState';
+import { nativeShellRoute, nativeShellHasWebOverlay, resolveSettingsOverlayBacking, isTabletSettingsDualPane } from '../utils/nativeShellState';
 import { collectionKey } from '../library/core/model/collectionIdentity';
 import { useMotionSettingsStore, readReducedMotion } from '../stores/useMotionSettingsStore';
 import { useAndroidLayoutSettingsStore } from '../stores/useAndroidLayoutSettingsStore';
@@ -30,7 +30,8 @@ export function installNativeShellRouting() {
         const hasStack=!!stack?.length;
         const localMusicSubpage=!hasStack&&mobileLib.localMusicOpen;
         const search=useSearchNavigationStore.getState().isSearchOpen,collection=hasStack||localMusicSubpage;
-        const settingsBacking=resolveSettingsOverlayBacking(settings);
+        const dualPane = isTabletSettingsDualPane();
+        const settingsBacking=resolveSettingsOverlayBacking(settings, dualPane);
         const index=settingsBacking.settingsIndex;
         const settingsRoot=settingsBacking.settingsOwnsRoute&&!settingsState.isSubSettingsViewOpen;
         const {route,selectedTab}=nativeShellRoute({settingsOpen:settingsBacking.settingsOwnsRoute,settingsIndex:index,searchOpen:search,
@@ -40,7 +41,8 @@ export function installNativeShellRouting() {
         // Settings portals are captured into the same native document.
         // 设置弹窗本体不计入（第 12 轮）：关闭后退场动画还会把标记留在 DOM 上一两百毫秒，
         // 不排除的话路由会先发一帧 webOverlay=true 的 stage，极简页/舞台要多黑一拍才回来。
-        const webOverlay=settings.isOpen?(settings.initialSubview==='accounts'):
+        const accountsQrOpen = Boolean(document.querySelector('[data-native-accounts-qr-modal="true"]'));
+        const webOverlay=settings.isOpen?(settings.initialSubview==='accounts' && (!dualPane || !settingsBacking.settingsOwnsRoute || accountsQrOpen)):
             nativeShellHasWebOverlay([...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
                 .filter(node=>!node.closest('[data-folia-settings-overlay]')));
         const pageTarget=route==='settings'?settingsBacking.pageTarget:
@@ -75,7 +77,8 @@ export function installNativeShellRouting() {
     setNativeShellPublisher(publish);
     [useAppViewStore,useSettingsModalStore,useSearchNavigationStore,useCollectionNavigationStore,useMobileLibraryStore,useMotionSettingsStore,usePlayerViewModeStore,useAndroidLayoutSettingsStore].forEach(store=>store.subscribe(scheduleNativeShellRoute));
     const observer=new MutationObserver(records=>{if(records.some(record=>record.type==='attributes'||[...record.addedNodes,...record.removedNodes].some(node=>node instanceof Element&&
-        (node.matches('[data-folia-keyboard-window]')||node.querySelector('[data-folia-keyboard-window]')))))scheduleNativeShellRoute()});
-    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-folia-keyboard-window','data-native-page','data-native-settings-key']});
+        (node.matches('[data-folia-keyboard-window],[data-native-accounts-qr-modal]')||node.querySelector('[data-folia-keyboard-window],[data-native-accounts-qr-modal]')))))scheduleNativeShellRoute()});
+    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-folia-keyboard-window','data-native-page','data-native-settings-key','data-native-accounts-qr-modal']});
+    window.addEventListener('resize', scheduleNativeShellRoute);
     publish();
 }

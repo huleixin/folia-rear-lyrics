@@ -178,7 +178,9 @@ internal fun rememberTyTopGlassState(estimateHeaderBottomDp: Float): TyTopGlassS
         state.pxPerDp = density.density
         // 能力降级（Haze 官方判定）：没有 RenderEffect 模糊的版本关闭模糊，
         // 仅保留同形状的半透明底色玻璃 —— 无横带、无自研降级管线。
-        hazeState.blurEnabled = HazeDefaults.blurEnabled()
+        // Robolectric software Canvas lacks RenderScript Allocation surfaces; keep fallback clean in unit tests.
+        val isRobolectric = android.os.Build.FINGERPRINT.equals("robolectric", ignoreCase = true)
+        hazeState.blurEnabled = !isRobolectric && HazeDefaults.blurEnabled()
     }
     return state
 }

@@ -18,30 +18,41 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // SettingsFullScreenFrame.kt: existing top-glass page chrome for native lyrics and support.
-@Composable internal fun SettingsFullScreenFrame(theme:TyPanelTheme,title:String,subtitle:String,onClose:()->Unit,content:@Composable ColumnScope.()->Unit){
-    BackHandler{onClose()}
+@Composable internal fun SettingsFullScreenFrame(
+    theme:TyPanelTheme,
+    title:String,
+    subtitle:String,
+    onClose:()->Unit,
+    splitPane:Boolean=false,
+    showBack:Boolean=!splitPane,
+    content:@Composable ColumnScope.()->Unit,
+){
+    BackHandler(enabled = !splitPane){onClose()}
     val colors=LocalInterfacePalette.current.settingsBackgrounds
     val density=LocalDensity.current
     val safe=LocalSettingsSafeInsets.current
-    val top=safe?.top?:WindowInsets.safeDrawing.getTop(density)/density.density
-    val bottom=safe?.bottom?:WindowInsets.safeDrawing.getBottom(density)/density.density
-    val glass=rememberTyTopGlassState(estimateHeaderBottomDp=top+96f)
-    Box(Modifier.fillMaxSize().testTag("native-settings-fullscreen").pointerInput(Unit){detectTapGestures(onTap={})}){
+    val top=if(splitPane) 0f else safe?.top?:WindowInsets.safeDrawing.getTop(density)/density.density
+    val hostBottom=with(density){LocalNativePageBottomPx.current.toDp()}
+    val bottom=(safe?.bottom?:WindowInsets.safeDrawing.getBottom(density)/density.density)
+    val bottomClearance=if(splitPane) maxOf(hostBottom, (bottom + if(LocalPadWindow.current.expanded) 96f else 36f).dp) else (bottom+24).dp
+    val topBarPad=if(splitPane) 16.dp else (top+16).dp
+    val glass=rememberTyTopGlassState(estimateHeaderBottomDp=(if(splitPane) 16f else top+16f)+76f)
+    Box(Modifier.fillMaxSize().testTag(if(splitPane)"native-settings-split-frame" else "native-settings-fullscreen").let{if(splitPane)it else it.pointerInput(Unit){detectTapGestures(onTap={})}}){
         TyTopGlassContentLayer(glass,colors,null,null,Modifier.fillMaxSize()){
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()){
                 Spacer(Modifier.height(glass.contentTop))
                 Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopCenter){
                     Column(Modifier.widthIn(max=1040.dp).fillMaxWidth().padding(horizontal=22.dp,vertical=12.dp),content=content)
                 }
-                Spacer(Modifier.height((bottom+24).dp))
+                Spacer(Modifier.height(bottomClearance))
             }
         }
         TyTopGlassSurface(glass,colors)
         TyTopGlassForeground{
-            Row(Modifier.fillMaxWidth().padding(start=16.dp,end=16.dp,top=(top+16).dp,bottom=16.dp)
+            Row(Modifier.fillMaxWidth().padding(start=if(showBack)16.dp else 22.dp,end=22.dp,top=topBarPad,bottom=16.dp)
                 .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically){
-                ChromeButton("返回",onClick=onClose){PageIcon("chevron-left",theme.text,Modifier.size(24.dp))}
-                Column(Modifier.weight(1f).padding(horizontal=10.dp)){
+                if(showBack)ChromeButton("返回",onClick=onClose){PageIcon("chevron-left",theme.text,Modifier.size(24.dp))}
+                Column(Modifier.weight(1f).padding(start=if(showBack)10.dp else 0.dp,end=10.dp)){
                     Text(title,color=theme.text,fontSize=22.sp)
                     if(subtitle.isNotBlank())Text(subtitle,color=theme.muted,fontSize=12.sp,modifier=Modifier.padding(top=5.dp))
                 }

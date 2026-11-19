@@ -71,7 +71,7 @@ import kotlin.math.ceil
                 // Width chooses the count; height caps square artwork so both sections clear the mini player.
                 val targetCover=(maxHeight*.25f).coerceIn(104.dp,164.dp)
                 val legacyColumns=ceil((maxWidth.value+gap.value)/(targetCover.value+gap.value)).toInt().coerceIn(4,8)
-                val gridColumns=if(isDiscovery)window.adaptiveColumns(maxWidth.value,minItemWidth=148f,gap=gap.value,minColumns=2,maxColumns=6) else legacyColumns
+                val gridColumns=if(isDiscovery)window.adaptiveColumns(maxWidth.value,minItemWidth=148f,gap=gap.value,minColumns=2,maxColumns=8) else legacyColumns
                 val playlistCover=(maxWidth-gap*(legacyColumns-1))/legacyColumns
                 // Four extra dp absorb independent row rounding without introducing a tiny scroll range.
                 val bandBudget=(maxHeight-playlistCover-44.dp-54.dp-12.dp-54.dp-16.dp).coerceAtLeast(if(window.shortWindow)184.dp else 218.dp)
@@ -91,10 +91,16 @@ import kotlin.math.ceil
                 LazyColumn(Modifier.fillMaxSize().graphicsLayer{translationY=pullOffsetPx}.clipToBounds().testTag("pad-home-list"),
                     contentPadding=PaddingValues(bottom=12.dp),verticalArrangement=Arrangement.spacedBy(if(window.shortWindow)10.dp else if(isDiscovery)18.dp else 12.dp)){
                     if(hasDualDiscoveryBand&&discoveryHero!=null&&recent!=null)item(key="discovery-top-band"){
+                        val hasRoamModes = roamModes != null && roamModes.items.isNotEmpty()
+                        val quickTwoByTwo = paneWidth < 380.dp
+                        val leftBandHeightDp = 148f + (if (hasRoamModes) 44f else 0f) + 12f + (if (quickTwoByTwo) 138f else 68f)
+                        val recentHeaderHeightDp = 34f
+                        val recentRowLimit = (((leftBandHeightDp - recentHeaderHeightDp + 4f) / 60f).toInt()).coerceIn(2, 4)
+                        val recentPairs = recent.items.take(recentRowLimit * 2).chunked(2)
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(paneGap),verticalAlignment=Alignment.Top){
                             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp)){
                                 DiscoveryHero(discoveryHero,action=action)
-                                if(roamModes!=null&&roamModes.items.isNotEmpty()){
+                                if(hasRoamModes){
                                     NativeSourceTabs(roamModes,action=action)
                                 }
                                 if(shortcuts!=null&&shortcuts.items.isNotEmpty()){
@@ -102,12 +108,40 @@ import kotlin.math.ceil
                                 }
                             }
                             Column(Modifier.weight(1f)){
-                                PageSectionHeading(recent,Modifier.padding(bottom=8.dp),action,titleSize=20)
-                                recent.items.take(6).chunked(2).forEachIndexed{rowIdx,pair->
+                                Row(
+                                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        recent.title,
+                                        color = PageInk,
+                                        fontSize = 20.sp,
+                                        lineHeight = 26.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    if (recent.more.isNotBlank()) {
+                                        Row(
+                                            Modifier
+                                                .heightIn(min = 32.dp)
+                                                .chromeClickable(corner = 10.dp) { action(recent.more, "", 0.0) }
+                                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Text(recent.moreLabel, color = PageMuted, fontSize = 13.sp, lineHeight = 18.sp)
+                                            PageIcon("chevron-right", PageMuted, Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                                recentPairs.forEachIndexed{rowIdx,pair->
+                                    val showDivider = rowIdx < recentPairs.lastIndex
                                     Row(Modifier.fillMaxWidth().padding(top=if(rowIdx==0)0.dp else 4.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                         pair.forEach{item->
-                                            Box(Modifier.weight(1f)){
-                                                NativePageRow(item,height=54.dp,art=40.dp,titleSize=13,subtitleSize=11,divider=rowIdx<2){action(it,"",0.0)}
+                                            Column(Modifier.weight(1f)){
+                                                NativePageRow(item,height=56.dp,art=42.dp,titleSize=13,subtitleSize=11,divider=showDivider){action(it,"",0.0)}
                                             }
                                         }
                                         if(pair.size==1)Spacer(Modifier.weight(1f))

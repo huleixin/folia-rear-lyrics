@@ -86,6 +86,7 @@ import { selectAudioSettingsSnapshot, useAudioSettingsStore } from '../../stores
 import { selectHomeLayoutSettingsSnapshot, useHomeLayoutSettingsStore } from '../../stores/useHomeLayoutSettingsStore';
 import { setNavidromeEnabledState, useLibraryStore } from '../../stores/useLibraryStore';
 import { hasLibrarySuiteChoice } from '../../library/registry';
+import { handleSettingsPaneBack } from './settings/settingsSplitNavigation';
 import { useIsBravaisLibraryActive } from '../../library/app/bravaisLibraryActive';
 
 const DEFAULT_OPENAI_TEMPERATURE = '0.7';
@@ -464,9 +465,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const phoneFitEnabled = useAndroidLayoutSettingsStore(state => state.phoneFitEnabled);
     const isWideSettingsLayout = useMediaQuery('(min-width: 768px)') && !phoneFitEnabled;
     const isMobileSettings = useActiveLibrarySuiteId() === 'mobile' && (NATIVE_FIRST || !isWideSettingsLayout);
+    const subviewBackStackLen = useSettingsModalStore(state => state.settingsModalState.subviewBackStack?.length ?? 0);
     const returnFromMobileSection = () => {
-        if(useSettingsModalStore.getState().settingsModalState.returnToIndex)useSettingsModalStore.getState().returnSettingsToIndex();
-        else onClose();
+        handleSettingsPaneBack(useSettingsModalStore.getState().settingsModalState.returnToIndex, onClose);
     };
     const settingsAnchorStore = useSettingsAnchorStore();
     const settingsAnchors = useSettingsAnchorList(settingsAnchorStore);
@@ -1445,7 +1446,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     // All categories and nested editors now expose semantic forms through the shared hook.
     // Their mounted React components retain the existing handlers, not browser placement.
     useNativeSettingsDocument(nativeDocumentRef,NATIVE_FIRST,
-        `${activeTab}:${activeSettingsSection}:${showVisPlayground}:${showStageTheme}:${showThemePark}:${showLyricFilterSettings}:${showGlobalLyricOffset}:${showAiHelpPrompt}:${showReleaseNotes}`,
+        `${activeTab}:${activeSettingsSection}:${showVisPlayground}:${showStageTheme}:${showThemePark}:${showLyricFilterSettings}:${showGlobalLyricOffset}:${showAiHelpPrompt}:${showReleaseNotes}:${subviewBackStackLen > 0}`,
         showVisPlayground?t(showStageTheme?'rearAppearance.theme':'rearAppearance.edit'):activeSettingsNavItem?.label??t('ui.options'));
 
 

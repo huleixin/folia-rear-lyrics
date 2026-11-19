@@ -8,6 +8,7 @@ import { useSearchHistoryStore } from '../../../stores/useSearchHistoryStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { omni } from '../../../services/onlineMusic/omni';
 import { runTopModalBack } from '../../../services/modalBackStack';
+import { handleSettingsPaneBack } from './settingsSplitNavigation';
 import OperationPanel from '../../shared/OperationPanel';
 import { applySearchSettingsAction, searchSettingsModel } from './searchSettingsModel';
 
@@ -21,7 +22,7 @@ export default function SearchSettingsPage({onClose}:{onClose:()=>void}) {
     useSyncExternalStore(omni.subscribeProviders,omni.getProviderRegistryVersion);
     const fromIndex=useSettingsModalStore(s=>s.settingsModalState.returnToIndex);
     const [confirm,setConfirm]=useState(false);
-    const back=()=>fromIndex?useSettingsModalStore.getState().returnSettingsToIndex():onClose();
+    const back=()=>handleSettingsPaneBack(fromIndex,onClose);
     useEffect(()=>{
         const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented){
             if(runTopModalBack()){event.preventDefault();event.stopImmediatePropagation();return;}

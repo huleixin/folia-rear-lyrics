@@ -9,6 +9,7 @@ import { discoverySources } from '../../../services/discovery/service';
 import { clearDiscoveryPreferences } from '../../../services/discovery/preferences';
 import { omni } from '../../../services/onlineMusic/omni';
 import { runTopModalBack } from '../../../services/modalBackStack';
+import { handleSettingsPaneBack } from './settingsSplitNavigation';
 import OperationPanel from '../../shared/OperationPanel';
 import {
     discoverySettingsModel,
@@ -26,7 +27,7 @@ export default function DiscoverySettingsPage({ onClose }: { onClose: () => void
     useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion);
     const fromIndex = useSettingsModalStore(s => s.settingsModalState.returnToIndex);
     const [confirm, setConfirm] = useState<string | null>(null);
-    const back = () => fromIndex ? useSettingsModalStore.getState().returnSettingsToIndex() : onClose();
+    const back = () => handleSettingsPaneBack(fromIndex, onClose);
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape' && !event.defaultPrevented) {

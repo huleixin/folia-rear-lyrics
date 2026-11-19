@@ -292,4 +292,270 @@ class PadAdaptive20Test {
         compose.onNodeWithText("我喜欢").assertIsDisplayed()
         shot("mobile-playlists-classic-dark")
     }
+
+    private fun semanticFlowPage(key: String, title: String, nodes: List<JSONObject>, width: Int = 1280, height: Int = 800): NativePage {
+        val flow = JSONObject()
+            .put("key", key)
+            .put("title", title)
+            .put("nodes", JSONArray(nodes))
+        return NativePage.parse(
+            JSONObject()
+                .put("id", "settings")
+                .put("session", "pad20-$key")
+                .put("enabled", true)
+                .put("width", width)
+                .put("height", height)
+                .put("viewportWidth", width)
+                .put(
+                    "model",
+                    JSONObject()
+                        .put("key", "settings:document:$key")
+                        .put("title", title)
+                        .put("sections", JSONArray())
+                        .put("document", JSONObject().put("paints", JSONArray()).put("controls", JSONArray()).put("areas", JSONArray()).put("live", JSONArray()).put("flow", flow))
+                )
+        )
+    }
+
+    @Test
+    fun settingsClickThroughStaysInRightPaneInsteadOfFullscreen() {
+        val rootIndex = settingsPage()
+        val accountsDoc = semanticFlowPage(
+            "accounts",
+            "音乐平台账号",
+            listOf(
+                JSONObject().put("id", "accounts-group").put("kind", "group").put("title", "音乐平台"),
+                JSONObject().put("id", "provider:qq").put("kind", "action").put("title", "QQ音乐").put("hint", "已登录 · 测试用户").put("value", "管理"),
+                JSONObject().put("id", "provider:netease").put("kind", "action").put("title", "网易云音乐").put("hint", "未登录").put("value", "登录"),
+            ),
+        )
+        val appearanceDoc = semanticFlowPage(
+            "options:appearance:false:false:false:false:false:false:false:false",
+            "视觉设置",
+            listOf(
+                JSONObject().put("id", "theme-group").put("kind", "group").put("title", "主题与外观"),
+                JSONObject().put("id", "glacier").put("kind", "switch").put("title", "冰川主题").put("value", "1"),
+            ),
+        )
+        val playbackDoc = semanticFlowPage(
+            "options:playback:false:false:false:false:false:false:false:false",
+            "播放设置",
+            listOf(
+                JSONObject().put("id", "audio-group").put("kind", "group").put("title", "音频输出"),
+                JSONObject().put("id", "gapless").put("kind", "switch").put("title", "无缝播放").put("value", "1"),
+            ),
+        )
+        val stageEditorDoc = semanticFlowPage(
+            "options:appearance:true:false:false:false:false:false:false:false",
+            "舞台编辑",
+            listOf(
+                JSONObject().put("id", "stage-note").put("kind", "note").put("title", "全屏舞台编辑器"),
+            ),
+        )
+        assertFalse(accountsDoc.isFullscreenSettingsEditor())
+        assertFalse(appearanceDoc.isFullscreenSettingsEditor())
+        assertFalse(playbackDoc.isFullscreenSettingsEditor())
+        assertTrue(stageEditorDoc.isFullscreenSettingsEditor())
+
+        var current by mutableStateOf(accountsDoc)
+        var activeAction by mutableStateOf("settings:accounts")
+        var lyricsMode by mutableStateOf<String?>(null)
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalPadWindow provides PadWindow(1280f, 800f),
+                LocalInterfacePalette provides InterfacePalette(true, "glacier"),
+                LocalChromeRendering provides false,
+                LocalNativePageBottomPx provides 220f,
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    NativePageView(
+                        current,
+                        Modifier.size(1280.dp, 800.dp),
+                        settingsRootPage = rootIndex,
+                        settingsActiveAction = activeAction,
+                        splitLyricsMode = lyricsMode,
+                        onSettingsSelect = { act, _, _ ->
+                            activeAction = act
+                            when (act) {
+                                "open:platform-accounts" -> { lyricsMode = null; current = accountsDoc }
+                                "open:appearance" -> { lyricsMode = null; current = appearanceDoc }
+                                "open:playback" -> { lyricsMode = null; current = playbackDoc }
+                            }
+                        },
+                    ) { _, _, _ -> }
+                }
+            }
+        }
+
+        // Initial default shows 音乐平台账号 inside right pane while middle directory stays visible
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithTag("pad-settings-detail").assertIsDisplayed()
+        compose.onNodeWithText("QQ音乐").assertIsDisplayed()
+        shot("settings-p0-accounts-right-pane")
+
+        // Click 视觉设置 (appearance) -> right pane updates, directory stays visible (NOT fullscreen)
+        compose.onNodeWithText("外观设置").performClick()
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithTag("pad-settings-detail").assertIsDisplayed()
+        compose.onNodeWithText("冰川主题").assertIsDisplayed()
+        shot("settings-p0-visual-right-pane")
+
+        // Click 播放设置 -> right pane updates, directory stays visible
+        compose.onNodeWithText("播放设置").performClick()
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithText("无缝播放").assertIsDisplayed()
+
+        // Desktop lyrics in split pane keeps directory visible
+        compose.runOnIdle { lyricsMode = "desktop" }
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithText("启用桌面歌词").assertIsDisplayed()
+        shot("settings-p0-desktop-lyrics-right-pane")
+    }
+
+    @Test
+    fun discoveryRadarsHaveNoOverlapOrFogAndPlaylistsAdaptTo14ItemsAcrossFormFactors() {
+        val my14Playlists = (0 until 14).map { idx ->
+            item("mine$idx", "我的真实歌单$idx", "QQ音乐 · ${(idx + 1) * 15}首")
+        }
+        val recommended12 = (0 until 12).map { idx ->
+            item("rec$idx", "精选歌单$idx", "网易云 · ${(idx + 1) * 20}首")
+        }
+        val radarItems = listOf(
+            item("style", "风格雷达", "歌手与音乐的关联").put("secondary", "radar:style:play"),
+            item("time", "时光雷达", "重逢旧日旋律").put("secondary", "radar:time:play"),
+            item("explore", "探索雷达", "发现未听过的音乐").put("secondary", "radar:explore:play"),
+        )
+        fun makeDiscovery(width: Int, height: Int, plItems: List<JSONObject>) = NativePage.parse(
+            JSONObject()
+                .put("id", "home")
+                .put("session", "pad20-discovery-$width")
+                .put("enabled", true)
+                .put("width", width)
+                .put("height", height)
+                .put("viewportWidth", width)
+                .put(
+                    "model",
+                    JSONObject()
+                        .put("key", "home:discovery:all")
+                        .put("title", "推荐")
+                        .put("subtitle", "发现属于你的下一首")
+                        .put(
+                            "sections",
+                            JSONArray(
+                                listOf(
+                                    section("discovery-sources", "chips", "", listOf(
+                                        item("all", "综合推荐").put("selected", true),
+                                        item("qq", "QQ音乐"),
+                                        item("netease", "网易云"),
+                                    )),
+                                    section("discovery-brand", "discoveryHero", "", listOf(
+                                        item("roam", "听屿漫游", "让熟悉与未知，在下一首相遇").put("secondaryLabel", "立即漫游"),
+                                    )),
+                                    section("shortcuts", "quickLinks", "", listOf(
+                                        JSONObject().put("id", "quick:daily").put("title", "每日推荐").put("image", "calendar").put("action", "quick:daily"),
+                                        JSONObject().put("id", "quick:heart").put("title", "心动模式").put("image", "heart").put("action", "quick:heart"),
+                                        JSONObject().put("id", "quick:fm").put("title", "私人 FM").put("image", "radio").put("action", "quick:fm"),
+                                        JSONObject().put("id", "quick:charts").put("title", "排行榜").put("image", "chart-no-axes-column").put("action", "quick:charts"),
+                                    )),
+                                    section("discovery-radars", "radarCards", "你的专属雷达", radarItems).put("more", "allRadar").put("moreLabel", "全部"),
+                                    section("recent", "cards", "最近播放", (0..7).map { item("recent$it", "最近歌曲$it", "歌手$it · QQ音乐") }).put("more", "recentAll").put("moreLabel", "全部"),
+                                    section("discovery-collections", "cards", "为你精选歌单", recommended12).put("more", "allCollections").put("moreLabel", "全部"),
+                                    section("playlists", "cards", "我的歌单", plItems).put("more", "library").put("moreLabel", "全部"),
+                                )
+                            )
+                        )
+                )
+        )
+
+        var window by mutableStateOf(PadWindow(1280f, 800f))
+        var palette by mutableStateOf(InterfacePalette(true, "glacier"))
+        var currentPage by mutableStateOf(makeDiscovery(1280, 800, my14Playlists))
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalPadWindow provides window,
+                LocalInterfacePalette provides palette,
+                LocalChromeRendering provides false,
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    NativePageView(currentPage, Modifier.size(window.width.dp, window.height.dp)) { action, _, _ ->
+                        events += action
+                    }
+                }
+            }
+        }
+
+        // Verify landscape alignment & 2:1 bounded radar non-overlap
+        compose.onNodeWithTag("pad-home-list").assertIsDisplayed()
+        compose.onNodeWithText("风格雷达").assertIsDisplayed()
+        val roamBounds = compose.onNodeWithTag("discovery-hero").fetchSemanticsNode().boundsInRoot
+        val recentBounds = compose.onNodeWithText("最近播放").fetchSemanticsNode().boundsInRoot
+        assertTrue("Top baseline of 听屿漫游 and 最近播放 must align closely", kotlin.math.abs(roamBounds.top - recentBounds.top) < 16f)
+
+        compose.onNodeWithTag("pad-home-list").performScrollToNode(hasText("探索雷达"))
+        val radarCoverBounds = compose.onNodeWithTag("discovery-radar-cover:style", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val radarTitleBounds = compose.onNodeWithText("风格雷达", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "Radar cover must stay compact (<=161) and end strictly above title text (gap>=8); cover=$radarCoverBounds, title=$radarTitleBounds",
+            radarCoverBounds.height <= 161f && radarTitleBounds.top >= radarCoverBounds.bottom + 8f,
+        )
+        compose.onNodeWithTag("pad-home-list").performScrollToIndex(0)
+        shot("home-p1-landscape-top-glacier-light")
+
+        // Scroll down to verify 12 of 14 playlists appear on 6-col landscape (not fixed 4!)
+        compose.onNodeWithTag("pad-home-list").performScrollToNode(hasText("我的歌单"))
+        compose.onNodeWithTag("pad-home-list").performScrollToNode(hasTestTag("pad-card:mine11"))
+        compose.onNodeWithTag("pad-card:mine0").assertIsDisplayed()
+        compose.onNodeWithTag("pad-card:mine5").assertIsDisplayed()
+        compose.onNodeWithTag("pad-card:mine6").assertIsDisplayed()
+        compose.onNodeWithTag("pad-card:mine11").assertIsDisplayed()
+        compose.onNodeWithTag("pad-card:mine12").assertDoesNotExist()
+        shot("home-p1-landscape-playlists-12-glacier-light")
+
+        // Classic dark on landscape
+        compose.runOnIdle { palette = InterfacePalette(false, "classic") }
+        compose.onNodeWithTag("pad-home-list").performScrollToIndex(0)
+        shot("home-p1-landscape-top-classic-dark")
+
+        // 4 playlists when user genuinely has only 4 -> left aligned, no fake cards
+        compose.runOnIdle {
+            palette = InterfacePalette(true, "glacier")
+            currentPage = makeDiscovery(1280, 800, my14Playlists.take(4))
+        }
+        compose.onNodeWithTag("pad-home-list").performScrollToNode(hasTestTag("pad-card:mine3"))
+        compose.onNodeWithTag("pad-card:mine3").assertIsDisplayed()
+        compose.onNodeWithTag("pad-card:mine4").assertDoesNotExist()
+
+        // Split-screen 720x800 with 14 playlists -> adaptive grid shows > 4 playlists
+        compose.runOnIdle {
+            window = PadWindow(720f, 800f)
+            currentPage = makeDiscovery(720, 800, my14Playlists)
+        }
+        compose.onNodeWithTag("native-home-list").performScrollToNode(hasText("我的真实歌单5"))
+        compose.onNodeWithText("我的真实歌单5").assertIsDisplayed()
+
+        // Portrait 800x1280 with 14 playlists -> more than 4 (e.g. 8 playlists)
+        compose.runOnIdle {
+            window = PadWindow(800f, 1280f)
+            currentPage = makeDiscovery(800, 1280, my14Playlists)
+        }
+        compose.onNodeWithTag("native-home-list").performScrollToNode(hasText("我的真实歌单5"))
+        compose.onNodeWithText("我的真实歌单5").assertIsDisplayed()
+        shot("home-p1-portrait-800x1280")
+
+        // Phone 393x852 (Glacier Light & Classic Dark) retains 4 playlists & crisp 1:1 radars without overlap
+        compose.runOnIdle {
+            window = PadWindow(393f, 852f)
+            currentPage = makeDiscovery(393, 852, my14Playlists)
+        }
+        compose.onNodeWithTag("native-home-list").performScrollToNode(hasText("风格雷达"))
+        val phoneCoverBounds = compose.onNodeWithTag("discovery-radar-cover:style", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val phoneTitleBounds = compose.onNodeWithText("风格雷达", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "Phone radar cover and title must never overlap; cover=$phoneCoverBounds, title=$phoneTitleBounds",
+            phoneTitleBounds.top >= phoneCoverBounds.bottom + 8f,
+        )
+        shot("phone-p1-radar-glacier-light")
+        compose.runOnIdle { palette = InterfacePalette(false, "classic") }
+        shot("phone-p1-radar-classic-dark")
+    }
 }

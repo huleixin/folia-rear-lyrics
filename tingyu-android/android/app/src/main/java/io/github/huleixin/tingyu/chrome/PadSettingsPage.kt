@@ -32,7 +32,7 @@ internal fun PadSettingsPage(
     val palette = LocalInterfacePalette.current
     val groups = remember(page.sections) { page.sections.filter { it.id != "rear" } }
     val hostBottom = with(LocalDensity.current) { LocalNativePageBottomPx.current.toDp() }
-    val bottomPadding = maxOf(hostBottom, (page.safeBottom + 28).dp)
+    val bottomPadding = maxOf(hostBottom, (page.safeBottom + if (window.expanded) 96 else 36).dp)
     val startInset = if (window.expanded) 114.dp else window.pageHorizontalMargin.dp
     val endInset = window.pageHorizontalMargin.dp
     val topInset = (page.safeTop + if (window.shortWindow) 14 else 24).dp
@@ -57,7 +57,7 @@ internal fun PadSettingsPage(
                     .fillMaxWidth()
                     .weight(1f)
                     .testTag("pad-settings-directory"),
-                contentPadding = PaddingValues(bottom = bottomPadding),
+                contentPadding = PaddingValues(top = 4.dp, bottom = bottomPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(groups, key = { it.id }) { section ->

@@ -12,6 +12,10 @@ import MobileSheet from '../../shared/MobileSheet';
 import { useLiquidReduced } from '../../shared/useLiquidReduced';
 import { TY_DURATION, TY_EASE } from '../../shared/motionTokens';
 import { useSheetThemeTokens } from '../../../library/suites/mobile/native/sheetThemeTokens';
+import { NATIVE_FIRST } from '../../../services/nativePages';
+import { useNativeSettingsDocument } from '../../../hooks/useNativeSettingsDocument';
+import type { NativeSettingsFlow, NativeSettingsFlowNode } from '../../../types/nativeSettingsDocument';
+import { handleSettingsPaneBack, useTabletSettingsDualPane } from './settingsSplitNavigation';
 import qqIcon from '../../../assets/providers/qq.svg';
 import wechatIcon from '../../../assets/providers/wechat.svg';
 
@@ -112,24 +116,27 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
     useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion);
     const providers = omni.getProviderSummaries();
     const fromIndex = useSettingsModalStore(s => s.settingsModalState.returnToIndex);
+    const subviewStackLen = useSettingsModalStore(s => s.settingsModalState.subviewBackStack?.length ?? 0);
+    const dualPane = useTabletSettingsDualPane();
+    const nativeSplitPane = NATIVE_FIRST && dualPane && (Boolean(fromIndex) || subviewStackLen > 0);
+    const rootRef = useRef<HTMLDivElement>(null);
     const [closing, setClosing] = useState(false);
     const closingRef = useRef(false);
     const closedRef = useRef(false);
     const commitBack = useCallback(() => {
         if (closedRef.current) return;
         closedRef.current = true;
-        if (fromIndex) useSettingsModalStore.getState().returnSettingsToIndex();
-        else onClose();
+        handleSettingsPaneBack(fromIndex, onClose);
     }, [fromIndex, onClose]);
     const back = useCallback(() => {
         if (closingRef.current || closedRef.current) return;
         closingRef.current = true;
-        if (reduced) {
+        if (reduced || nativeSplitPane) {
             commitBack();
             return;
         }
         setClosing(true);
-    }, [reduced, commitBack]);
+    }, [reduced, nativeSplitPane, commitBack]);
     const finishClose = useCallback(() => {
         if (closing) commitBack();
     }, [closing, commitBack]);
@@ -377,6 +384,217 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
     };
 
     const managingAccount = managingId ? accounts[managingId] : undefined;
+    const qrOverlayActive = Boolean(methodPicker || qrLogin);
+    const accountsFlow: NativeSettingsFlow | null = nativeSplitPane ? (() => {
+        if (managingId) {
+            const managedLabel = omni.getProviderLabel(managingId, false);
+            const syncHint = managingAccount?.lastUpdatedAt
+                ? `最近同步：${new Date(managingAccount.lastUpdatedAt).toLocaleString()}`
+                : '已登录';
+            const nodes: NativeSettingsFlowNode[] = [
+                ...(notice ? [{ id: 'accounts-notice', kind: 'note' as const, title: notice }] : []),
+                { id: 'manage-info-group', kind: 'group', title: '账号信息' },
+                {
+                    id: 'manage-info',
+                    kind: 'note',
+                    title: `${managingAccount?.user?.nickname || String(managingAccount?.user?.id ?? '') || '已授权账号'} · ${syncHint}`,
+                },
+                { id: 'manage-actions-group', kind: 'group', title: '账号操作' },
+                { id: 'manage-refresh', kind: 'action', title: '刷新登录状态', hint: '同步账号信息、歌单及收藏', icon: 'refresh-cw' },
+                { id: 'manage-reauth', kind: 'action', title: '重新授权', hint: '重新验证当前平台账号', icon: 'key-round' },
+                { id: 'manage-switch', kind: 'action', title: '切换账号', hint: '使用其他账号登录', icon: 'log-in' },
+                { id: 'manage-danger-group', kind: 'group', title: '退出登录' },
+                ...(confirmLogoutId !== managingId
+                    ? [{ id: 'manage-logout', kind: 'action' as const, title: '退出登录', hint: '仅退出当前平台账号', value: 'danger', icon: 'log-out' }]
+                    : [
+                        { id: 'manage-logout-confirm', kind: 'action' as const, title: '确认退出该平台账号', hint: '退出后需重新扫码登录', value: 'danger', icon: 'log-out' },
+                        { id: 'manage-logout-cancel', kind: 'action' as const, title: '取消退出', icon: 'x' },
+                    ]),
+            ];
+            return { key: `accounts:manage:${managingId}`, title: managedLabel, nodes };
+        }
+        const providerNodes: NativeSettingsFlowNode[] = providers.map(provider => {
+            const account = accounts[provider.providerId];
+            const display = resolveAccountDisplayState(account);
+            const label = omni.getProviderLabel(provider.providerId, false);
+            const busy = busyId === provider.providerId;
+            const prefix = display.isLoggedIn ? '已登录 · ' : '';
+            return {
+                id: `provider:${provider.providerId}`,
+                kind: 'action',
+                title: label,
+                hint: `${prefix}${display.statusText}`,
+                value: busy ? '处理中' : display.buttonLabel,
+                icon: 'user-round',
+            };
+        });
+        return {
+            key: subviewStackLen > 0 ? 'accounts:nested' : 'accounts',
+            title: '音乐平台账号',
+            nodes: [
+                { id: 'accounts-desc', kind: 'note', title: '统一管理各音乐平台的登录状态，同步个人歌单、收藏及高音质播放权限。不会影响自定义音源导入。' },
+                ...(notice ? [{ id: 'accounts-notice', kind: 'note' as const, title: notice }] : []),
+                { id: 'accounts-group', kind: 'group', title: '音乐平台' },
+                ...providerNodes,
+            ],
+        };
+    })() : null;
+
+    useNativeSettingsDocument(
+        rootRef,
+        nativeSplitPane,
+        managingId ? `accounts:manage:${managingId}` : (subviewStackLen > 0 ? 'accounts:nested' : 'accounts'),
+        managingId ? omni.getProviderLabel(managingId, false) : '音乐平台账号',
+        accountsFlow,
+        id => {
+            if (id.startsWith('provider:')) {
+                const pid = id.slice('provider:'.length) as OnlineProviderId;
+                const display = resolveAccountDisplayState(accounts[pid]);
+                if (display.isLoggedIn) {
+                    setConfirmLogoutId(null);
+                    setManagingId(pid);
+                } else {
+                    void startProviderLogin(pid);
+                }
+                return;
+            }
+            if (!managingId) return;
+            if (id === 'manage-refresh') {
+                const pid = managingId;
+                setManagingId(null);
+                void refreshProviderAccount(pid);
+            } else if (id === 'manage-reauth' || id === 'manage-switch') {
+                const pid = managingId;
+                setManagingId(null);
+                void startProviderLogin(pid, { forceLogin: true });
+            } else if (id === 'manage-logout') {
+                setConfirmLogoutId(managingId);
+            } else if (id === 'manage-logout-confirm') {
+                void performLogout(managingId);
+            } else if (id === 'manage-logout-cancel') {
+                setConfirmLogoutId(null);
+            }
+        },
+        () => {
+            if (managingId) {
+                setConfirmLogoutId(null);
+                setManagingId(null);
+            } else {
+                back();
+            }
+        },
+    );
+
+    if (nativeSplitPane) {
+        return createPortal(
+            <div
+                ref={rootRef}
+                className="fixed inset-0"
+                style={{ zIndex: 136, pointerEvents: qrOverlayActive ? 'auto' : 'none' }}
+                data-folia-settings-overlay="true"
+                data-folia-keyboard-window="true"
+                data-native-accounts-qr-modal={qrOverlayActive ? 'true' : undefined}
+            >
+                {methodPicker && (
+                    <MobileSheet
+                        title={`登录 ${omni.getProviderLabel(methodPicker.providerId, false)}`}
+                        subtitle="请选择登录方式"
+                        onClose={() => setMethodPicker(null)}
+                    >
+                        <div
+                            className="flex flex-col overflow-hidden rounded-2xl"
+                            style={{ background: tokens.cardBg, border: `1px solid ${tokens.border}` }}
+                        >
+                            {methodPicker.methods.map((method, index) => {
+                                const iconSrc = method.id === 'wechat' ? wechatIcon : method.id === 'qq' ? qqIcon : undefined;
+                                return (
+                                    <button
+                                        key={method.id}
+                                        type="button"
+                                        onClick={() => void beginQrSession(methodPicker.providerId, method, methodPicker.methods, true)}
+                                        className="flex items-center gap-3 w-full text-left"
+                                        style={{
+                                            minHeight: 60,
+                                            padding: '10px 16px',
+                                            borderTop: index > 0 ? `1px solid ${tokens.border}` : 'none',
+                                        }}
+                                    >
+                                        <span className="flex items-center justify-center shrink-0" style={{ width: 24, height: 24 }}>
+                                            {iconSrc
+                                                ? <img src={iconSrc} alt="" style={{ width: 22, height: 22 }} />
+                                                : <LogIn size={20} color={tokens.accent} />}
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-medium" style={{ fontSize: 15 }}>{qrMethodLabel(method)}</div>
+                                            <div className="truncate" style={{ fontSize: 12, color: tokens.muted }}>
+                                                {qrMethodPrompt(methodPicker.providerId, method)}
+                                            </div>
+                                        </div>
+                                        <ChevronRight size={18} color={tokens.muted} className="shrink-0" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </MobileSheet>
+                )}
+
+                {qrLogin && (
+                    <MobileSheet
+                        title={qrLogin.method
+                            ? `${omni.getProviderLabel(qrLogin.providerId, false)} · ${qrMethodLabel(qrLogin.method)}`
+                            : `登录 ${omni.getProviderLabel(qrLogin.providerId, false)}`}
+                        subtitle={qrMethodPrompt(qrLogin.providerId, qrLogin.method)}
+                        onClose={() => {
+                            const returnMethods = qrLogin.canReturnToMethods ? { providerId: qrLogin.providerId, methods: qrLogin.methods } : null;
+                            stopActiveQr();
+                            setQrLogin(null);
+                            if (returnMethods) setMethodPicker(returnMethods);
+                        }}
+                    >
+                        <div className="flex flex-col items-center py-3 gap-3">
+                            <img
+                                src={qrLogin.imageUrl}
+                                alt="登录二维码"
+                                className="rounded-2xl bg-white p-2"
+                                style={{ width: 200, height: 200, objectFit: 'contain' }}
+                            />
+                            <p className="text-[13px] m-0 font-medium" style={{ color: qrLogin.expired ? '#EF4444' : tokens.muted }}>
+                                {qrLogin.statusText}
+                            </p>
+                            <div className="flex items-center gap-3">
+                                {qrLogin.canReturnToMethods && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const returnMethods = { providerId: qrLogin.providerId, methods: qrLogin.methods };
+                                            stopActiveQr();
+                                            setQrLogin(null);
+                                            setMethodPicker(returnMethods);
+                                        }}
+                                        className="px-4 py-2 rounded-full text-[13px] font-medium"
+                                        style={{ background: tokens.secondaryBtnBg, color: tokens.secondaryBtnText }}
+                                    >
+                                        更换登录方式
+                                    </button>
+                                )}
+                                {qrLogin.expired && (
+                                    <button
+                                        type="button"
+                                        onClick={() => void beginQrSession(qrLogin.providerId, qrLogin.method, qrLogin.methods, qrLogin.canReturnToMethods)}
+                                        className="px-4 py-2 rounded-full text-[13px] font-medium"
+                                        style={{ background: tokens.primaryBtnBg, color: tokens.primaryBtnText }}
+                                    >
+                                        刷新二维码
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </MobileSheet>
+                )}
+            </div>,
+            document.body,
+        );
+    }
 
     return createPortal(
         <motion.div

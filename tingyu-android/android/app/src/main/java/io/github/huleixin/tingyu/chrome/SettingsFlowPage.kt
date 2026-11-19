@@ -99,7 +99,7 @@ internal fun SettingsFlowPage(
         val railInset = if (!splitPane && LocalPadWindow.current.expanded) 104.dp else 0.dp
         val safeTopPad = if (splitPane) 16.dp else (page.safeTop + 24).dp
         val hostBottom = with(density) { LocalNativePageBottomPx.current.toDp() }
-        val bottomPad = if (splitPane) maxOf(hostBottom, (24 + page.safeBottom).dp) else (24 + page.safeBottom).dp
+        val bottomPad = if (splitPane) maxOf(hostBottom, (page.safeBottom + if (LocalPadWindow.current.expanded) 96 else 36).dp) else (24 + page.safeBottom).dp
         val glass = rememberTyTopGlassState(estimateHeaderBottomDp = (if (splitPane) 16f else page.safeTop + 24f) + 60f)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(

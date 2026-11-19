@@ -7,6 +7,8 @@ import { useNativePage } from './useNativePage';
 import type { NativeSettingsDocument, NativeSettingsFlow } from '../types/nativeSettingsDocument';
 import type { PageActions } from '../types/nativePages';
 import { flushNativeShellRoute } from '../services/nativeShellCommit';
+import { dispatchSettingsSplitAction } from '../components/modal/settings/settingsSplitNavigation';
+import { useSettingsModalStore } from '../stores/useSettingsModalStore';
 
 // src/hooks/useNativeSettingsDocument.ts
 // Observe discrete form/layout edits only. Preview engine mutations never rebuild the form.
@@ -112,7 +114,12 @@ export function useNativeSettingsDocument(root:RefObject<HTMLElement|null>,enabl
         // 页面级返回：原生顶栏的左箭头与系统返回手势都发这一个动作。
         if(onFlowBack)flowHandlers.back=()=>onFlowBack();
     }
-    const handlers:PageActions=flow?flowHandlers:{...(snapshot?.key===key?snapshot.actions:{})};
+    const baseHandlers:PageActions=flow?flowHandlers:{...(snapshot?.key===key?snapshot.actions:{})};
+    const handlers:PageActions={
+        ...baseHandlers,
+        __splitSelect:event=>{if(event?.text)dispatchSettingsSplitAction(event.text);},
+        close:()=>{useSettingsModalStore.getState().closeSettings();},
+    };
     // 显式模型与表单投影模型都只有 flow；后者使用当前页面的 snapshot。
     const document=flow?flowOnlyDocument(flow):(snapshot?.key===key?snapshot.document:undefined);
     useNativePage(root,'settings',NATIVE_FIRST&&enabled,{key:`settings:document:${key}`,title,sections:[],document},handlers);

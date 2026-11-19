@@ -3,7 +3,15 @@ import { resolveInitialSettingsSection } from '../components/modal/settings/navi
 import type { SettingsModalState } from '../stores/useSettingsModalStore';
 
 // src/utils/nativeShellState.ts
-export function resolveSettingsOverlayBacking(settings: SettingsModalState): {
+export function isTabletSettingsDualPane(): boolean {
+    if (typeof window === 'undefined') return false;
+    const width = window.innerWidth || 0;
+    const height = window.innerHeight || 0;
+    const contentWidth = width >= 840 ? width - 104 : width;
+    return contentWidth >= 680 && height >= 420;
+}
+
+export function resolveSettingsOverlayBacking(settings: SettingsModalState, dualPane = false): {
     settingsOwnsRoute: boolean;
     settingsIndex: boolean;
     pageTarget: string;
@@ -12,9 +20,17 @@ export function resolveSettingsOverlayBacking(settings: SettingsModalState): {
         return { settingsOwnsRoute: false, settingsIndex: false, pageTarget: '' };
     }
 
-    // 「音乐平台账号」为 WebView 覆盖层：底板必须保持真实来源页，严禁落入默认 appearance（视觉设置）！
+    // 「音乐平台账号」在手机端或无设置上下文时为 WebView 覆盖层：底板保持来源页；
+    // 平板分栏（dualPane=true）下在右侧设置容器内以原生详情页直接呈现。
     if (settings.initialSubview === 'accounts') {
         const parent = settings.subviewBackStack?.at(-1);
+        if (dualPane && (settings.returnToIndex || Boolean(parent))) {
+            return {
+                settingsOwnsRoute: true,
+                settingsIndex: false,
+                pageTarget: 'settings:document:accounts',
+            };
+        }
         if (!parent) {
             if (settings.returnToIndex) {
                 return {

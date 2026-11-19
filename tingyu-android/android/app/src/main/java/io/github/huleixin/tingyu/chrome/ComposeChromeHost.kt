@@ -210,6 +210,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     fun openLyricsSettings(mode:String):Boolean {
         if(!active||!focused||host?.isAttachedToWindow!=true||pendingStageEntry||stageExit.active)return false
+        val metrics = web.resources.displayMetrics.density
+        val padDual = PadWindow(web.width / metrics, web.height / metrics).settingsDualPane
+        if (padDual && destination == "settings") {
+            val normalizedMode = if (mode == "bluetooth") "bluetooth" else "desktop"
+            splitLyricsMode = normalizedMode
+            activeSettingsAction = if (normalizedMode == "bluetooth") "lyrics:bluetooth" else "lyrics:desktop"
+            settingsPrefs.edit().putString("last_split_action", activeSettingsAction).apply()
+            return true
+        }
         showNativeSettings(NativeSettingsDestination(if(mode=="bluetooth")"bluetooth"else"desktop"))
         return true
     }
@@ -366,10 +375,24 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     private var destination by mutableStateOf("home")
     private var settingsRootRequested by mutableStateOf(false)
+    private val settingsPrefs by lazy { web.context.getSharedPreferences("tingyu_pad_settings", android.content.Context.MODE_PRIVATE) }
     private var retainedSettingsRoot by mutableStateOf<NativePage?>(null)
-    private var activeSettingsAction by mutableStateOf("")
-    private var pendingSettingsSwitch by mutableStateOf<String?>(null)
+    private var activeSettingsAction by mutableStateOf(settingsPrefs.getString("last_split_action", "settings:accounts") ?: "settings:accounts")
+    private var splitLyricsMode by mutableStateOf<String?>(null)
+    private var lastSettingsDetailPage by mutableStateOf<NativePage?>(null)
     private var autoOpenedSettingsSession by mutableStateOf<String?>(null)
+    private fun inferredSettingsAction(key: String): String? = when {
+        key.startsWith("settings:document:accounts") -> "settings:accounts"
+        key == "settings:document:discovery" -> "discovery:settings"
+        key == "settings:document:search" -> "search:settings"
+        key.startsWith("settings:rear:") || key.startsWith("settings:document:rear-") -> "rear:open"
+        key.startsWith("settings:document:help:") -> "help"
+        key.startsWith("settings:document:options:") -> {
+            val section = key.removePrefix("settings:document:options:").substringBefore(':')
+            section.takeIf { it.isNotBlank() }?.let { "settings:$it" }
+        }
+        else -> null
+    }
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
     private var lastPrimaryTab by mutableIntStateOf(0)
@@ -521,6 +544,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
         collectionDetail=value.optBoolean("collectionDetail")
+        if(next!="settings"){splitLyricsMode=null;lastSettingsDetailPage=null;autoOpenedSettingsSession=null}
         if(routeChanged||webOverlay)sleepMenuOpen=false
         if(routeChanged||presented==null)resolvePage()
         settingsTrace("route-commit","route" to destination,"navigation" to navigation,"key" to presented?.key,"session" to presented?.session)
@@ -1117,7 +1141,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // 这些页面全是整屏，结构上绝不该缩放；sizeAnimationSpec 返回 null 即无尺寸动画。
                 androidx.compose.animation.SharedTransitionLayout {
                 val sharedScope=this
-                AnimatedContent(nativeSettings?.page(page?:bootPage,width,height)?:underlayPage,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"},
+                val splitSettingsKey = PadWindow(width, height).settingsDualPane
+                AnimatedContent(nativeSettings?.page(page?:bootPage,width,height)?:underlayPage,modifier=Modifier.fillMaxSize().zIndex(1f),
+                    contentKey={candidate->
+                        when {
+                            candidate==null -> "stage"
+                            splitSettingsKey && candidate.id=="settings" && !candidate.isFullscreenSettingsEditor() && NativeSettingsDestination.fromKey(candidate.key)==null -> "settings:split"
+                            else -> NativeMotionPolicy.pageRouteKey(candidate.key)
+                        }
+                    },
                     transitionSpec={
                         // 转场只认**路由**，不认模型 key：home/library/search 的模型 key 带着会变的
                         // 数据身份（音源、歌单 id），按它建内容实例会同时存在两份首页，旧的那份
@@ -1164,7 +1196,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     ) {
                     // 页面实例与保存态都按**路由**归并：同一路由的模型更新只重组，不换实例、
                     // 不丢滚动位置；LRU 记账也按路由，避免模型 key 每次变化都把状态挤出去。
-                    val shownRoute=NativeMotionPolicy.pageRouteKey(shown.key)
+                    val shownRoute=if(splitSettingsKey && shown.id=="settings" && !shown.isFullscreenSettingsEditor() && NativeSettingsDestination.fromKey(shown.key)==null) "settings:split" else NativeMotionPolicy.pageRouteKey(shown.key)
                     LaunchedEffect(shownRoute){withFrameNanos{navigationTrace("compose-frame-boundary")}}
                     DisposableEffect(shownRoute){
                         savedPageKeys.remove(shownRoute);savedPageKeys.add(shownRoute)
@@ -1195,32 +1227,78 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             retainedSettingsRoot = shown
                         }
                         val padSettingsDual = LocalPadWindow.current.settingsDualPane
-                        LaunchedEffect(destination, shown.id, shown.key, shown.session, shown.document != null, padSettingsDual) {
-                            if (destination != "settings" || !padSettingsDual) {
-                                if (destination != "settings") {
-                                    autoOpenedSettingsSession = null
-                                    pendingSettingsSwitch = null
-                                }
-                                return@LaunchedEffect
-                            }
-                            if (shown.id == "settings" && shown.document == null && !shown.key.startsWith("settings:rear:")) {
-                                val nextAction = pendingSettingsSwitch ?: if (autoOpenedSettingsSession != shown.session) {
-                                    autoOpenedSettingsSession = shown.session
-                                    shown.sections
-                                        .filter { it.id != "rear" }
-                                        .flatMap { it.items }
-                                        .firstOrNull { it.action.isNotBlank() && !it.action.startsWith("support:") && !it.disabled }
-                                        ?.action
-                                } else null
-                                if (!nextAction.isNullOrBlank()) {
-                                    pendingSettingsSwitch = null
-                                    activeSettingsAction = nextAction
-                                    pageListener?.onAction("settings", shown.session, shown.key, nextAction, "", 0.0)
+                        if (padSettingsDual && shown.id == "settings" && (shown.document != null || shown.key.startsWith("settings:rear:")) && !shown.isFullscreenSettingsEditor()) {
+                            lastSettingsDetailPage = shown
+                            if (splitLyricsMode == null) {
+                                val inferred = inferredSettingsAction(shown.key)
+                                if (!inferred.isNullOrBlank()) {
+                                    activeSettingsAction = inferred
+                                    settingsPrefs.edit().putString("last_split_action", inferred).apply()
                                 }
                             }
                         }
+                        val effectiveSettingsPage = if (
+                            padSettingsDual &&
+                            shown.id == "settings" &&
+                            shown.document == null &&
+                            !shown.key.startsWith("settings:rear:") &&
+                            splitLyricsMode == null &&
+                            lastSettingsDetailPage != null
+                        ) {
+                            lastSettingsDetailPage!!
+                        } else {
+                            shown
+                        }
+                        val liveSettingsRoot = pages["settings"]
+                        val isLiveSettingsIndexReady = destination == "settings" &&
+                            active &&
+                            !pendingStageEntry &&
+                            shown.id == "settings" &&
+                            shown.document == null &&
+                            !shown.key.startsWith("settings:rear:") &&
+                            liveSettingsRoot?.session == shown.session &&
+                            pageNavigations["settings"] == navigation
+                        LaunchedEffect(destination, isLiveSettingsIndexReady, shown.session, padSettingsDual) {
+                            if (destination != "settings" || !padSettingsDual) {
+                                if (destination != "settings") {
+                                    autoOpenedSettingsSession = null
+                                }
+                                return@LaunchedEffect
+                            }
+                            if (isLiveSettingsIndexReady && splitLyricsMode == null && autoOpenedSettingsSession != shown.session) {
+                                autoOpenedSettingsSession = shown.session
+                                val availableActions = shown.sections
+                                    .filter { it.id != "rear" }
+                                    .flatMap { it.items }
+                                    .filter { it.action.isNotBlank() && !it.action.startsWith("support:") && !it.disabled }
+                                    .map { it.action }
+                                val remembered = settingsPrefs.getString("last_split_action", null)
+                                    ?.takeIf { it in availableActions }
+                                val targetAction = remembered
+                                    ?: "settings:accounts".takeIf { it in availableActions }
+                                    ?: availableActions.firstOrNull()
+                                if (!targetAction.isNullOrBlank()) {
+                                    activeSettingsAction = targetAction
+                                    settingsPrefs.edit().putString("last_split_action", targetAction).apply()
+                                    if (targetAction == "lyrics:desktop" || targetAction == "lyrics:bluetooth") {
+                                        splitLyricsMode = if (targetAction == "lyrics:bluetooth") "bluetooth" else "desktop"
+                                    } else {
+                                        pageListener?.onAction("settings", shown.session, shown.key, "__splitSelect", targetAction, 0.0)
+                                    }
+                                }
+                            }
+                        }
+                        androidx.activity.compose.BackHandler(
+                            enabled = padSettingsDual && destination == "settings" && splitLyricsMode != null && nativeSettings == null && !webOverlay
+                        ) {
+                            val current = pages["settings"] ?: shown
+                            splitLyricsMode = null
+                            pageListener?.onAction(current.id, current.session, current.key, "close", "", 0.0)
+                        }
+                        val fallbackSettingsRoot = retainedSettingsRoot?.takeIf { it.enabled }
+                            ?: cache.page("settings", width, height, safeTop).takeIf { it.sections.isNotEmpty() }
                         NativePageView(
-                            shown,
+                            effectiveSettingsPage,
                             placement,
                             scale,
                             libraryPage=shownLibrary,
@@ -1229,22 +1307,30 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 if(active&&!pendingStageEntry&&destination=="collection"&&selectedTab==1&&library?.enabled==true&&shownLibrary!=null&&pageInteractionIsCurrent(library,shownLibrary)&&pageNavigations["home"]==navigation)
                                     pageListener?.onAction("home",library.session,library.key,action,text,value)
                             },
-                            settingsRootPage = retainedSettingsRoot?.takeIf { it.enabled },
+                            settingsRootPage = fallbackSettingsRoot,
                             settingsActiveAction = activeSettingsAction,
+                            splitLyricsMode = splitLyricsMode,
+                            onCloseSplitLyrics = {
+                                val current = pages["settings"] ?: shown
+                                splitLyricsMode = null
+                                pageListener?.onAction(current.id, current.session, current.key, "close", "", 0.0)
+                            },
                             onSettingsSelect = { itemAction, _, _ ->
                                 if (itemAction.startsWith("support:")) {
                                     val root = retainedSettingsRoot ?: pages[shown.id]
                                     supportCopyJson = root?.sections?.firstOrNull { it.id == "support" }?.text
                                     showNativeSettings(NativeSettingsDestination(itemAction.removePrefix("support:"), supportCopyJson))
-                                } else if (itemAction.isNotBlank()) {
+                                } else if (itemAction == "lyrics:desktop" || itemAction == "lyrics:bluetooth") {
+                                    val mode = if (itemAction == "lyrics:bluetooth") "bluetooth" else "desktop"
+                                    splitLyricsMode = mode
                                     activeSettingsAction = itemAction
+                                    settingsPrefs.edit().putString("last_split_action", itemAction).apply()
+                                } else if (itemAction.isNotBlank()) {
+                                    splitLyricsMode = null
+                                    activeSettingsAction = itemAction
+                                    settingsPrefs.edit().putString("last_split_action", itemAction).apply()
                                     val current = pages[shown.id] ?: shown
-                                    if (current.document != null || current.key.startsWith("settings:rear:")) {
-                                        pendingSettingsSwitch = itemAction
-                                        pageListener?.onAction(current.id, current.session, current.key, "back", "", 0.0)
-                                    } else {
-                                        pageListener?.onAction(current.id, current.session, current.key, itemAction, "", 0.0)
-                                    }
+                                    pageListener?.onAction(current.id, current.session, current.key, "__splitSelect", itemAction, 0.0)
                                 }
                             },
                         ){action,text,value->
@@ -1337,7 +1423,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if(id=="mini"&&live!=null)SideEffect{retainedFooter["mini"]=live}
                 val navSelection = resolvedNavSelection
                 val surface = original.interfacePaint(palette)
-                    .let{if(id=="nav")it.copy(vertical=width>=840f,selected=navSelection,disabled=NativeFooterLayout.imeHides(id,width,footerHiddenForIme)||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
+                    .let{if(id=="nav")it.copy(vertical=width>=840f,selected=navSelection,disabled=NativeFooterLayout.imeHides(id,width,footerHiddenForIme)||live!=null&&it.disabled||(destination=="settings"&&!settingsRoot&&width<840f))else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
                 // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
@@ -1380,7 +1466,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(settingsHandoff!=null||nativeSettingsLayerHeld)return@actions
                         if(id=="stage"&&surface.controlsHidden)return@actions
                         if(NativeFooterLayout.imeHides(id,width,footerHiddenForIme))return@actions
-                        if(id=="nav"&&destination=="settings"&&!settingsRoot)return@actions
+                        if(id=="nav"&&destination=="settings"&&!settingsRoot&&width<840f)return@actions
                         if(id=="nav"&&(!navTarget||navVisualPresence<0.85f))return@actions
                         if(id=="mini"&&(!miniTarget||miniPresence<0.85f||destination=="stage"||pendingStageEntry||stageExit.active))return@actions
                         val activeLive = live ?: surfaces[id]?.takeIf { it.enabled }

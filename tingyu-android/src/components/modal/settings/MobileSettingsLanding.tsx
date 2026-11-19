@@ -13,6 +13,7 @@ import { useNativeSettingsDocument } from '../../../hooks/useNativeSettingsDocum
 import { useInterfaceLight } from '../../../hooks/useInterfaceAppearance';
 import {useRearSettingsController} from './useRearSettingsController';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
+import { isTabletSettingsDualPane } from '../../../utils/nativeShellState';
 import {buildRearControlPage,rearPageBack,type RearSettingsPage} from './rearControlModel';
 import {rearControlActions} from './rearControlActions';
 import RearControlView from './RearControlView';
@@ -31,7 +32,7 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
     const rear=useRearSettingsController();
     const page=useSettingsModalStore(s=>s.settingsModalState.rearPage)??'index';
     const openPage=(next:RearSettingsPage)=>useSettingsModalStore.getState().openRearSettings(next);
-    const back=()=>{if(page==='index')onClose();else if(rearPageBack(page)==='index')useSettingsModalStore.getState().returnSettingsToIndex();else openPage(rearPageBack(page) as RearSettingsPage);};
+    const back=()=>{if(page==='index')onClose();else if(rearPageBack(page)==='index'){if(isTabletSettingsDualPane())onClose();else useSettingsModalStore.getState().returnSettingsToIndex();}else openPage(rearPageBack(page) as RearSettingsPage);};
     const appearance=page.startsWith('appearance');
     const editor=page==='appearance-editor'||page==='appearance-theme';
     const appearanceTitle=page==='appearance-backup'?'rearAppearance.backup':page==='appearance-editor'?'rearAppearance.edit':page==='appearance-theme'?'rearAppearance.theme':'rearAppearance.title';
