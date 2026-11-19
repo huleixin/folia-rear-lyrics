@@ -18,6 +18,7 @@ export type PageSection = {
     total?: number; offset?: number; request?: string; key?: string; image?: string;
     description?: string; creator?: string; creatorImage?: string;
     activeKey?:string;playing?:boolean;activeIndex?:number;locateRevision?:number;pendingKey?:string;
+    footerAction?: string; footerLabel?: string;
 };
 export type NativePageModel = {
     key: string; title: string; subtitle?: string; leading?: string; trailing?: string;

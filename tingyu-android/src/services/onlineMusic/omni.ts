@@ -253,11 +253,13 @@ export const omni = {
     },
 
     getLibraryCapabilities(providerId: OmniProviderId) {
-        const library = requireOnlineMusicProvider(providerId).library;
+        const provider = requireOnlineMusicProvider(providerId);
+        const library = provider.library;
         return {
             playlists: typeof library?.getUserPlaylists === 'function',
             albums: typeof library?.getUserAlbums === 'function',
-            likedSongs: typeof library?.getLikedSongs === 'function',
+            likedSongs: typeof library?.getLikedSongs === 'function'
+                || (typeof library?.getUserPlaylists === 'function' && typeof provider.catalog?.getPlaylistTracks === 'function'),
         };
     },
 
@@ -582,9 +584,37 @@ export const omni = {
     },
 
     async getProviderLikedSongs(providerId: OmniProviderId, userId: MediaId): Promise<UnifiedSong[]> {
-        const library = requireOnlineMusicProvider(providerId).library;
+        const provider = requireOnlineMusicProvider(providerId);
+        const library = provider.library;
         if (library?.getLikedSongs) return library.getLikedSongs(userId);
-        return [];
+        if (!library?.getUserPlaylists || !provider.catalog?.getPlaylistTracks) return [];
+
+        let likedCollection: OmniCollection | undefined;
+        let plOffset = 0;
+        for (let pageIndex = 0; pageIndex < 10 && !likedCollection; pageIndex += 1) {
+            const page = await library.getUserPlaylists(userId, 50, plOffset);
+            likedCollection = page.items.find(item => item.isLiked === true);
+            if (!page.hasMore || page.items.length === 0) break;
+            plOffset = page.nextOffset ?? (plOffset + page.items.length);
+        }
+        if (!likedCollection) return [];
+
+        const songs: UnifiedSong[] = [];
+        const seen = new Set<string>();
+        let offset = 0;
+        while (offset < 10000) {
+            const page = await provider.catalog.getPlaylistTracks(likedCollection.id, 100, offset, likedCollection);
+            for (const song of page.items) {
+                const mediaId = String(song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : song.id);
+                if (!mediaId || seen.has(mediaId)) continue;
+                seen.add(mediaId);
+                songs.push(song);
+            }
+            const nextOffset = page.nextOffset ?? (offset + page.items.length);
+            if (!page.hasMore || page.items.length === 0 || nextOffset <= offset) break;
+            offset = nextOffset;
+        }
+        return songs;
     },
 
     async getCloudCollection(user?: OmniUser): Promise<OmniCollection | null> {

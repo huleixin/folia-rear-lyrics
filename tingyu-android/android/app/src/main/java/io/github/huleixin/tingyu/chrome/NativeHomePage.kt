@@ -83,9 +83,9 @@ import kotlinx.coroutines.launch
             LazyColumn(Modifier.fillMaxSize().graphicsLayer{translationY=pullOffsetPx}.testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=contentTopPadding,bottom=bottomPadding)) {
                 sections.forEach { section ->
                     when {
-                        section.layout=="discoveryHero" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=12.dp),action)}
+                        section.layout=="discoveryHero" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=4.dp),action)}
                         section.layout=="radarCards" && section.items.isNotEmpty() -> item(key=section.id){Column(Modifier.padding(start=start,end=end,top=24.dp)){
-                            PageSectionHeading(section,Modifier.padding(bottom=10.dp),action)
+                            PageSectionHeading(section,Modifier.padding(bottom=12.dp),action)
                             DiscoveryRadars(section,action=action)
                         }}
                         section.layout=="textActions" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryTextActions(section,Modifier.padding(start=start,end=end),action)}
@@ -106,8 +106,8 @@ import kotlinx.coroutines.launch
                         }
                         // 方形封面横滑 rail：在线首页的「最近播放」与本地首页的「最近播放 / 常听专辑」共用一套。
                         section.layout=="cards" && section.id in setOf("recent","localAlbums") && section.items.isNotEmpty() -> item(key=section.id){
-                            Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
-                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)10.dp else 4.dp),action)
+                            Column(Modifier.padding(top=if(discovery)24.dp else 4.dp)) {
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)12.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     items(section.items,key={it.id}) { item ->
                                         val cover=NativePageDesign.recentWidth(viewport,wide).dp
@@ -128,8 +128,8 @@ import kotlinx.coroutines.launch
                         }
                         // Real recommendation collections: square artwork rail, same caption rhythm as recent.
                         section.layout=="cards" && section.id!="playlists" && section.items.isNotEmpty() -> item(key=section.id){
-                            Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
-                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)10.dp else 4.dp),action)
+                            Column(Modifier.padding(top=if(discovery)24.dp else 4.dp)) {
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)12.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     items(section.items,key={it.id}) { item ->
                                         val cover=if(wide)148.dp else 128.dp
@@ -243,7 +243,7 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.id=="playlists"&&tablet -> {
-                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=24.dp,bottom=10.dp),action)}
+                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=24.dp,bottom=12.dp),action)}
                             items(section.items.chunked(2),key={"${section.id}:${it.first().id}"}){row->
                                 Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                     row.forEach{NativeHomePlaylist(it,Modifier.weight(1f),action)}
@@ -253,7 +253,7 @@ import kotlinx.coroutines.launch
                         }
                         section.id=="playlists" -> item(key=section.id){
                             Column(Modifier.padding(start=start,end=end,top=24.dp)){
-                                PageSectionHeading(section,Modifier.padding(bottom=10.dp),action)
+                                PageSectionHeading(section,Modifier.padding(bottom=12.dp),action)
                                 section.items.chunked(2).forEachIndexed { index,row ->
                                     Row(Modifier.fillMaxWidth().padding(top=if(index==0)0.dp else 12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                         row.forEach { item -> NativeHomePlaylist(item,Modifier.weight(1f),action) }
@@ -263,8 +263,22 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.layout=="rows" -> {
-                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=if(discovery)20.dp else 0.dp,bottom=if(discovery)10.dp else 4.dp),action)}
+                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=if(discovery)24.dp else 0.dp,bottom=if(discovery)12.dp else 4.dp),action)}
                             items(section.items,key={it.id}) { item -> Box(Modifier.padding(start=start,end=end)){NativePageRow(item,62.dp,46.dp,14,12,divider=true){action(it,"",0.0)}} }
+                            if(section.footerAction.isNotBlank()){
+                                item(key="${section.id}:footer"){
+                                    Row(Modifier.fillMaxWidth().padding(start=start,end=end,top=4.dp),horizontalArrangement=Arrangement.End){
+                                        Row(
+                                            Modifier.heightIn(min=44.dp).chromeClickable(corner=10.dp){action(section.footerAction,"",0.0)}.padding(horizontal=6.dp),
+                                            verticalAlignment=Alignment.CenterVertically,
+                                            horizontalArrangement=Arrangement.spacedBy(4.dp)
+                                        ){
+                                            Text(section.footerLabel.ifBlank{"全部"},color=PageMuted,fontSize=13.sp,lineHeight=18.sp)
+                                            PageIcon("chevron-right",PageMuted,Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
                         }
                         section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(start=start,end=end,top=18.dp,bottom=18.dp))}
                     }

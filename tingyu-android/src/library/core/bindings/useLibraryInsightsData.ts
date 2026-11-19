@@ -37,7 +37,7 @@ export function useLibraryInsightsData(props: LibraryHomeSurfaceProps, active: b
             setSnapshot(previous => ({ ...(previous.owner === owner ? previous : empty), owner,
                 error: 'libraryV2.insightsTimeout' }));
         }, 15_000);
-        setSnapshot(empty);
+        setSnapshot(previous => (previous.owner === owner ? { ...previous, error: '' } : empty));
         void (async () => {
             const accountIds = new Map(ids.flatMap(id => {
                 const account = libraryScope(id);

@@ -223,7 +223,7 @@ class PadAdaptive20Test {
                                         "rows",
                                         "猜你想听",
                                         listOf(item("song0", "推荐曲目", "歌手 · QQ音乐"))
-                                    ).put("more", "next").put("moreLabel", "换一批"),
+                                    ).put("more", "next").put("moreLabel", "换一批").put("footerAction", "allSongs").put("footerLabel", "全部推荐歌曲"),
                                     section(
                                         "playlists",
                                         "cards",
@@ -256,12 +256,15 @@ class PadAdaptive20Test {
                 }
             }
         }
+        compose.onNodeWithTag("native-home-list").performScrollToNode(hasText("我喜欢"))
         compose.onNodeWithText("我喜欢").assertIsDisplayed()
         compose.onNodeWithText("QQ音乐 · 128首").assertIsDisplayed()
         compose.onNodeWithText("刷新推荐").assertDoesNotExist()
         compose.onNodeWithText("查看更多").assertDoesNotExist()
         compose.onNodeWithText("换一批").assertIsDisplayed().performClick()
         assertEquals("next", events.last())
+        compose.onNodeWithText("全部推荐歌曲").assertIsDisplayed().performClick()
+        assertEquals("allSongs", events.last())
         compose.onAllNodesWithText("全部").assertCountEquals(2)
 
         // Short pull below threshold should not trigger refresh
@@ -287,6 +290,7 @@ class PadAdaptive20Test {
             refreshing = false
             palette = InterfacePalette(false, "classic")
         }
+        compose.onNodeWithTag("native-home-list").performScrollToNode(hasText("我喜欢"))
         compose.onNodeWithText("我喜欢").assertIsDisplayed()
         shot("mobile-playlists-classic-dark")
     }

@@ -431,13 +431,39 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         sections.push({ id: 'empty-query', layout: 'message', text: t('libraryV2.emptyQuery') });
     }
 
+    const trustedLikedCount = useMemo(() => {
+        const onlineLiked = all
+            .filter(entry => entry.collection.isLiked === true && typeof entry.collection.trackCount === 'number' && entry.collection.trackCount >= 0)
+            .reduce((sum, entry) => sum + (entry.collection.trackCount ?? 0), 0);
+        const localFav = localVisible
+            ? (props.localPlaylists.find(playlist => playlist.isFavorite)?.songIds.length ?? 0)
+            : 0;
+        return onlineLiked + localFav;
+    }, [all, localVisible, props.localPlaylists]);
+
+    const likesSubtitle = useMemo(() => {
+        if (privateSongs.liked.length > 0) {
+            if (insights.loading && trustedLikedCount > privateSongs.liked.length) {
+                return `${t('libraryV2.tracks', { count: trustedLikedCount })} · 加载中`;
+            }
+            return t('libraryV2.tracks', { count: privateSongs.liked.length });
+        }
+        if (insights.loading) {
+            return trustedLikedCount > 0 ? `${t('libraryV2.tracks', { count: trustedLikedCount })} · 加载中` : '加载中…';
+        }
+        if (insights.error) {
+            return trustedLikedCount > 0 ? t('libraryV2.tracks', { count: trustedLikedCount }) : '加载失败';
+        }
+        return t('libraryV2.tracks', { count: 0 });
+    }, [privateSongs.liked.length, insights.loading, insights.error, trustedLikedCount, t]);
+
     actions.likes = () => openSongs('likes', t('libraryV2.likes'), privateSongs.liked, t('libraryV2.likesScope'));
     actions.recent = () => openSongs('recent', t('libraryV2.recent'), privateSongs.recent, t('libraryV2.recentScope'));
     sections.splice(3, 0, {
         id: 'personal-shortcuts',
         layout: 'quickLinks',
         items: [
-            { id: 'likes', title: t('libraryV2.likes'), subtitle: t('libraryV2.tracks', { count: privateSongs.liked.length }), image: 'heart', action: 'likes' },
+            { id: 'likes', title: t('libraryV2.likes'), subtitle: likesSubtitle, image: 'heart', action: 'likes' },
             { id: 'recent', title: t('libraryV2.recent'), subtitle: t('libraryV2.tracks', { count: privateSongs.recent.length }), image: 'clock', action: 'recent' },
             ...(localVisible
                 ? [{ id: 'local', title: t('libraryV2.localMusic'), subtitle: t('libraryV2.tracks', { count: props.localSongs.length }), image: 'smartphone', action: 'local' }]

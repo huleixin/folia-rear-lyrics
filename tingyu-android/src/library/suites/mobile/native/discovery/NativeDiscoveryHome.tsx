@@ -392,7 +392,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             actions[action+':play'] = () => { if(list.length)props.onPlaySong(list[0],list); };
             return { id: kind, title: radarNames[kind], subtitle: kind === 'local' ? '离线本机曲库' : kind === 'style' ? '歌手与音乐的关联' : kind === 'time' ? (insightsData.loading && !list.length ? '正在整理收听记忆…' : '重逢旧日旋律') : '发现未听过的音乐', action, secondary:list.length?action+':play':'' };
         }) },
-        songs: { id: 'discovery-songs', title: isLocalSource ? '常听精选' : '猜你想听', layout: 'rows', more: 'next', moreLabel: '换一批', items: rows(songs.slice(0, 6), 'song:') },
+        songs: { id: 'discovery-songs', title: isLocalSource ? '常听精选' : '猜你想听', layout: 'rows', more: 'next', moreLabel: '换一批', footerAction: 'allSongs', footerLabel: '全部推荐歌曲', items: rows(songs.slice(0, 6), 'song:') },
         collections: isLocalSource
             ? {
                 id: 'discovery-collections',
@@ -461,7 +461,6 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     };
     const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id]).flatMap(id => {
         if(id==='roam'&&roaming.active)return [sections[id],sections.roamModes];
-        if(id==='songs')return [sections[id],{id:'discovery-song-actions',layout:'textActions' as const,items:[{id:'allSongs',title:'全部推荐歌曲',action:'allSongs'}]}];
         return [sections[id]];
     })];
     if (feed.busy && !isLocalSource && !songs.length) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });

@@ -806,19 +806,32 @@ const getUserPlaylists = async (
     };
 };
 
-const getLikedSongIds = async (_userId: MediaId): Promise<MediaId[]> => {
-    const tracks: unknown[] = [];
+const loadAllLikedSongs = async (): Promise<ReturnType<typeof normalizeQqSong>[]> => {
+    const out: ReturnType<typeof normalizeQqSong>[] = [];
+    const seen = new Set<string>();
     let offset = 0;
     while (offset < 10000) {
         const page = await loadRawLikedTracks(100, offset);
-        tracks.push(...page.tracks);
+        for (const raw of page.tracks) {
+            const song = normalizeQqSong(raw);
+            const mediaId = String(song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : song.id);
+            if (!mediaId || seen.has(mediaId)) continue;
+            seen.add(mediaId);
+            out.push(song);
+        }
         const nextOffset = offset + page.tracks.length;
         if (page.tracks.length === 0 || (!page.more && (page.total === undefined || nextOffset >= page.total)))
             break;
         offset = nextOffset;
     }
-    return tracks
-        .map(normalizeQqSong)
+    return out;
+};
+
+const getLikedSongs = async (_userId: MediaId) => loadAllLikedSongs();
+
+const getLikedSongIds = async (_userId: MediaId): Promise<MediaId[]> => {
+    const songs = await loadAllLikedSongs();
+    return songs
         .map(item => item.sourceRef?.kind === 'online' ? item.sourceRef.mediaId : item.id)
         .filter((id): id is MediaId => id !== undefined && id !== null && id !== '');
 };
@@ -1076,7 +1089,7 @@ export const qqProvider: OnlineMusicProvider = {
             });
         },
     },
-    library: { getUserPlaylists, getUserAlbums, getLikedSongIds },
+    library: { getUserPlaylists, getUserAlbums, getLikedSongIds, getLikedSongs },
     catalog: {
         getNewReleaseCollection: getQqNewReleaseCollection,
         // 只要拿得到 songmid 就补得回 mid，所以能否导航等同于这首歌是不是 QQ 的歌。

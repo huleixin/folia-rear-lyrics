@@ -174,6 +174,20 @@ import kotlin.math.ceil
                                         NativePageRow(item,action={action(it,"",0.0)})
                                     }
                                 }
+                                if(section.footerAction.isNotBlank()){
+                                    item(key="${section.id}:footer"){
+                                        Row(Modifier.fillMaxWidth().padding(top=4.dp),horizontalArrangement=Arrangement.End){
+                                            Row(
+                                                Modifier.heightIn(min=44.dp).chromeClickable(corner=10.dp){action(section.footerAction,"",0.0)}.padding(horizontal=6.dp),
+                                                verticalAlignment=Alignment.CenterVertically,
+                                                horizontalArrangement=Arrangement.spacedBy(4.dp)
+                                            ){
+                                                Text(section.footerLabel.ifBlank{"全部"},color=PageMuted,fontSize=13.sp,lineHeight=18.sp)
+                                                PageIcon("chevron-right",PageMuted,Modifier.size(16.dp))
+                                            }
+                                        }
+                                    }
+                                }
                             }else if(section.items.isNotEmpty())items(section.items.chunked(columns),key={"${section.id}:${it.first().id}"}){row->
                                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(gap)){
                                     row.forEach{PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}
