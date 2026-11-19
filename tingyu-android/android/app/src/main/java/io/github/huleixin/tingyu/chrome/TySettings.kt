@@ -628,13 +628,20 @@ internal fun TySettingsPageView(
     // 两级都画标题会在滚动时出现两个。
     val scrollState = rememberScrollState()
     androidx.compose.runtime.CompositionLocalProvider(LocalSettingsScrollState provides scrollState) {
-        Column(modifier.fillMaxSize().imePadding()) {
+        val window = LocalPadWindow.current
+        Column(modifier.fillMaxSize().imePadding(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+            val maxContentWidth = when {
+                page.layout != null -> androidx.compose.ui.unit.Dp.Unspecified
+                window.settingsDualPane && groupSettingsNodes(page.nodes).size > 1 -> 1040.dp
+                else -> window.settingsDetailMaxWidth.dp
+            }
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .then(if (maxContentWidth != androidx.compose.ui.unit.Dp.Unspecified) Modifier.widthIn(max = maxContentWidth) else Modifier)
                     .weight(1f)
                     .verticalScroll(scrollState)
-                    .padding(start = if(page.layout==null)16.dp else 0.dp, end = if(page.layout==null)16.dp else 0.dp, top = contentTop)
+                    .padding(start = if(page.layout==null) window.pageHorizontalMargin.dp else 0.dp, end = if(page.layout==null) window.pageHorizontalMargin.dp else 0.dp, top = contentTop)
                     .padding(bottom = bottomPadding),
             ) {
                 // 分组切分：group 节点开一张卡片，其后的普通节点都装进这张卡片，
@@ -648,7 +655,7 @@ internal fun TySettingsPageView(
 @Composable
 internal fun TySettingsContent(page: TySettingsPage, theme: TyPanelTheme, onAction: PageAction) {
     val padGroups=groupSettingsNodes(page.nodes)
-    if(LocalPadWindow.current.expanded&&page.layout==null&&padGroups.size>1){
+    if(LocalPadWindow.current.settingsDualPane&&page.layout==null&&padGroups.size>1){
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(24.dp)){
             repeat(2){column->Column(Modifier.weight(1f)){
                 padGroups.filterIndexed{index,_->index%2==column}.forEach{(group,nodes)->

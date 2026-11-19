@@ -41,13 +41,19 @@ internal typealias PageAction = (String, String, Double) -> Unit
         val scheme = interfaceMaterialScheme(LocalInterfacePalette.current, MaterialTheme.colorScheme)
         MaterialTheme(colorScheme=scheme) {
         CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
+            val padWindow = LocalPadWindow.current
+            val libraryPaneWidth = when {
+                padWindow.contentWidth >= 1200f -> 340.dp
+                padWindow.contentWidth >= 960f -> 320.dp
+                else -> 280.dp
+            }
             when {
-                LocalPadWindow.current.splitPlayer&&page.key.startsWith("library:") -> Row(Modifier.fillMaxSize().padding(start=104.dp)){
-                    NativeDirectoryPage(page.copy(bottomClearance=100f),Modifier.width(320.dp).fillMaxHeight(),action)
+                padWindow.splitPlayer&&page.key.startsWith("library:") -> Row(Modifier.fillMaxSize().padding(start=104.dp)){
+                    NativeDirectoryPage(page.copy(bottomClearance=100f),Modifier.width(libraryPaneWidth).fillMaxHeight(),action)
                     Box(Modifier.weight(1f).fillMaxHeight(),contentAlignment=androidx.compose.ui.Alignment.Center){Text("选择歌单、专辑或电台查看内容",color=PageMuted)}
                 }
-                LocalPadWindow.current.splitPlayer&&page.id=="collection"&&!page.key.startsWith("collection:artist:")&&libraryPage!=null -> Row(Modifier.fillMaxSize().padding(start=104.dp)){
-                    NativeDirectoryPage(libraryPage.copy(bottomClearance=100f),Modifier.width(320.dp).fillMaxHeight(),libraryAction)
+                padWindow.splitPlayer&&page.id=="collection"&&!page.key.startsWith("collection:artist:")&&libraryPage!=null -> Row(Modifier.fillMaxSize().padding(start=104.dp)){
+                    NativeDirectoryPage(libraryPage.copy(bottomClearance=100f),Modifier.width(libraryPaneWidth).fillMaxHeight(),libraryAction)
                     Box(Modifier.weight(1f).fillMaxHeight()){
                         if (page.key == "collection:local-music") {
                             NativeLocalMusicPage(page, Modifier.fillMaxSize(), splitPane = true, action = action)

@@ -45,7 +45,7 @@ private val SettingIcons = mapOf(
     "community" to "messages-square",
 )
 
-private val GroupIcons = mapOf(
+internal val SettingsGroupIcons = mapOf(
     "accounts-service" to "user-round",
     "lyrics-output" to "captions",
     "rear" to "captions",
@@ -59,7 +59,7 @@ private val GroupIcons = mapOf(
 
 @Composable
 internal fun NativeSettingsPage(page: NativePage, modifier: Modifier, action: PageAction) {
-    if (LocalPadWindow.current.expanded) {
+    if (LocalPadWindow.current.settingsDualPane) {
         PadSettingsPage(page, modifier, action)
         return
     }
@@ -95,7 +95,7 @@ internal fun NativeSettingsPage(page: NativePage, modifier: Modifier, action: Pa
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        PageIcon(GroupIcons[section.id] ?: "settings2", LocalInterfacePalette.current.settingsGroup, Modifier.size(16.dp))
+                                        PageIcon(SettingsGroupIcons[section.id] ?: "settings2", LocalInterfacePalette.current.settingsGroup, Modifier.size(16.dp))
                                         Text(
                                             section.title,
                                             color = LocalInterfacePalette.current.settingsGroup,

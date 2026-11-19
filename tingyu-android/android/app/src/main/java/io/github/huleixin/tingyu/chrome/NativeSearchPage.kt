@@ -57,6 +57,7 @@ internal fun NativeSearchPage(
     val bottomClearance = with(LocalDensity.current) { LocalNativePageBottomPx.current.toDp() }
     val reduced = LocalLiquidReduced.current
     val padGrid = LocalPadWindow.current.expanded
+    val padGridColumns = if (LocalPadWindow.current.contentWidth >= 1200f) 3 else 2
     val focusManager = LocalFocusManager.current
     val querySection = page.sections.firstOrNull { it.id == "query" }
     val hasQuery = !querySection?.value.isNullOrBlank()
@@ -321,7 +322,7 @@ internal fun NativeSearchPage(
                         }
 
                         section.layout == "rows" && padGrid && section.id in setOf("artist", "album", "playlist") ->
-                            padSearchGrid(page, section, caches.getValue(section.id), action)
+                            padSearchGrid(page, section, caches.getValue(section.id), action, columns = padGridColumns)
 
                         section.layout == "rows" ->
                             pagedNativeRows(page, section, caches.getValue(section.id), 60, action)
