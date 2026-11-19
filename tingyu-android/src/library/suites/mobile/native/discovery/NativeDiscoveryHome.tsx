@@ -419,7 +419,28 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
                     };
                 }),
             }
-            : { id: 'playlists', title: '我的歌单', layout: 'cards', more: 'library', moreLabel: '全部', items: sources.online.collections.slice(0, 8).map(collection => { const action = 'mine:' + collection.id; actions[action] = () => controls.openCollection(collection); return { id: action, title: collection.name, image: absolutePageImage(collection.coverUrl), action }; }) },
+            : {
+                id: 'playlists',
+                title: '我的歌单',
+                layout: 'cards',
+                more: 'library',
+                moreLabel: '全部',
+                items: sources.online.collections.slice(0, 8).map(collection => {
+                    const action = 'mine:' + collection.id;
+                    actions[action] = () => controls.openCollection(collection);
+                    const subtitle = [
+                        collection.providerId ? omni.getProviderLabel(collection.providerId) : '',
+                        typeof collection.trackCount === 'number' && collection.trackCount >= 0 ? `${collection.trackCount}首` : '',
+                    ].filter(Boolean).join(' · ');
+                    return {
+                        id: action,
+                        title: collection.name,
+                        ...(subtitle ? { subtitle } : {}),
+                        image: absolutePageImage(collection.coverUrl),
+                        action,
+                    };
+                }),
+            },
     };
     const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id]).flatMap(id => {
         if(id==='roam'&&roaming.active)return [sections[id],sections.roamModes];

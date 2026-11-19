@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,9 +58,11 @@ import kotlinx.coroutines.launch
         val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+(if(discovery)88f else headerTop+(if(short)60 else 72)+6f))
         val platformSection = if (discovery) sections.firstOrNull { it.id == "discovery-sources" } else null
         val contentTopPadding = if (discovery) (page.safeTop + 88f).dp else glass.contentTop
+        val hostBottom = with(LocalDensity.current) { LocalNativePageBottomPx.current.toDp() }
+        val bottomPadding = maxOf((page.bottomClearance + page.safeBottom + 12f).dp, hostBottom + 12.dp)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=contentTopPadding,bottom=(page.bottomClearance+page.safeBottom).dp)) {
+            LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=contentTopPadding,bottom=bottomPadding)) {
                 sections.forEach { section ->
                     when {
                         section.layout=="discoveryHero" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=12.dp),action)}
@@ -231,19 +234,19 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.id=="playlists"&&tablet -> {
-                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=20.dp,bottom=4.dp),action)}
+                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=24.dp,bottom=10.dp),action)}
                             items(section.items.chunked(2),key={"${section.id}:${it.first().id}"}){row->
-                                Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                                Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                     row.forEach{NativeHomePlaylist(it,Modifier.weight(1f),action)}
                                     if(row.size<2)Spacer(Modifier.weight(1f))
                                 }
                             }
                         }
                         section.id=="playlists" -> item(key=section.id){
-                            Column(Modifier.padding(start=start,end=end,top=20.dp)){
-                                PageSectionHeading(section,Modifier.padding(bottom=4.dp),action)
+                            Column(Modifier.padding(start=start,end=end,top=24.dp)){
+                                PageSectionHeading(section,Modifier.padding(bottom=10.dp),action)
                                 section.items.chunked(2).forEachIndexed { index,row ->
-                                    Row(Modifier.fillMaxWidth().padding(top=if(index==0)0.dp else 10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                                    Row(Modifier.fillMaxWidth().padding(top=if(index==0)0.dp else 12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                         row.forEach { item -> NativeHomePlaylist(item,Modifier.weight(1f),action) }
                                         if(row.size<2)Spacer(Modifier.weight(1f))
                                     }
@@ -337,14 +340,34 @@ import kotlinx.coroutines.launch
 }
 @Composable private fun NativeHomePlaylist(item:NativePageItem,modifier:Modifier,action:PageAction){
     val source=rememberCoverSource(item.action,10.dp)
-    Row(modifier.heightIn(min=58.dp).clip(RoundedCornerShape(8.dp)).background(LocalInterfacePalette.current.homeCard).border(1.dp,LocalInterfacePalette.current.homeBorder,RoundedCornerShape(8.dp)),verticalAlignment=Alignment.CenterVertically){
-        Row(Modifier.weight(1f).chromeClickable(corner=8.dp){source.select();action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
-            PageArtwork(item.image,Modifier.size(56.dp),10.dp,sharedAction=source.key)
-            Column(Modifier.weight(1f)){
-                Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp))
+    val palette=LocalInterfacePalette.current
+    Row(
+        modifier
+            .heightIn(min=56.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(palette.homeQuickCard),
+        verticalAlignment=Alignment.CenterVertically
+    ){
+        Row(
+            Modifier
+                .weight(1f)
+                .chromeClickable(corner=14.dp){source.select();action(item.action,"",0.0)}
+                .padding(horizontal=8.dp,vertical=7.dp),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(10.dp)
+        ){
+            PageArtwork(item.image,Modifier.size(42.dp),10.dp,sharedAction=source.key)
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.Center){
+                Text(item.title,color=PageInk,fontSize=13.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                if(item.subtitle.isNotBlank()){
+                    Text(item.subtitle,color=PageMuted,fontSize=11.sp,lineHeight=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=2.dp))
+                }
             }
         }
-        if(item.secondary.isNotBlank())Box(Modifier.padding(end=3.dp).width(22.dp).height(36.dp).chromeClickable(corner=10.dp){action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(16.dp))}
+        if(item.secondary.isNotBlank()){
+            Box(Modifier.padding(end=4.dp).width(24.dp).height(36.dp).chromeClickable(corner=10.dp){action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){
+                PageIcon("ellipsis-vertical",PageMuted,Modifier.size(16.dp))
+            }
+        }
     }
 }

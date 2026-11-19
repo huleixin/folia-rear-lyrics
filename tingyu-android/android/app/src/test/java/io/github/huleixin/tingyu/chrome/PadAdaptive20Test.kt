@@ -189,4 +189,77 @@ class PadAdaptive20Test {
         compose.onNodeWithTag("pad-home-list").assertIsDisplayed()
         shot("home-discovery-960x480")
     }
+
+    @Test
+    fun mobilePlaylistsAndRefreshRenderCleanlyAcrossThemes() {
+        val page = NativePage.parse(
+            JSONObject()
+                .put("id", "home")
+                .put("session", "mobile-playlists")
+                .put("enabled", true)
+                .put("width", 393)
+                .put("height", 852)
+                .put("viewportWidth", 393)
+                .put("bottomClearance", 152)
+                .put(
+                    "model",
+                    JSONObject()
+                        .put("key", "home:discovery:all")
+                        .put("title", "推荐")
+                        .put(
+                            "sections",
+                            JSONArray(
+                                listOf(
+                                    section(
+                                        "playlists",
+                                        "cards",
+                                        "我的歌单",
+                                        listOf(
+                                            item("mine:fav", "我喜欢", "QQ音乐 · 128首"),
+                                            item("mine:long", "你是无意穿堂风偏偏孤倨引山洪的歌单标题", "网易云音乐 · 64首"),
+                                            item("mine:plain", "纯歌单名", ""),
+                                            item("mine:jay", "周杰伦", "QQ音乐 · 42首"),
+                                        )
+                                    ).put("more", "library").put("moreLabel", "全部"),
+                                    section(
+                                        "discovery-refresh",
+                                        "textActions",
+                                        "",
+                                        listOf(
+                                            JSONObject()
+                                                .put("id", "refresh")
+                                                .put("title", "刷新推荐")
+                                                .put("image", "refresh-cw")
+                                                .put("action", "refresh")
+                                        )
+                                    ),
+                                )
+                            )
+                        )
+                )
+        )
+        var palette by mutableStateOf(InterfacePalette(true, "glacier"))
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalPadWindow provides PadWindow(393f, 852f),
+                LocalInterfacePalette provides palette,
+                LocalChromeRendering provides false,
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    NativePageView(page, Modifier.size(393.dp, 852.dp)) { action, _, _ ->
+                        events += action
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("我喜欢").assertIsDisplayed()
+        compose.onNodeWithText("QQ音乐 · 128首").assertIsDisplayed()
+        compose.onNodeWithText("刷新推荐").assertIsDisplayed().performClick()
+        assertEquals("refresh", events.last())
+        shot("mobile-playlists-glacier-light")
+
+        compose.runOnIdle { palette = InterfacePalette(false, "classic") }
+        compose.onNodeWithText("我喜欢").assertIsDisplayed()
+        shot("mobile-playlists-classic-dark")
+    }
 }
