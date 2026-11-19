@@ -31,14 +31,27 @@ class BetaAuthManager(
     sealed class VerifyResult {
         data class Valid(val record: BetaAuthorizationRecord) : VerifyResult()
         data class Rejected(val code: String) : VerifyResult()
+        data class AuthFailure(val code: String, val httpStatus: Int) : VerifyResult()
         data class NetworkUnavailable(val reason: String) : VerifyResult()
     }
 
     sealed class PrivatePolicyResult {
         data class Success(val nodeId: String, val rawJson: String) : PrivatePolicyResult()
-        data class Rejected(val code: String) : PrivatePolicyResult()
+        data class NoPublishedPolicy(val nodeId: String, val code: String = "policy_not_published") : PrivatePolicyResult()
+        data class Revoked(val code: String) : PrivatePolicyResult()
+        data class AuthFailure(val code: String, val httpStatus: Int) : PrivatePolicyResult()
+        data class ServiceError(val reason: String, val httpStatus: Int) : PrivatePolicyResult()
         data class NetworkError(val reason: String) : PrivatePolicyResult()
     }
+
+    private val revocationCodes = setOf(
+        "not_authorized",
+        "beta_expired",
+        "beta_revoked",
+        "beta_device_revoked",
+        "beta_device_not_found",
+        "beta_device_suspended",
+    )
 
     fun getAuthorizationSnapshot(nowMs: Long = System.currentTimeMillis()): BetaAuthorizationRecord? {
         val rec = store.loadAuthorization() ?: return null
@@ -155,7 +168,12 @@ class BetaAuthManager(
                     }
                     val errCode = obj?.optString("error", "").orEmpty()
                     if (res.code == 401 || res.code == 403) {
-                        return@withContext VerifyResult.Rejected(errCode.ifBlank { "beta_unauthorized" })
+                        val code = errCode.ifBlank { "beta_unauthorized" }
+                        return@withContext if (code in revocationCodes) {
+                            VerifyResult.Rejected(code)
+                        } else {
+                            VerifyResult.AuthFailure(code, res.code)
+                        }
                     }
                     lastReason = errCode.ifBlank { "http_${res.code}" }
                 }
@@ -170,10 +188,10 @@ class BetaAuthManager(
         activeChannel: String = "private_beta",
         baseUrls: List<String> = UpdateTrustAnchors.betaBaseUrls(),
     ): PrivatePolicyResult = withContext(Dispatchers.IO) {
-        val current = store.loadAuthorization() ?: return@withContext PrivatePolicyResult.Rejected("not_authorized")
+        val current = store.loadAuthorization() ?: return@withContext PrivatePolicyResult.Revoked("not_authorized")
         val now = System.currentTimeMillis()
         if (current.expiresAtMs > 0L && current.expiresAtMs <= now) {
-            return@withContext PrivatePolicyResult.Rejected("beta_expired")
+            return@withContext PrivatePolicyResult.Revoked("beta_expired")
         }
         val installId = store.getOrCreateBetaInstallId()
         val body = JSONObject().apply {
@@ -184,6 +202,8 @@ class BetaAuthManager(
         }.toString()
 
         var lastReason = "network_error"
+        var lastServiceError: PrivatePolicyResult.ServiceError? = null
+        var lastAuthFailure: PrivatePolicyResult.AuthFailure? = null
         for (base in baseUrls) {
             if (!isAllowedBaseUrl(base)) continue
             val req = buildSignedBetaRequest(base, "/api/beta/policy", body, installId, current.deviceToken)
@@ -195,16 +215,27 @@ class BetaAuthManager(
                         return@withContext PrivatePolicyResult.Success(base, raw)
                     }
                     val errCode = runCatching { JSONObject(raw).optString("error", "") }.getOrNull().orEmpty()
-                    if (res.code == 401 || res.code == 403) {
-                        return@withContext PrivatePolicyResult.Rejected(errCode.ifBlank { "beta_unauthorized" })
+                    if (res.code == 404 && errCode == "policy_not_published") {
+                        return@withContext PrivatePolicyResult.NoPublishedPolicy(base, errCode)
                     }
-                    lastReason = errCode.ifBlank { "http_${res.code}" }
+                    if (res.code == 401 || res.code == 403) {
+                        val code = errCode.ifBlank { "beta_unauthorized" }
+                        if (code in revocationCodes) {
+                            return@withContext PrivatePolicyResult.Revoked(code)
+                        }
+                        lastAuthFailure = PrivatePolicyResult.AuthFailure(code, res.code)
+                        lastReason = "${code}_http_${res.code}"
+                        return@use
+                    }
+                    val code = errCode.ifBlank { "http_${res.code}" }
+                    lastServiceError = PrivatePolicyResult.ServiceError(code, res.code)
+                    lastReason = "${code}_http_${res.code}"
                 }
             } catch (e: Exception) {
                 lastReason = e.javaClass.simpleName
             }
         }
-        PrivatePolicyResult.NetworkError(lastReason)
+        lastAuthFailure ?: lastServiceError ?: PrivatePolicyResult.NetworkError(lastReason)
     }
 
     suspend fun fetchPrivateBetaHistory(

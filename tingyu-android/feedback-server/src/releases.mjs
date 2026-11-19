@@ -665,6 +665,29 @@ export async function upsertCandidateRelease(req, env, role) {
     })) : [];
 
     const id = String(data.id || `rel-${channel}-${versionName}-${versionCode}`).replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 96);
+    const hasBetaUrl = downloadUrls.some(u => u.url.includes('/api/beta/download'));
+    if (channel === 'testing') {
+        if (hasBetaUrl) {
+            return json({ error: 'testing_cannot_use_private_beta_urls' }, 403);
+        }
+        const stableMatch = await env.DB.prepare(
+            "SELECT id FROM releases WHERE channel='stable' AND status='published' AND version_code=? AND sha256=? LIMIT 1",
+        ).bind(versionCode, sha256).first();
+        if (!stableMatch) {
+            return json({
+                error: 'testing_channel_migration_only',
+                message: '旧版迁移通道（testing）已永久退出内测分发，仅允许引用已正式发布的 stable 版本执行迁移。',
+            }, 403);
+        }
+    } else if (channel === 'private_beta') {
+        if (downloadUrls.some(u => !u.url.includes('/api/beta/download'))) {
+            return json({ error: 'private_beta_must_use_protected_r2' }, 403);
+        }
+    } else if (channel === 'stable') {
+        if (hasBetaUrl) {
+            return json({ error: 'stable_cannot_use_private_beta_urls' }, 403);
+        }
+    }
     const existing = await env.DB.prepare('SELECT * FROM releases WHERE id=?').bind(id).first();
     // 严禁覆盖已正式发布的同版本记录
     if (existing?.status === 'published') {
@@ -945,6 +968,21 @@ export async function publishApprovedRelease(req, env, id, role) {
 
     const downloadUrls = parseJsonSafe(release.download_urls_json, []);
     const isPrivateBeta = release.channel === 'private_beta';
+    if (release.channel === 'testing') {
+        if (downloadUrls.some(u => String(u?.url || '').includes('/api/beta/download'))) {
+            return json({ error: 'testing_cannot_use_private_beta_urls' }, 403);
+        }
+        const stableMatch = await env.DB.prepare(
+            "SELECT id FROM releases WHERE channel='stable' AND status='published' AND version_code=? AND sha256=? LIMIT 1",
+        ).bind(release.version_code, release.sha256).first();
+        if (!stableMatch) {
+            return json({ error: 'testing_channel_migration_only' }, 403);
+        }
+    } else if (release.channel === 'stable') {
+        if (downloadUrls.some(u => String(u?.url || '').includes('/api/beta/download'))) {
+            return json({ error: 'stable_cannot_use_private_beta_urls' }, 403);
+        }
+    }
     let reachableCount = 0;
     const probeNow = Date.now();
 

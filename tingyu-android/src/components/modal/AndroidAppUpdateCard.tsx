@@ -211,7 +211,9 @@ export default function AndroidAppUpdateCard() {
         if (status?.decisionMode === 'force_update' || status?.decisionMode === 'optional_update') {
             return `发现新版本 v${status.latestVersionName}，点击立即查看更新详情`;
         }
-        if (status?.checkPhase === 'up_to_date') return `当前已是最新版本（${channelLabel}）`;
+        if (status?.checkPhase === 'up_to_date') {
+            return status.checkMessage || `当前已是最新版本（${channelLabel}）`;
+        }
         return `连接听屿官方更新源检测新版本（${channelLabel}）`;
     })();
 

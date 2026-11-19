@@ -113,3 +113,13 @@ skill 只负责地图和编译器都推不出来的东西：口头术语到名�
 - 如果创建了新的文件，在导入行结束后插入当前文件的注释
 - 如果创建了复杂的函数，写出简短的注释，说明函数功能
  
+
+
+## 三通道永久隔离铁律（`stable` / `testing` / `private_beta`）
+
+任何 AI 会话、发布脚本（`tools/release-cli.mjs`）或服务端接口（`feedback-server/`）均必须严格遵守以下不可突破的三通道隔离规则：
+
+1. **`stable`（正式稳定通道）**：仅发布经本人明确确认的正式稳定版本，使用公开 CNB/GitHub 下载节点；严禁暴露 `/api/beta/download` 私有下载凭据，严禁因内测版本通过自动发布至 `stable`。
+2. **`testing`（旧版迁移通道）**：永久退出真实内测版本分发，仅用于承接 `<= v1.5.83` 等旧版测试通道用户迁移至已正式发布的 `stable` 版本。禁止向 `testing` 上传或发布任何尚未正式发布的内测版本，禁止引用 `private_beta` 策略或 R2 私有下载地址；禁止直接删除旧 `testing` 接口。
+3. **`private_beta`（私有内测通道）**：仅面向通过邀请码授权的开发者及受邀设备，使用独立的 D1 策略、版本历史及受保护 R2 下载票据（`/api/beta/download`）。发布 `private_beta` 时严禁修改 `stable` 与 `testing` 策略，严禁同步至任何公开 CNB/GitHub 节点或静态清单。
+4. **发布脚本与服务端强约束**：`release-cli.mjs` 与 `feedback-server/src/releases.mjs` 已内置跨通道校验与前后一致性断言；未经授权的跨通道操作必须直接拒绝并中止。

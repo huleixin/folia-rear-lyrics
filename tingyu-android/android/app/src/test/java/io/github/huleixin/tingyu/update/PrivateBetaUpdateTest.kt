@@ -184,4 +184,81 @@ class PrivateBetaUpdateTest {
         verifier.update(payload.toByteArray(StandardCharsets.UTF_8))
         assertTrue(verifier.verify(Base64.decode(sigB64, Base64.NO_WRAP)))
     }
+
+    @Test
+    fun fetchPrivateBetaPolicyDistinguishesNoPolicyAuthFailureAndRevocation() {
+        val store = BetaAuthStore(context)
+        store.saveAuthorization(
+            BetaAuthorizationRecord(
+                deviceId = "dev-1",
+                deviceToken = "tok-1",
+                role = "developer",
+                note = "My Phone",
+                expiresAtMs = 0L,
+                activatedAtMs = 1000L,
+                lastVerifiedAtMs = 1000L,
+            )
+        )
+        val responses = java.util.concurrent.ConcurrentLinkedQueue<Pair<Int, String>>()
+        val serverSocket = java.net.ServerSocket(0, 5, java.net.InetAddress.getByName("127.0.0.1"))
+        val running = java.util.concurrent.atomic.AtomicBoolean(true)
+        val serverThread = Thread {
+            while (running.get()) {
+                try {
+                    serverSocket.accept().use { sock ->
+                        val reader = sock.getInputStream().bufferedReader()
+                        var contentLen = 0
+                        while (true) {
+                            val line = reader.readLine() ?: break
+                            if (line.isEmpty()) break
+                            if (line.lowercase().startsWith("content-length:")) {
+                                contentLen = line.substringAfter(":").trim().toIntOrNull() ?: 0
+                            }
+                        }
+                        if (contentLen > 0) {
+                            val buf = CharArray(contentLen)
+                            var read = 0
+                            while (read < contentLen) {
+                                val n = reader.read(buf, read, contentLen - read)
+                                if (n <= 0) break
+                                read += n
+                            }
+                        }
+                        val (code, body) = responses.poll() ?: (500 to """{"error":"unexpected"}""")
+                        val bodyBytes = body.toByteArray(StandardCharsets.UTF_8)
+                        val header = "HTTP/1.1 $code OK\r\nContent-Type: application/json\r\nContent-Length: ${bodyBytes.size}\r\nConnection: close\r\n\r\n"
+                        sock.getOutputStream().write(header.toByteArray(StandardCharsets.US_ASCII))
+                        sock.getOutputStream().write(bodyBytes)
+                        sock.getOutputStream().flush()
+                    }
+                } catch (_: Exception) {
+                }
+            }
+        }.apply { isDaemon = true; start() }
+        try {
+            val base = "http://127.0.0.1:${serverSocket.localPort}"
+            val manager = BetaAuthManager(context)
+
+            // 1. 404 policy_not_published -> NoPublishedPolicy (not NetworkError, keeps auth)
+            responses.add(404 to """{"error":"policy_not_published"}""")
+            val r1 = kotlinx.coroutines.runBlocking { manager.fetchPrivateBetaPolicy("private_beta", listOf(base)) }
+            assertTrue("Expected NoPublishedPolicy, got $r1", r1 is BetaAuthManager.PrivatePolicyResult.NoPublishedPolicy)
+            assertNotNull(store.loadAuthorization())
+
+            // 2. 401 invalid_signature -> AuthFailure (keeps auth)
+            responses.add(401 to """{"error":"invalid_signature"}""")
+            val r2 = kotlinx.coroutines.runBlocking { manager.fetchPrivateBetaPolicy("private_beta", listOf(base)) }
+            assertTrue("Expected AuthFailure, got $r2", r2 is BetaAuthManager.PrivatePolicyResult.AuthFailure)
+            assertNotNull(store.loadAuthorization())
+
+            // 3. 403 beta_revoked -> Revoked
+            responses.add(403 to """{"error":"beta_revoked"}""")
+            val r3 = kotlinx.coroutines.runBlocking { manager.fetchPrivateBetaPolicy("private_beta", listOf(base)) }
+            assertTrue("Expected Revoked, got $r3", r3 is BetaAuthManager.PrivatePolicyResult.Revoked)
+        } finally {
+            running.set(false)
+            runCatching { serverSocket.close() }
+            serverThread.join(1000)
+        }
+    }
 }

@@ -135,3 +135,9 @@
 1. **本地测试层**：仅在 `BuildConfig.DEBUG` 构建下允许通过 Gradle 属性 `-PtingyuLocalUpdateTestBaseUrl` / `-PtingyuLocalUpdateTestSpki` 指向本地测试 Worker；Release 构建若检测到非空测试覆盖项将直接拒绝打包。
 2. **私有内测层**：`node tools/release-cli.mjs prepare --channel private_beta --register` → `upload --channel private_beta`（仅上传至私有 R2，不推送公开仓库）→ 后台审核并发布 `private_beta` 策略。
 3. **正式发布与双通道迁移层**：`stable` 与（在存在旧测试用户过渡期内的）`testing` 均指向上游稳定迁移安装包，必要时使用 `node tools/release-cli.mjs renew --channel testing --confirm` 续签 `testing` 策略有效期。
+
+### 6.4 三通道永久隔离强约束（不可绕过）
+
+1. 发布 `private_beta` 时，服务端与 `release-cli.mjs` 严禁修改 `stable` 与 `testing` 的更新策略，严禁同步至任何公开 CNB 静态分支或 GitHub Release。
+2. 旧版 `testing` 迁移通道仅允许引用 D1 中**已处于 `published` 状态的同 `versionCode` + `sha256` 的 `stable` 正式版本**，并强制禁止包含 `/api/beta/download` 地址。
+3. 正式发布后的版本可作为 `testing` 迁移目标，但不得暴露任何私有内测下载凭据；`release-cli.mjs` 在执行 `private_beta` 发布前后自动校验公开 `stable` 与 `testing` 策略未发生未经授权的变更。

@@ -347,8 +347,14 @@ async function cmdBuild() {
 }
 
 async function cmdPrepare(flags) {
-    const channel = String(flags.channel || 'testing');
+    const channel = String(flags.channel || 'private_beta');
     if (!ALLOWED_CHANNELS.includes(channel)) throw new Error(`不支持的发布渠道: ${channel}`);
+    if (channel === 'testing' && !flags['migrate-from-stable']) {
+        throw new Error('安全拦截：旧版 testing 通道已永久退出内测分发，仅允许在正式发布后通过 --migrate-from-stable 引用已发布的 stable APK 执行迁移！');
+    }
+    if (channel === 'private_beta' && (flags['cnb-url'] || flags['github-url'])) {
+        throw new Error('安全拦截：private_beta 私有内测禁止使用公开 CNB 或 GitHub 下载地址！');
+    }
     const pkg = JSON.parse(readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
     const apkPath = flags.apk ? path.resolve(flags.apk) : defaultApkPath(pkg);
     const apk = inspectLocalApk(apkPath);
@@ -513,7 +519,10 @@ async function uploadApkToGitHubRelease({ tag, title, body, apkPath, assetName, 
 }
 
 async function cmdUpload(flags) {
-    const channel = String(flags.channel || 'testing');
+    const channel = String(flags.channel || 'private_beta');
+    if (channel === 'testing') {
+        throw new Error('安全拦截：旧版 testing 通道禁止上传独立测试包，仅允许引用已发布的 stable 正式 APK！');
+    }
     const draftPath = path.join(WORK_DIR, `candidate-${channel}.json`);
     if (!existsSync(draftPath)) {
         await cmdPrepare(flags);
@@ -1028,6 +1037,29 @@ async function cmdPublish(flags) {
     if (target.status !== 'approved' || !target.approved_digest) {
         throw new Error(`候选版本 ${id} 当前状态为 ${target.status}，请先在后台审核确认！`);
     }
+    if (target.channel === 'testing') {
+        const stableMatch = (list.items || []).find(r =>
+            r.channel === 'stable' && r.status === 'published' &&
+            r.version_code === target.version_code && r.sha256 === target.sha256,
+        );
+        if (!stableMatch) {
+            throw new Error(`安全拦截：旧版 testing 通道只能发布已正式发布的 stable 版本 (${target.version_code}/${target.sha256})！`);
+        }
+    }
+
+    let prePublicSnapshot = null;
+    if (target.channel === 'private_beta') {
+        const [sRes, tRes] = await Promise.all([
+            fetch(`${CONSOLE_API_BASE}/api/public/update/stable`).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`${CONSOLE_API_BASE}/api/public/update/testing`).then(r => r.ok ? r.json() : null).catch(() => null),
+        ]);
+        prePublicSnapshot = {
+            stableRev: sRes?.policyRevision ?? null,
+            stableCode: sRes?.latestVersionCode ?? null,
+            testingRev: tRes?.policyRevision ?? null,
+            testingCode: tRes?.latestVersionCode ?? null,
+        };
+    }
 
     const pub = await consoleRequest(`/api/admin/releases/${id}/publish`, {
         method: 'POST',
@@ -1039,6 +1071,17 @@ async function cmdPublish(flags) {
             expectedSha256: target.sha256,
         },
     });
+
+    if (target.channel === 'private_beta' && prePublicSnapshot) {
+        const [sPost, tPost] = await Promise.all([
+            fetch(`${CONSOLE_API_BASE}/api/public/update/stable`).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`${CONSOLE_API_BASE}/api/public/update/testing`).then(r => r.ok ? r.json() : null).catch(() => null),
+        ]);
+        if (sPost?.policyRevision !== prePublicSnapshot.stableRev || sPost?.latestVersionCode !== prePublicSnapshot.stableCode ||
+            tPost?.policyRevision !== prePublicSnapshot.testingRev || tPost?.latestVersionCode !== prePublicSnapshot.testingCode) {
+            throw new Error('严重隔离告警：发布 private_beta 后检测到公开 stable/testing 策略发生意外变化！');
+        }
+    }
 
     if (target.channel !== 'private_beta' && flags['skip-static-sync'] !== 'true') {
         await cmdSyncManifests({ channel: target.channel });

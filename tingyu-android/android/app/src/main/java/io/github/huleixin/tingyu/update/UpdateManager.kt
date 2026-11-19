@@ -249,6 +249,8 @@ class UpdateManager internal constructor(
             }
 
             val minRev = store.getHighestPolicyRevision(channel)
+            var betaStatusMessage: String? = null
+            var betaFallbackToStable = false
             val outcome: UpdateApi.FetchOutcome = if (channel == "private_beta") {
                 when (val betaRes = betaAuth.fetchPrivateBetaPolicy(activeChannel = "private_beta")) {
                     is BetaAuthManager.PrivatePolicyResult.Success -> {
@@ -262,43 +264,117 @@ class UpdateManager internal constructor(
                         if (m != null && selection.selectedNodeId != null) {
                             UpdateApi.FetchOutcome.Success(selection.selectedNodeId, m, selection.rejections)
                         } else {
-                            UpdateApi.FetchOutcome.Failure("invalid_private_beta_policy", selection.rejections)
+                            val rejCode = selection.rejections.firstOrNull()?.second ?: "invalid_private_beta_policy"
+                            UpdateApi.FetchOutcome.Failure(rejCode, selection.rejections)
                         }
                     }
-                    is BetaAuthManager.PrivatePolicyResult.Rejected -> {
-                        handleBetaAuthorizationRevoked(triggerCheck = true)
+                    is BetaAuthManager.PrivatePolicyResult.NoPublishedPolicy -> {
+                        recordDiagnostic("beta-no-policy", "reason=$reason node=${betaRes.nodeId} code=${betaRes.code}")
+                        betaStatusMessage = "当前暂无可用的内测版本"
+                        betaFallbackToStable = true
+                        UpdateApi.FetchOutcome.Failure("policy_not_published", listOf(betaRes.nodeId to betaRes.code))
+                    }
+                    is BetaAuthManager.PrivatePolicyResult.Revoked -> {
+                        recordDiagnostic("beta-revoked", "reason=$reason code=${betaRes.code}")
+                        handleBetaAuthorizationRevoked(triggerCheck = false)
                         return@launch
                     }
+                    is BetaAuthManager.PrivatePolicyResult.AuthFailure -> {
+                        UpdateApi.FetchOutcome.Failure("beta_auth_failure:${betaRes.code}:http_${betaRes.httpStatus}", emptyList())
+                    }
+                    is BetaAuthManager.PrivatePolicyResult.ServiceError -> {
+                        UpdateApi.FetchOutcome.Failure("beta_service_error:${betaRes.reason}:http_${betaRes.httpStatus}", emptyList())
+                    }
                     is BetaAuthManager.PrivatePolicyResult.NetworkError -> {
-                        UpdateApi.FetchOutcome.Failure(betaRes.reason, emptyList())
+                        UpdateApi.FetchOutcome.Failure("beta_network_error:${betaRes.reason}", emptyList())
                     }
                 }
             } else {
                 api.fetchAuthoritativePolicy(channel = channel, minAcceptedRevision = minRev, nowMs = now)
             }
 
+            if (betaFallbackToStable) {
+                val stableMinRev = store.getHighestPolicyRevision("stable")
+                val stableOutcome = api.fetchAuthoritativePolicy(channel = "stable", minAcceptedRevision = stableMinRev, nowMs = now)
+                if (stableOutcome is UpdateApi.FetchOutcome.Success) {
+                    val stableDecision = UpdatePolicy.evaluateDecision(currentVersionCode, stableOutcome.manifest, now, now)
+                    if (stableDecision.mode != UpdateDecisionMode.NONE) {
+                        store.saveVerifiedPolicy(stableOutcome.manifest, now)
+                        val shouldOpen = stableDecision.mode == UpdateDecisionMode.FORCE_UPDATE ||
+                            (manual || !store.isOptionalUpdateSnoozed(stableOutcome.manifest.latestVersionCode, now))
+                        _state.update { prev ->
+                            prev.copy(
+                                checkPhase = CheckPhase.UPDATE_AVAILABLE,
+                                checkMessage = "暂无可用内测版本，发现正式版更新 v${stableOutcome.manifest.latestVersionName}",
+                                lastCheckedAtMs = now,
+                                decision = stableDecision,
+                                dialogVisible = prev.dialogVisible || shouldOpen,
+                                selectedMirrorId = stableOutcome.manifest.downloadUrls.firstOrNull()?.id.orEmpty(),
+                            )
+                        }
+                        recordDiagnostic("beta-fallback-stable-update", "node=${stableOutcome.selectedNodeId} ver=${stableOutcome.manifest.latestVersionCode}")
+                        return@launch
+                    }
+                }
+                _state.update { prev ->
+                    prev.copy(
+                        checkPhase = CheckPhase.UP_TO_DATE,
+                        checkMessage = betaStatusMessage ?: "当前暂无可用的内测版本",
+                        lastCheckedAtMs = now,
+                        decision = UpdateDecision(UpdateDecisionMode.NONE, "policy_not_published"),
+                        dialogVisible = false,
+                    )
+                }
+                return@launch
+            }
+
             when (outcome) {
                 is UpdateApi.FetchOutcome.Success -> {
                     val manifest = outcome.manifest
                     store.saveVerifiedPolicy(manifest, now)
-                    val decision = UpdatePolicy.evaluateDecision(
+                    var decision = UpdatePolicy.evaluateDecision(
                         currentVersionCode = currentVersionCode,
                         manifest = manifest,
                         nowMs = now,
                         lastVerifiedAtMs = now,
                     )
+                    var phase = if (decision.mode == UpdateDecisionMode.NONE) CheckPhase.UP_TO_DATE else CheckPhase.UPDATE_AVAILABLE
+                    var msg = when (decision.mode) {
+                        UpdateDecisionMode.NONE -> when {
+                            channel == "private_beta" && decision.reason == "updates_paused_or_disabled" -> "内测更新已暂停"
+                            channel == "private_beta" && currentVersionCode > manifest.latestVersionCode ->
+                                "当前安装版本（Build $currentVersionCode）高于内测版本（Build ${manifest.latestVersionCode}）"
+                            channel == "private_beta" -> "当前已是最新内测版本 v${manifest.latestVersionName}"
+                            else -> "当前已是最新版本"
+                        }
+                        UpdateDecisionMode.OPTIONAL_UPDATE ->
+                            if (channel == "private_beta") "发现新的内测版本 v${manifest.latestVersionName}" else "发现新版本 v${manifest.latestVersionName}"
+                        UpdateDecisionMode.FORCE_UPDATE ->
+                            if (channel == "private_beta") "发现重要必更内测版本 v${manifest.latestVersionName}" else "发现重要必更版本 v${manifest.latestVersionName}"
+                    }
+
+                    // 私有内测无更高版本或已暂停时，允许检查是否有适用的正式版更新（保留内测资格与偏好）
+                    if (channel == "private_beta" && decision.mode == UpdateDecisionMode.NONE) {
+                        val stableMinRev = store.getHighestPolicyRevision("stable")
+                        val stableOutcome = api.fetchAuthoritativePolicy(channel = "stable", minAcceptedRevision = stableMinRev, nowMs = now)
+                        if (stableOutcome is UpdateApi.FetchOutcome.Success) {
+                            val stableDecision = UpdatePolicy.evaluateDecision(currentVersionCode, stableOutcome.manifest, now, now)
+                            if (stableDecision.mode != UpdateDecisionMode.NONE) {
+                                store.saveVerifiedPolicy(stableOutcome.manifest, now)
+                                decision = stableDecision
+                                phase = CheckPhase.UPDATE_AVAILABLE
+                                msg = "暂无更高内测版本，发现正式版更新 v${stableOutcome.manifest.latestVersionName}"
+                            }
+                        }
+                    }
+
+                    val activeManifest = decision.manifest ?: manifest
                     val shouldOpenDialog = when (decision.mode) {
                         UpdateDecisionMode.FORCE_UPDATE -> true
-                        UpdateDecisionMode.OPTIONAL_UPDATE -> manual || !store.isOptionalUpdateSnoozed(manifest.latestVersionCode, now)
+                        UpdateDecisionMode.OPTIONAL_UPDATE -> manual || !store.isOptionalUpdateSnoozed(activeManifest.latestVersionCode, now)
                         UpdateDecisionMode.NONE -> false
                     }
-                    val phase = if (decision.mode == UpdateDecisionMode.NONE) CheckPhase.UP_TO_DATE else CheckPhase.UPDATE_AVAILABLE
-                    val msg = when (decision.mode) {
-                        UpdateDecisionMode.NONE -> "当前已是最新版本"
-                        UpdateDecisionMode.OPTIONAL_UPDATE -> "发现新版本 v${manifest.latestVersionName}"
-                        UpdateDecisionMode.FORCE_UPDATE -> "发现重要必更版本 v${manifest.latestVersionName}"
-                    }
-                    val readySnap = restoreReadyApkSnapshot(manifest)
+                    val readySnap = restoreReadyApkSnapshot(activeManifest)
                     val currentDownload = _state.value.download
                     val mergedDownload = if (currentDownload.phase == DownloadPhase.DOWNLOADING || currentDownload.phase == DownloadPhase.VERIFYING) {
                         currentDownload
@@ -314,33 +390,50 @@ class UpdateManager internal constructor(
                             lastCheckedAtMs = now,
                             decision = decision,
                             dialogVisible = if (decision.mode == UpdateDecisionMode.NONE) false else (prev.dialogVisible || shouldOpenDialog),
-                            selectedMirrorId = prev.selectedMirrorId.takeIf { id -> manifest.downloadUrls.any { it.id == id } }
-                                ?: manifest.downloadUrls.firstOrNull()?.id.orEmpty(),
+                            selectedMirrorId = prev.selectedMirrorId.takeIf { id -> activeManifest.downloadUrls.any { it.id == id } }
+                                ?: activeManifest.downloadUrls.firstOrNull()?.id.orEmpty(),
                             download = mergedDownload,
                         )
                     }
-                    recordDiagnostic("check-ok", "reason=$reason node=${outcome.selectedNodeId} rev=${manifest.policyRevision} mode=${decision.mode}")
+                    recordDiagnostic("check-ok", "reason=$reason ch=$channel node=${outcome.selectedNodeId} rev=${activeManifest.policyRevision} mode=${decision.mode}")
                 }
                 is UpdateApi.FetchOutcome.Failure -> {
-                    // 网络失败或无合法签名配置：绝不误判为强制更新，也绝不在手动检查时谎报“已是最新版本”
                     val cached = store.loadVerifiedPolicy(channel)
                     val fallbackDecision = if (cached != null) {
                         UpdatePolicy.evaluateDecision(currentVersionCode, cached.manifest, now, cached.verifiedAtMs)
                     } else {
                         UpdateDecision(UpdateDecisionMode.NONE, "check_failed")
                     }
+                    val errSummary = formatFailureMessage(outcome.reason, outcome.nodeErrors)
                     _state.update { prev ->
                         prev.copy(
                             checkPhase = CheckPhase.CHECK_FAILED,
-                            checkMessage = "检查更新失败，请检查网络后重试",
+                            checkMessage = errSummary,
                             lastCheckedAtMs = now,
                             decision = fallbackDecision,
                             dialogVisible = if (fallbackDecision.mode == UpdateDecisionMode.FORCE_UPDATE) true else prev.dialogVisible,
                         )
                     }
-                    recordDiagnostic("check-failed", "reason=$reason err=${outcome.reason}")
+                    val nodeDetail = outcome.nodeErrors.joinToString(",") { "${it.first}:${it.second}" }.take(180)
+                    recordDiagnostic("check-failed", "reason=$reason ch=$channel err=${outcome.reason} nodes=[$nodeDetail]")
                 }
             }
+        }
+    }
+
+    private fun formatFailureMessage(reason: String, nodeErrors: List<Pair<String, String>>): String {
+        val codes = (listOf(reason) + nodeErrors.map { it.second }).joinToString(" ")
+        return when {
+            codes.contains("invalid_signature") || codes.contains("untrusted_key_id") || codes.contains("missing_signature") || codes.contains("signature_verification_exception") ->
+                "更新策略签名校验失败，已拒绝应用"
+            codes.contains("policy_expired") ->
+                "更新策略已过期，请稍后重试"
+            reason.startsWith("beta_auth_failure:") ->
+                "内测请求鉴权失败，请检查系统时间或稍后重试"
+            reason.startsWith("beta_service_error:") || codes.contains("http_50") || codes.contains("http_429") ->
+                "更新服务暂时异常，请稍后重试"
+            else ->
+                "检查更新失败，请检查网络后重试"
         }
     }
 
@@ -431,7 +524,7 @@ class UpdateManager internal constructor(
                             }
                         }
                     }
-                    is BetaAuthManager.PrivatePolicyResult.Rejected -> {
+                    is BetaAuthManager.PrivatePolicyResult.Revoked -> {
                         handleBetaAuthorizationRevoked(triggerCheck = false)
                         return@launch
                     }

@@ -34,7 +34,7 @@ const SAMPLE_SIZE = 58485998;
 
 function sampleCandidatePayload(overrides = {}) {
     return {
-        channel: 'testing',
+        channel: 'stable',
         versionName: '1.5.79',
         versionCode: 294,
         minSupportedVersionCode: 294,
@@ -268,14 +268,14 @@ test('approval digest binding, unreachable/HTML download protection, ECDSA publi
     assert.equal(fbDetail.link.fixed_version, '1.5.79');
 
     // Public signed manifest endpoint returns ECDSA-verified policyRevision=1
-    const pubManifestRes = await f.call('/api/public/update/testing');
+    const pubManifestRes = await f.call('/api/public/update/stable');
     assert.equal(pubManifestRes.status, 200);
     const rev1 = await pubManifestRes.json();
     assert.equal((await verifyUpdateManifest(rev1, trustedKeys)).ok, true);
     assert.equal(evaluateClientUpdateDecision({ currentVersionCode: 293, manifest: rev1 }).mode, 'force_update');
 
     // Pause updates -> policyRevision=2, updateEnabled=false
-    const pauseRes = await f.call('/api/admin/policy/testing/pause', {
+    const pauseRes = await f.call('/api/admin/policy/stable/pause', {
         method: 'POST',
         headers: {
             ...admin,
@@ -291,7 +291,7 @@ test('approval digest binding, unreachable/HTML download protection, ECDSA publi
     assert.equal(evaluateClientUpdateDecision({ currentVersionCode: 293, manifest: rev2 }).mode, 'none');
 
     // Emergency Unlock -> policyRevision=3, policyAction='emergency_unlock', minSupportedVersionCode=1
-    const unlockRes = await f.call('/api/admin/policy/testing/unlock', {
+    const unlockRes = await f.call('/api/admin/policy/stable/unlock', {
         method: 'POST',
         headers: {
             ...admin,
@@ -315,7 +315,7 @@ test('approval digest binding, unreachable/HTML download protection, ECDSA publi
             { nodeId: 'cnb-static', manifest: rev1 },
             { nodeId: 'cf-live', manifest: rev3 },
         ],
-        { expectedChannel: 'testing', trustedSpkiByKeyId: trustedKeys, minAcceptedRevision: 1 },
+        { expectedChannel: 'stable', trustedSpkiByKeyId: trustedKeys, minAcceptedRevision: 1 },
     );
     assert.equal(arb.best.nodeId, 'cf-live');
     assert.equal(arb.best.manifest.policyRevision, 3);

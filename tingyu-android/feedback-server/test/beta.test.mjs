@@ -275,3 +275,42 @@ test('private beta policy, R2 range download tickets, PoP anti-replay & device r
   const devAfterLeave = await callBeta(f, devKeys, '/api/beta/policy', devInstallId, devAuth.deviceToken);
   assert.equal(devAfterLeave.status, 403);
 });
+
+
+test('three-channel permanent isolation blocks testing from non-stable or private_beta URLs', async () => {
+  const f = await fixture();
+
+  const rejectNonStableTesting = await f.call('/api/admin/releases/candidates', {
+    method: 'POST',
+    headers: { ...admin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: 'rel-testing-1.5.99-399',
+      channel: 'testing',
+      versionName: '1.5.99',
+      versionCode: 399,
+      apkSizeBytes: 50_000_000,
+      sha256: 'a'.repeat(64),
+      apkCertSha256: 'a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d',
+      downloadUrls: [{ id: 'cnb-primary', label: 'CNB', url: 'https://cnb.cool/example.apk', priority: 1 }],
+    }),
+  });
+  assert.equal(rejectNonStableTesting.status, 403);
+  assert.equal((await rejectNonStableTesting.json()).error, 'testing_channel_migration_only');
+
+  const rejectBetaPublicUrl = await f.call('/api/admin/releases/candidates', {
+    method: 'POST',
+    headers: { ...admin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: 'rel-private_beta-1.5.99-399',
+      channel: 'private_beta',
+      versionName: '1.5.99',
+      versionCode: 399,
+      apkSizeBytes: 50_000_000,
+      sha256: 'b'.repeat(64),
+      apkCertSha256: 'a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d',
+      downloadUrls: [{ id: 'github-backup', label: 'GitHub', url: 'https://github.com/example.apk', priority: 1 }],
+    }),
+  });
+  assert.equal(rejectBetaPublicUrl.status, 403);
+  assert.equal((await rejectBetaPublicUrl.json()).error, 'private_beta_must_use_protected_r2');
+});
