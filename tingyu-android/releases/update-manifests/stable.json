@@ -2,22 +2,22 @@
   "schemaVersion": 1,
   "appId": "io.github.huleixin.tingyu",
   "channel": "stable",
-  "policyRevision": 4,
+  "policyRevision": 5,
   "policyAction": "normal",
   "updateEnabled": true,
-  "latestVersionName": "1.5.83",
-  "latestVersionCode": 299,
-  "minSupportedVersionCode": 299,
-  "releaseId": "rel-stable-1.5.83-299",
-  "gitCommit": "be57d723",
-  "releaseNotes": "1. 彻底修复搜索来源记忆问题：独立持久化保存最后一次主动选择的搜索来源（首次安装默认「综合搜索」），切换页面、切换资料库平台、进出播放器、播放其他平台歌曲、点击热搜/历史及重启升级均不再回退至 QQ 音乐，界面显示与实际搜索请求严格一致。\n2. 优化资料库平台分组展开与收缩动画：采用 300ms 自然柔和缓动曲线，展开箭头旋转、歌单收放与相邻分组补位保持同频连贯过渡，支持快速连续点击中途平滑反转，同时完整保留百首级歌单列表虚拟化流畅度。\n3. 调整匿名使用统计为默认开启：仅收集必要的匿名版本与稳定性统计数据，绝不收集音乐平台账号或歌曲内容等私人信息；设置页支持随时一键关闭并立即停止上报，已主动关闭的用户后续升级绝不重新开启。",
-  "publishedAt": "2026-11-18T08:18:55.877Z",
-  "publishedAtEpochMs": 1794989935877,
-  "policyExpiresAt": "2026-12-18T08:18:55.877Z",
-  "policyExpiresAtEpochMs": 1797581935877,
+  "latestVersionName": "1.5.84",
+  "latestVersionCode": 300,
+  "minSupportedVersionCode": 300,
+  "releaseId": "rel-stable-1.5.84-300",
+  "gitCommit": "38bda046",
+  "releaseNotes": "听屿 v1.5.84 (Build 300) 正式版本更新说明\n\n1. 私有内测与更新通道治理\n- 将原公开测试通道收拢为私有邀请制内测通道，普通用户统一保留在正式稳定通道（stable），关于页不再展示公开测试通道切换入口。\n- 新增版本卡 7 连击隐藏激活入口与开发者/内测设备鉴权管理，旧版测试通道用户升级后自动回归正式稳定通道。\n\n2. 后台播放与歌词稳定性修复\n- 修复后台、锁屏及自动切歌场景下的歌词加载异常，统一前后台歌词获取、调度与时长校准机制。\n- 修复冷启动恢复快照过大导致的内存溢出（OOM）、前台服务与通知点击栈异常，以及播放器音频焦点恢复与本地音频代理断连异常。\n\n3. 播放控制与漫游体验优化\n- 在「设置 → 播放设置」新增「允许与其他应用同时播放」开关（默认关闭，实时生效），开启后可与其他媒体应用同时发声，同时保留来电暂停与耳机拔出/蓝牙断开自动暂停保护。\n- 优化「听屿漫游」：初始队列提升至 20 首，剩余未播 ≤ 8 首时自动续补 10–20 首；支持漫游中无感切换「听屿漫游 / 偏熟悉 / 多探索」模式，并支持后台自动续队。",
+  "publishedAt": "2026-11-19T03:12:30.631Z",
+  "publishedAtEpochMs": 1795057950631,
+  "policyExpiresAt": "2026-12-19T03:12:30.631Z",
+  "policyExpiresAtEpochMs": 1797649950631,
   "offlineGraceHours": 168,
-  "apkSizeBytes": 58651379,
-  "sha256": "e89d7313af1e57241c01e3580a8f1d977d307b84d723a5d9bb04aa6ca294fff9",
+  "apkSizeBytes": 58694708,
+  "sha256": "bb3da463104c7b3e78a947c9b56158a192668820ec646fc4c05f46b0ed4fbf16",
   "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
   "minSdk": 24,
   "supportedAbis": [
@@ -30,17 +30,17 @@
     {
       "id": "cnb-primary",
       "label": "CNB 国内高速主节点",
-      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.83/tingyu-1.5.83-release.apk",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.84/tingyu-1.5.84-release.apk",
       "priority": 1
     },
     {
       "id": "github-backup",
       "label": "GitHub 备用节点",
-      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.83/tingyu-1.5.83-release.apk",
+      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.84/tingyu-1.5.84-release.apk",
       "priority": 2
     }
   ],
   "signatureAlgorithm": "ECDSA-P256-SHA256",
   "keyId": "tingyu-policy-2026-k1",
-  "signature": "MEYCIQDfmzZoZICBJ3uBOZluolYFJUhLLnzWB9LnZNq4/hgxpgIhAKNfaRQBuix9jmYAJiiyCihhAjFxku44fgkIWwFN8K6Q"
+  "signature": "MEQCIHZNeNgjoyIK4fxd9r62Euw+CRwe9BtMRiP+tMAt6zU4AiAtorj5luwhv+ZdCvjjHRvSKpTvg8nTykaxxcF+dKL66Q=="
 }

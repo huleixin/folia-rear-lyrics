@@ -2,22 +2,22 @@
   "schemaVersion": 1,
   "appId": "io.github.huleixin.tingyu",
   "channel": "testing",
-  "policyRevision": 9,
-  "policyAction": "emergency_unlock",
-  "updateEnabled": false,
-  "latestVersionName": "1.5.83",
-  "latestVersionCode": 299,
-  "minSupportedVersionCode": 1,
-  "releaseId": "rel-testing-1.5.83-299",
-  "gitCommit": "be57d723",
-  "releaseNotes": "v1.5.83 testing 验证通过，准备推送正式通道",
-  "publishedAt": "2026-11-18T08:14:53.554Z",
-  "publishedAtEpochMs": 1794989693554,
-  "policyExpiresAt": "2026-12-18T08:14:53.554Z",
-  "policyExpiresAtEpochMs": 1797581693554,
+  "policyRevision": 10,
+  "policyAction": "normal",
+  "updateEnabled": true,
+  "latestVersionName": "1.5.84",
+  "latestVersionCode": 300,
+  "minSupportedVersionCode": 300,
+  "releaseId": "rel-testing-1.5.84-300",
+  "gitCommit": "38bda046",
+  "releaseNotes": "听屿 v1.5.84 (Build 300) 正式版本更新说明\n\n1. 私有内测与更新通道治理\n- 将原公开测试通道收拢为私有邀请制内测通道，普通用户统一保留在正式稳定通道（stable），关于页不再展示公开测试通道切换入口。\n- 新增版本卡 7 连击隐藏激活入口与开发者/内测设备鉴权管理，旧版测试通道用户升级后自动回归正式稳定通道。\n\n2. 后台播放与歌词稳定性修复\n- 修复后台、锁屏及自动切歌场景下的歌词加载异常，统一前后台歌词获取、调度与时长校准机制。\n- 修复冷启动恢复快照过大导致的内存溢出（OOM）、前台服务与通知点击栈异常，以及播放器音频焦点恢复与本地音频代理断连异常。\n\n3. 播放控制与漫游体验优化\n- 在「设置 → 播放设置」新增「允许与其他应用同时播放」开关（默认关闭，实时生效），开启后可与其他媒体应用同时发声，同时保留来电暂停与耳机拔出/蓝牙断开自动暂停保护。\n- 优化「听屿漫游」：初始队列提升至 20 首，剩余未播 ≤ 8 首时自动续补 10–20 首；支持漫游中无感切换「听屿漫游 / 偏熟悉 / 多探索」模式，并支持后台自动续队。",
+  "publishedAt": "2026-11-19T03:12:37.300Z",
+  "publishedAtEpochMs": 1795057957300,
+  "policyExpiresAt": "2026-12-19T03:12:37.300Z",
+  "policyExpiresAtEpochMs": 1797649957300,
   "offlineGraceHours": 168,
-  "apkSizeBytes": 58651379,
-  "sha256": "e89d7313af1e57241c01e3580a8f1d977d307b84d723a5d9bb04aa6ca294fff9",
+  "apkSizeBytes": 58694708,
+  "sha256": "bb3da463104c7b3e78a947c9b56158a192668820ec646fc4c05f46b0ed4fbf16",
   "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
   "minSdk": 24,
   "supportedAbis": [
@@ -30,11 +30,17 @@
     {
       "id": "cnb-primary",
       "label": "CNB 国内高速主节点",
-      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/candidate-1.5.83-299/tingyu-1.5.83-release.apk",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.84/tingyu-1.5.84-release.apk",
       "priority": 1
+    },
+    {
+      "id": "github-backup",
+      "label": "GitHub 备用节点",
+      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.84/tingyu-1.5.84-release.apk",
+      "priority": 2
     }
   ],
   "signatureAlgorithm": "ECDSA-P256-SHA256",
   "keyId": "tingyu-policy-2026-k1",
-  "signature": "MEQCIDQlHfUEG8Dhfy1PSimQTIq+W1gu5cR/7suChll78ptUAiALa3ceBH9BCNTj8p1h+QCd1zs/+pzNA2Q/aT/1N7ax9Q=="
+  "signature": "MEUCICLZ43TTDv9lf6FfwM5DebWskNhPyCtnc+N95banFVSzAiEAx1SNchOk/KMhY1h4EBI71m1aZk8/9Q5i33ej3eZjd/E="
 }
