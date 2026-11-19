@@ -5,6 +5,7 @@ import android.util.Base64
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,10 +107,49 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
         }
     }
 }
-@Composable internal fun PageSectionHeading(section:NativePageSection,modifier:Modifier=Modifier,action:PageAction,titleSize:Int=16) {
-    Row(modifier.fillMaxWidth().heightIn(min=30.dp),verticalAlignment=Alignment.CenterVertically) {
-        Text(section.title,color=PageInk,fontSize=titleSize.sp,lineHeight=(titleSize+5).sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
-        if(section.more.isNotBlank())PagePill(section.moreLabel,{action(section.more,"",0.0)},trailing="chevron-right")
+@Composable internal fun PageSectionHeading(section:NativePageSection,modifier:Modifier=Modifier,action:PageAction,titleSize:Int=18) {
+    val isRefresh = section.more == "next" || section.more == "refresh" || section.moreLabel == "换一批"
+    var spinCount by remember(section.id) { mutableIntStateOf(0) }
+    val spinAngle by animateFloatAsState(
+        targetValue = spinCount * 360f,
+        animationSpec = tween(durationMillis = 450),
+        label = "section-header-refresh-spin",
+    )
+    Row(modifier.fillMaxWidth().heightIn(min=48.dp),verticalAlignment=Alignment.CenterVertically) {
+        Text(
+            section.title,
+            color=PageInk,
+            fontSize=titleSize.sp,
+            lineHeight=(titleSize+5).sp,
+            fontWeight=FontWeight(650),
+            modifier=Modifier.weight(1f),
+        )
+        if(section.more.isNotBlank()) {
+            val label = if (isRefresh) section.moreLabel.ifBlank { "换一批" } else section.moreLabel.ifBlank { "全部" }
+            Row(
+                Modifier
+                    .heightIn(min=48.dp)
+                    .chromeClickable(corner=10.dp) {
+                        if (isRefresh) spinCount++
+                        action(section.more, "", 0.0)
+                    }
+                    .padding(horizontal=4.dp),
+                verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(4.dp),
+            ) {
+                if (isRefresh) {
+                    PageIcon(
+                        "refresh-cw",
+                        PageMuted,
+                        Modifier.size(16.dp).graphicsLayer { rotationZ = spinAngle },
+                    )
+                    Text(label, color=PageMuted, fontSize=13.sp, lineHeight=18.sp)
+                } else {
+                    Text(label, color=PageMuted, fontSize=13.sp, lineHeight=18.sp)
+                    PageIcon("chevron-right", PageMuted, Modifier.size(16.dp))
+                }
+            }
+        }
     }
 }
 @Composable internal fun PageSort(section:NativePageSection,action:PageAction) {

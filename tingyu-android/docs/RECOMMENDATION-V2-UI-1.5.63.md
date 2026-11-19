@@ -60,3 +60,14 @@ adb devices 无设备，未安装模拟器。尚未验证：真实账户的来�
 - DiscoveryPresentationTest.kt、settingsPresentation.test.ts、nativeSettingsDocument.test.ts及命令快照：专项验证。
 
 回退时在开发分支 revert 本轮 UI 提交，恢复1.5.62对应布局和面板；新设置沿用原store，没有需要逆向执行的数据迁移。已安装用户若发回退包，应继续增加 versionCode 并用原签名构建，不直接要求降级安装旧APK。未推送 main。
+
+
+## SectionHeader 统一模块标题栏规范
+
+所有推荐页与资料库同级模块标题栏统一复用 [NativePageWidgets.kt](android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageWidgets.kt) 中的 `PageSectionHeading`，禁止在页面内联重复实现独立标题栏。
+
+- **标题排版**：颜色 `PageInk`，字重 `FontWeight(650)`，手机端默认 `18.sp`（行高 `23.sp`），平板端 `20.sp`（行高 `25.sp`），标题与内容间距统一 `10.dp`。
+- **右侧操作按钮**：透明背景、无胶囊底色、无描边、无阴影，最小触控高度 `48.dp`，保留原生 `chromeClickable` 点击反馈，文字 `13.sp`（`PageMuted`），图标 `16.dp`（`PageMuted`），图文间距 `4.dp`。
+- **操作语义**：
+  - 跳转完整列表：统一文案「全部」+ 右侧 `chevron-right` 箭头（不再使用「查看更多」）。
+  - 刷新 / 换一批（`more == "next" | "refresh"`）：统一左侧 `refresh-cw` 旋转图标 +「换一批」，禁止附加右箭头，点击时图标旋转 360° 后自然停止。

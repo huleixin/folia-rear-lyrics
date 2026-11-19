@@ -56,14 +56,14 @@ import kotlin.math.ceil
     Box(modifier.padding(start=startInset,end=endInset,top=(page.safeTop+if(window.shortWindow)10 else 16).dp,bottom=bottom),contentAlignment=Alignment.TopCenter){
         Column(Modifier.fillMaxSize().widthIn(max=window.homeMaxWidth.dp)){
             PageHeading(page,large=!window.shortWindow,action=action)
-            Spacer(Modifier.height(if(window.shortWindow)8.dp else 12.dp))
+            Spacer(Modifier.height(if(window.shortWindow)6.dp else 8.dp))
             BoxWithConstraints(Modifier.weight(1f)){
                 // Width chooses the count; height caps square artwork so both sections clear the mini player.
                 val targetCover=(maxHeight*.25f).coerceIn(104.dp,164.dp)
                 val columns=ceil((maxWidth.value+gap.value)/(targetCover.value+gap.value)).toInt().coerceIn(4,8)
                 val playlistCover=(maxWidth-gap*(columns-1))/columns
                 // Four extra dp absorb independent row rounding without introducing a tiny scroll range.
-                val bandBudget=(maxHeight-playlistCover-44.dp-40.dp-16.dp-16.dp-40.dp).coerceAtLeast(if(window.shortWindow)184.dp else 218.dp)
+                val bandBudget=(maxHeight-playlistCover-44.dp-54.dp-12.dp-54.dp-16.dp).coerceAtLeast(if(window.shortWindow)184.dp else 218.dp)
                 val paneGap=if(maxWidth>=1000.dp)26.dp else 20.dp
                 val paneWidth=(maxWidth-paneGap)/2
                 val coverLimit=((bandBudget-14.dp)/2-44.dp).coerceIn(72.dp,152.dp)
@@ -78,11 +78,11 @@ import kotlin.math.ceil
                     modifier=Modifier.fillMaxSize().testTag("pad-pull-refresh-box"),
                 ) { pullOffsetPx ->
                 LazyColumn(Modifier.fillMaxSize().graphicsLayer{translationY=pullOffsetPx}.clipToBounds().testTag("pad-home-list"),
-                    contentPadding=PaddingValues(bottom=12.dp),verticalArrangement=Arrangement.spacedBy(if(window.shortWindow)12.dp else 16.dp)){
+                    contentPadding=PaddingValues(bottom=12.dp),verticalArrangement=Arrangement.spacedBy(if(window.shortWindow)10.dp else 12.dp)){
                     if(hasDualHero&&hero!=null&&recent!=null)item(key="recommendation-band"){
                         Column{
                             // The heading sits above the common artwork baseline, never inside the right band.
-                            Row(Modifier.fillMaxWidth().padding(bottom=10.dp),horizontalArrangement=Arrangement.spacedBy(paneGap)){
+                            Row(Modifier.fillMaxWidth().padding(bottom=6.dp),horizontalArrangement=Arrangement.spacedBy(paneGap)){
                                 if(hero.title.isNotBlank())PageSectionHeading(hero,Modifier.weight(1f),action,titleSize=20)
                                 else Spacer(Modifier.weight(1f))
                                 PageSectionHeading(recent,Modifier.weight(1f),action,titleSize=20)
@@ -108,7 +108,7 @@ import kotlin.math.ceil
                         // Overview playlists occupy one row; their existing “all” action opens the library.
                         if(section.id=="playlists"&&section.items.isNotEmpty())item(key=section.id){
                             Column{
-                                PageSectionHeading(section,Modifier.padding(bottom=10.dp),action,titleSize=20)
+                                PageSectionHeading(section,Modifier.padding(bottom=6.dp),action,titleSize=20)
                                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(gap)){
                                     section.items.take(columns).forEach{key(it.id){PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}}
                                     repeat((columns-section.items.size).coerceAtLeast(0)){Spacer(Modifier.weight(1f))}

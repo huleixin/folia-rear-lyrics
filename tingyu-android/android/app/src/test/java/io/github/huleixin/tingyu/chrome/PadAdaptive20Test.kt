@@ -213,6 +213,18 @@ class PadAdaptive20Test {
                             JSONArray(
                                 listOf(
                                     section(
+                                        "discovery-radars",
+                                        "radarCards",
+                                        "你的专属雷达",
+                                        listOf(item("style", "风格雷达", "歌手与音乐的关联"))
+                                    ).put("more", "allRadar").put("moreLabel", "全部"),
+                                    section(
+                                        "discovery-songs",
+                                        "rows",
+                                        "猜你想听",
+                                        listOf(item("song0", "推荐曲目", "歌手 · QQ音乐"))
+                                    ).put("more", "next").put("moreLabel", "换一批"),
+                                    section(
                                         "playlists",
                                         "cards",
                                         "我的歌单",
@@ -247,6 +259,10 @@ class PadAdaptive20Test {
         compose.onNodeWithText("我喜欢").assertIsDisplayed()
         compose.onNodeWithText("QQ音乐 · 128首").assertIsDisplayed()
         compose.onNodeWithText("刷新推荐").assertDoesNotExist()
+        compose.onNodeWithText("查看更多").assertDoesNotExist()
+        compose.onNodeWithText("换一批").assertIsDisplayed().performClick()
+        assertEquals("next", events.last())
+        compose.onAllNodesWithText("全部").assertCountEquals(2)
 
         // Short pull below threshold should not trigger refresh
         compose.onNodeWithTag("native-home-list").performTouchInput {

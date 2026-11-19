@@ -415,7 +415,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             : { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: scopedResults.flatMap(result => result.collections).slice(0, 24).map(collection => {
                 const action = 'collection:' + collection.providerId + ':' + collection.id; actions[action] = () => controls.openCollection(collection);
                 return { id: action, title: collection.name, subtitle: omni.getProviderLabel(collection.providerId) + (collection.trackCount != null ? ' · ' + collection.trackCount + '首' : ''), image: absolutePageImage(collection.coverUrl), action };
-            }), more: 'allCollections', moreLabel: '查看更多' },
+            }), more: 'allCollections', moreLabel: '全部' },
         recent: { id: 'recent', title: t('mobileLibrary.recent'), layout: 'cards', more: 'recentAll', moreLabel: '全部', items: rows((isLocalSource ? localRecentTracks : recent).slice(0, 12), 'recent:') },
         playlists: isLocalSource
             ? {

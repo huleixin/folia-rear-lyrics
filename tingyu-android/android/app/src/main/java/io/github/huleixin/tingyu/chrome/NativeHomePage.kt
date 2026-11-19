@@ -85,16 +85,7 @@ import kotlinx.coroutines.launch
                     when {
                         section.layout=="discoveryHero" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=12.dp),action)}
                         section.layout=="radarCards" && section.items.isNotEmpty() -> item(key=section.id){Column(Modifier.padding(start=start,end=end,top=24.dp)){
-                            Row(Modifier.fillMaxWidth().padding(bottom=12.dp),verticalAlignment=Alignment.CenterVertically){
-                                Text(section.title,color=PageInk,fontSize=18.sp,fontWeight=FontWeight(650),modifier=Modifier.weight(1f))
-                                if(section.more.isNotBlank()){
-                                    Row(Modifier.heightIn(min=48.dp).chromeClickable(corner=10.dp){action(section.more,"",0.0)}.padding(horizontal=4.dp),
-                                        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
-                                        Text(section.moreLabel.ifBlank{"全部"},color=PageMuted,fontSize=13.sp)
-                                        PageIcon("chevron-right",PageMuted,Modifier.size(15.dp))
-                                    }
-                                }
-                            }
+                            PageSectionHeading(section,Modifier.padding(bottom=10.dp),action)
                             DiscoveryRadars(section,action=action)
                         }}
                         section.layout=="textActions" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryTextActions(section,Modifier.padding(start=start,end=end),action)}
@@ -116,7 +107,7 @@ import kotlinx.coroutines.launch
                         // 方形封面横滑 rail：在线首页的「最近播放」与本地首页的「最近播放 / 常听专辑」共用一套。
                         section.layout=="cards" && section.id in setOf("recent","localAlbums") && section.items.isNotEmpty() -> item(key=section.id){
                             Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
-                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)8.dp else 4.dp),action)
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)10.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     items(section.items,key={it.id}) { item ->
                                         val cover=NativePageDesign.recentWidth(viewport,wide).dp
@@ -138,7 +129,7 @@ import kotlinx.coroutines.launch
                         // Real recommendation collections: square artwork rail, same caption rhythm as recent.
                         section.layout=="cards" && section.id!="playlists" && section.items.isNotEmpty() -> item(key=section.id){
                             Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
-                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)8.dp else 4.dp),action)
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)10.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     items(section.items,key={it.id}) { item ->
                                         val cover=if(wide)148.dp else 128.dp
@@ -272,7 +263,7 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.layout=="rows" -> {
-                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=if(discovery)20.dp else 0.dp,bottom=if(discovery)8.dp else 4.dp),action)}
+                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=if(discovery)20.dp else 0.dp,bottom=if(discovery)10.dp else 4.dp),action)}
                             items(section.items,key={it.id}) { item -> Box(Modifier.padding(start=start,end=end)){NativePageRow(item,62.dp,46.dp,14,12,divider=true){action(it,"",0.0)}} }
                         }
                         section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(start=start,end=end,top=18.dp,bottom=18.dp))}
