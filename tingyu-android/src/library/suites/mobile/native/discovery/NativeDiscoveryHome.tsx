@@ -442,7 +442,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
                 layout: 'cards',
                 more: 'library',
                 moreLabel: '全部',
-                items: sources.online.collections.slice(0, 8).map(collection => {
+                items: sources.online.collections.slice(0, 12).map(collection => {
                     const action = 'mine:' + collection.id;
                     actions[action] = () => controls.openCollection(collection);
                     const subtitle = [

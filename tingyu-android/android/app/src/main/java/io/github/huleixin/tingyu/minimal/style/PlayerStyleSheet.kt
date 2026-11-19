@@ -46,11 +46,31 @@ internal fun PlayerStyleSheet(theme: TyPanelTheme, title: String, subtitle: Stri
         }
     }
     BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
-        Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * .94f)
-            .liquidPanel("sheet").graphicsLayer { translationY = offset }
-            .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
-            .background(theme.surface).align(Alignment.BottomCenter)) {
-            Column(Modifier.fillMaxWidth().pointerInput(title, reduced) {
+        val window = LocalPadWindow.current
+        val tabletPanel = window.tablet || maxWidth >= 600.dp
+        val sheetShape = if (tabletPanel) RoundedCornerShape(24.dp) else RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+        val sheetModifier = if (tabletPanel) {
+            Modifier
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+                .widthIn(max = 680.dp)
+                .fillMaxWidth()
+                .heightIn(max = minOf(maxHeight * 0.88f, 760.dp))
+                .align(Alignment.Center)
+        } else {
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = maxHeight * .94f)
+                .align(Alignment.BottomCenter)
+        }
+        Column(
+            sheetModifier
+                .liquidPanel("sheet")
+                .graphicsLayer { translationY = offset }
+                .clip(sheetShape)
+                .background(theme.surface)
+        ) {
+            Column(Modifier.fillMaxWidth().pointerInput(title, reduced, tabletPanel) {
+                if (tabletPanel) return@pointerInput
                 detectVerticalDragGestures(
                     onDragStart = { settling?.cancel(); velocity.resetTracking() },
                     onDragCancel = { release(true) }, onDragEnd = { release(false) },
@@ -59,14 +79,18 @@ internal fun PlayerStyleSheet(theme: TyPanelTheme, title: String, subtitle: Stri
                         offset = (offset + dy).coerceAtLeast(0f)
                     })
             }) {
-                Box(Modifier.fillMaxWidth().height(20.dp), contentAlignment = Alignment.Center) {
-                    Box(Modifier.size(36.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(theme.muted.copy(alpha = .4f)))
+                if (!tabletPanel) {
+                    Box(Modifier.fillMaxWidth().height(20.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(36.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(theme.muted.copy(alpha = .4f)))
+                    }
+                } else {
+                    Spacer(Modifier.height(10.dp))
                 }
                 TyPanelHeader(theme, title, subtitle, onClose)
             }
             Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState())
                 .padding(horizontal = 22.dp), content = content)
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(if (tabletPanel) 20.dp else 24.dp))
         }
     }
 }

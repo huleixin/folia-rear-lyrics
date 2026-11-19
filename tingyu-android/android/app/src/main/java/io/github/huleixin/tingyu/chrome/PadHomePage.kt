@@ -45,9 +45,15 @@ import kotlin.math.ceil
 // Pad recommendation layout consumes the existing sections and action identities.
 @Composable internal fun PadHomePage(page:NativePage,modifier:Modifier,action:PageAction){
     val window=LocalPadWindow.current
-    val hero=page.sections.firstOrNull{it.layout=="hero"||it.layout=="discoveryHero"}
+    val isDiscovery=page.key.startsWith("home:discovery:")
+    val sourcesSection=if(isDiscovery)page.sections.firstOrNull{it.id=="discovery-sources"}else null
+    val discoveryHero=if(isDiscovery)page.sections.firstOrNull{it.layout=="discoveryHero"&&it.items.isNotEmpty()}else null
+    val roamModes=if(isDiscovery)page.sections.firstOrNull{it.id=="discovery-roam-modes"}else null
+    val shortcuts=if(isDiscovery)page.sections.firstOrNull{it.id=="shortcuts"&&it.layout=="quickLinks"}else null
+    val hero=if(isDiscovery)discoveryHero else page.sections.firstOrNull{it.layout=="hero"}
     val recent=page.sections.firstOrNull{it.id=="recent"}
-    val hasDualHero=window.homeDualHero&&hero!=null&&hero.items.isNotEmpty()&&recent!=null&&recent.items.isNotEmpty()
+    val hasDualDiscoveryBand=isDiscovery&&window.homeDualHero&&discoveryHero!=null&&recent!=null&&recent.items.isNotEmpty()
+    val hasLegacyDualHero=!isDiscovery&&window.homeDualHero&&hero!=null&&hero.items.isNotEmpty()&&recent!=null&&recent.items.isNotEmpty()
     val hostBottom=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
     val bottom=if(hostBottom>0.dp)hostBottom else (page.safeBottom+88f).dp
     val startInset=if(window.expanded)112.dp else window.pageHorizontalMargin.dp
@@ -56,12 +62,17 @@ import kotlin.math.ceil
     Box(modifier.padding(start=startInset,end=endInset,top=(page.safeTop+if(window.shortWindow)10 else 16).dp,bottom=bottom),contentAlignment=Alignment.TopCenter){
         Column(Modifier.fillMaxSize().widthIn(max=window.homeMaxWidth.dp)){
             PageHeading(page,large=!window.shortWindow,action=action)
+            if(sourcesSection!=null){
+                Spacer(Modifier.height(6.dp))
+                NativeSourceTabs(sourcesSection,Modifier.padding(bottom=4.dp),action=action)
+            }
             Spacer(Modifier.height(if(window.shortWindow)6.dp else 8.dp))
             BoxWithConstraints(Modifier.weight(1f)){
                 // Width chooses the count; height caps square artwork so both sections clear the mini player.
                 val targetCover=(maxHeight*.25f).coerceIn(104.dp,164.dp)
-                val columns=ceil((maxWidth.value+gap.value)/(targetCover.value+gap.value)).toInt().coerceIn(4,8)
-                val playlistCover=(maxWidth-gap*(columns-1))/columns
+                val legacyColumns=ceil((maxWidth.value+gap.value)/(targetCover.value+gap.value)).toInt().coerceIn(4,8)
+                val gridColumns=if(isDiscovery)window.adaptiveColumns(maxWidth.value,minItemWidth=148f,gap=gap.value,minColumns=2,maxColumns=6) else legacyColumns
+                val playlistCover=(maxWidth-gap*(legacyColumns-1))/legacyColumns
                 // Four extra dp absorb independent row rounding without introducing a tiny scroll range.
                 val bandBudget=(maxHeight-playlistCover-44.dp-54.dp-12.dp-54.dp-16.dp).coerceAtLeast(if(window.shortWindow)184.dp else 218.dp)
                 val paneGap=if(maxWidth>=1000.dp)26.dp else 20.dp
@@ -78,8 +89,33 @@ import kotlin.math.ceil
                     modifier=Modifier.fillMaxSize().testTag("pad-pull-refresh-box"),
                 ) { pullOffsetPx ->
                 LazyColumn(Modifier.fillMaxSize().graphicsLayer{translationY=pullOffsetPx}.clipToBounds().testTag("pad-home-list"),
-                    contentPadding=PaddingValues(bottom=12.dp),verticalArrangement=Arrangement.spacedBy(if(window.shortWindow)10.dp else 12.dp)){
-                    if(hasDualHero&&hero!=null&&recent!=null)item(key="recommendation-band"){
+                    contentPadding=PaddingValues(bottom=12.dp),verticalArrangement=Arrangement.spacedBy(if(window.shortWindow)10.dp else if(isDiscovery)18.dp else 12.dp)){
+                    if(hasDualDiscoveryBand&&discoveryHero!=null&&recent!=null)item(key="discovery-top-band"){
+                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(paneGap),verticalAlignment=Alignment.Top){
+                            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp)){
+                                DiscoveryHero(discoveryHero,action=action)
+                                if(roamModes!=null&&roamModes.items.isNotEmpty()){
+                                    NativeSourceTabs(roamModes,action=action)
+                                }
+                                if(shortcuts!=null&&shortcuts.items.isNotEmpty()){
+                                    HomeQuickLinks(shortcuts,availableWidth=paneWidth,action=action)
+                                }
+                            }
+                            Column(Modifier.weight(1f)){
+                                PageSectionHeading(recent,Modifier.padding(bottom=8.dp),action,titleSize=20)
+                                recent.items.take(6).chunked(2).forEachIndexed{rowIdx,pair->
+                                    Row(Modifier.fillMaxWidth().padding(top=if(rowIdx==0)0.dp else 4.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+                                        pair.forEach{item->
+                                            Box(Modifier.weight(1f)){
+                                                NativePageRow(item,height=54.dp,art=40.dp,titleSize=13,subtitleSize=11,divider=rowIdx<2){action(it,"",0.0)}
+                                            }
+                                        }
+                                        if(pair.size==1)Spacer(Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    }else if(hasLegacyDualHero&&hero!=null&&recent!=null)item(key="recommendation-band"){
                         Column{
                             // The heading sits above the common artwork baseline, never inside the right band.
                             Row(Modifier.fillMaxWidth().padding(bottom=6.dp),horizontalArrangement=Arrangement.spacedBy(paneGap)){
@@ -89,8 +125,7 @@ import kotlin.math.ceil
                             }
                             Row(horizontalArrangement=Arrangement.spacedBy(paneGap)){
                                 Box(Modifier.weight(1f)){
-                                    if(hero.layout=="discoveryHero")DiscoveryHero(hero,action=action)
-                                    else PadHeroStack(hero,action,(recentHeight-40.dp).coerceAtLeast(180.dp))
+                                    PadHeroStack(hero,action,(recentHeight-40.dp).coerceAtLeast(180.dp))
                                 }
                                 Column(Modifier.weight(1f)){
                                     recent.items.take(recentColumns*2).chunked(recentColumns).forEachIndexed{index,row->
@@ -104,14 +139,21 @@ import kotlin.math.ceil
                             }
                         }
                     }
-                    page.sections.filter{if(hasDualHero)it!==hero&&it!==recent else true}.forEach{section->
-                        // Overview playlists occupy one row; their existing “all” action opens the library.
-                        if(section.id=="playlists"&&section.items.isNotEmpty())item(key=section.id){
+                    page.sections.filter{section->
+                        when{
+                            section===sourcesSection -> false
+                            hasDualDiscoveryBand -> section!==discoveryHero&&section!==roamModes&&section!==shortcuts&&section!==recent
+                            hasLegacyDualHero -> section!==hero&&section!==recent
+                            else -> true
+                        }
+                    }.forEach{section->
+                        // Overview playlists occupy one row on legacy density fixture; discovery adapts up to 2 complete rows.
+                        if(section.id=="playlists"&&section.items.isNotEmpty()&&!isDiscovery)item(key=section.id){
                             Column{
                                 PageSectionHeading(section,Modifier.padding(bottom=6.dp),action,titleSize=20)
                                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(gap)){
-                                    section.items.take(columns).forEach{key(it.id){PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}}
-                                    repeat((columns-section.items.size).coerceAtLeast(0)){Spacer(Modifier.weight(1f))}
+                                    section.items.take(legacyColumns).forEach{key(it.id){PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}}
+                                    repeat((legacyColumns-section.items.size).coerceAtLeast(0)){Spacer(Modifier.weight(1f))}
                                 }
                             }
                         }else if(section.layout=="hero"&&section.items.isNotEmpty()){
@@ -126,22 +168,7 @@ import kotlin.math.ceil
                             else if(section.layout=="radarCards"&&section.items.isNotEmpty())item(key=section.id){DiscoveryRadars(section,action=action)}
                             else if(section.layout=="textActions"&&section.items.isNotEmpty())item(key=section.id){DiscoveryTextActions(section,action=action)}
                             else if(section.layout=="quickLinks"&&section.items.isNotEmpty())item(key=section.id){
-                                val perRow=if(maxWidth>=720.dp)section.items.size.coerceAtMost(6) else section.items.size.coerceAtMost(3)
-                                Column(verticalArrangement=Arrangement.spacedBy(10.dp)){
-                                    section.items.chunked(perRow.coerceAtLeast(1)).forEach{row->
-                                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-                                            row.forEach{item->Box(Modifier.weight(1f).height(76.dp).clip(RoundedCornerShape(12.dp))
-                                                .background(LocalInterfacePalette.current.homeQuickCard).border(1.dp,LocalInterfacePalette.current.homeQuickBorder,RoundedCornerShape(12.dp))
-                                                .clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)},contentAlignment=Alignment.Center){
-                                                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
-                                                    PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk,Modifier.size(18.dp))
-                                                    Text(item.title,color=PageInk,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                                }
-                                            }}
-                                            repeat((perRow-row.size).coerceAtLeast(0)){Spacer(Modifier.weight(1f))}
-                                        }
-                                    }
-                                }
+                                HomeQuickLinks(section,availableWidth=maxWidth,action=action)
                             }
                             else if(section.layout=="discoverCards"&&section.items.isNotEmpty())item(key=section.id){
                                 val perRow=if(maxWidth>=720.dp)section.items.size.coerceAtMost(3) else section.items.size.coerceAtMost(2)
@@ -188,10 +215,13 @@ import kotlin.math.ceil
                                         }
                                     }
                                 }
-                            }else if(section.items.isNotEmpty())items(section.items.chunked(columns),key={"${section.id}:${it.first().id}"}){row->
-                                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(gap)){
-                                    row.forEach{PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}
-                                    repeat(columns-row.size){Spacer(Modifier.weight(1f))}
+                            }else if(section.items.isNotEmpty()){
+                                val previewItems=if(isDiscovery)section.items.take(gridColumns*2)else section.items
+                                items(previewItems.chunked(gridColumns),key={"${section.id}:${it.first().id}"}){row->
+                                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(gap)){
+                                        row.forEach{PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}
+                                        repeat(gridColumns-row.size){Spacer(Modifier.weight(1f))}
+                                    }
                                 }
                             }else if(section.text.isNotBlank())item(key="${section.id}:message"){
                                 Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(LocalInterfacePalette.current.card).padding(horizontal=16.dp,vertical=14.dp)){

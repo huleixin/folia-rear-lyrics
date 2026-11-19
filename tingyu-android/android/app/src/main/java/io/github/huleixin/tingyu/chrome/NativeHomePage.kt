@@ -69,6 +69,7 @@ import kotlinx.coroutines.launch
         val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+(if(discovery)88f else headerTop+(if(short)60 else 72)+6f))
         val platformSection = if (discovery) sections.firstOrNull { it.id == "discovery-sources" } else null
         val contentTopPadding = if (discovery) (page.safeTop + 88f).dp else glass.contentTop
+        val padWindow = LocalPadWindow.current
         val hostBottom = with(LocalDensity.current) { LocalNativePageBottomPx.current.toDp() }
         val bottomPadding = maxOf((page.bottomClearance + page.safeBottom + 12f).dp, hostBottom + 12.dp)
         Box(Modifier.fillMaxSize()) {
@@ -176,27 +177,7 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.layout=="quickLinks" -> item(key=section.id){
-                            Row(Modifier.padding(start=start,end=end,top=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                                section.items.forEach { item ->
-                                    val interaction=remember { MutableInteractionSource() }
-                                    val pressed by interaction.collectIsPressedAsState()
-                                    val scale by animateFloatAsState(if(pressed)0.96f else 1f,label="quick-press")
-                                    Column(Modifier.weight(1f)
-                                        .graphicsLayer{scaleX=scale;scaleY=scale;alpha=if(pressed)0.85f else 1f}
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(LocalInterfacePalette.current.homeQuickCard)
-                                        .border(1.dp,LocalInterfacePalette.current.homeQuickBorder,RoundedCornerShape(12.dp))
-                                        .clickable(interactionSource=interaction,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)}
-                                        .padding(vertical=10.dp),
-                                        horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                                        Box(Modifier.size(32.dp).clip(RoundedCornerShape(999.dp))
-                                            .background(LocalInterfacePalette.current.homeQuickSelected),
-                                            contentAlignment=Alignment.Center){PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk.copy(alpha=.92f),Modifier.size(15.dp))}
-                                        Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                        if(item.subtitle.isNotBlank())Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                    }
-                                }
-                            }
+                            HomeQuickLinks(section, availableWidth = viewport.dp, modifier = Modifier.padding(start=start,end=end,top=6.dp), action = action)
                         }
                         // 本地首页的「为你发现」：两张深色柔和渐变卡（左：久未播放·深青蓝；
                         // 右：随机探索·深紫），柔光纹理同语言不同朝向，播放按钮收进右下角
@@ -243,11 +224,12 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.id=="playlists"&&tablet -> {
+                            val plCols = padWindow.adaptiveColumns(viewport, minItemWidth = 180f, gap = 12f, minColumns = 2, maxColumns = 4)
                             item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=24.dp,bottom=12.dp),action)}
-                            items(section.items.chunked(2),key={"${section.id}:${it.first().id}"}){row->
+                            items(section.items.chunked(plCols),key={"${section.id}:${it.first().id}"}){row->
                                 Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                     row.forEach{NativeHomePlaylist(it,Modifier.weight(1f),action)}
-                                    if(row.size<2)Spacer(Modifier.weight(1f))
+                                    repeat((plCols-row.size).coerceAtLeast(0)){Spacer(Modifier.weight(1f))}
                                 }
                             }
                         }
@@ -391,6 +373,79 @@ import kotlinx.coroutines.launch
         if(item.secondary.isNotBlank()){
             Box(Modifier.padding(end=4.dp).width(24.dp).height(36.dp).chromeClickable(corner=10.dp){action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){
                 PageIcon("ellipsis-vertical",PageMuted,Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+internal fun HomeQuickLinks(
+    section: NativePageSection,
+    availableWidth: Dp,
+    modifier: Modifier = Modifier,
+    action: PageAction,
+) {
+    if (section.items.isEmpty()) return
+    val tintColors = listOf(Color(0x246289B4), Color(0x24BB829C), Color(0x24639D98), Color(0x24AD9876))
+    val iconColors = listOf(Color(0xFF6289B4), Color(0xFFBB829C), Color(0xFF639D98), Color(0xFFAD9876))
+    val perRow = when {
+        availableWidth >= 380.dp -> section.items.size.coerceAtMost(6)
+        section.items.size == 4 -> 2
+        else -> section.items.size.coerceAtMost(3)
+    }.coerceAtLeast(1)
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        section.items.chunked(perRow).forEachIndexed { rowIdx, row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEachIndexed { colIdx, item ->
+                    val idx = rowIdx * perRow + colIdx
+                    val interaction = remember { MutableInteractionSource() }
+                    val pressed by interaction.collectIsPressedAsState()
+                    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(120), label = "quick-press")
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .height(68.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                alpha = if (item.disabled) 0.48f else if (pressed) 0.85f else 1f
+                            }
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(LocalInterfacePalette.current.homeQuickCard)
+                            .clickable(
+                                interactionSource = interaction,
+                                indication = null,
+                                enabled = !item.disabled && item.action.isNotBlank(),
+                            ) { action(item.action, "", 0.0) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Box(
+                            Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(17.dp))
+                                .background(tintColors[idx % tintColors.size]),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            PageIcon(
+                                if (item.image.isNotBlank()) item.image else "music2",
+                                iconColors[idx % iconColors.size],
+                                Modifier.size(20.dp),
+                            )
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            item.title,
+                            color = PageInk,
+                            fontSize = 12.sp,
+                            lineHeight = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                repeat((perRow - row.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
             }
         }
     }

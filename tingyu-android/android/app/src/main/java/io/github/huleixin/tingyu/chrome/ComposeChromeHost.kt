@@ -366,6 +366,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     private var destination by mutableStateOf("home")
     private var settingsRootRequested by mutableStateOf(false)
+    private var retainedSettingsRoot by mutableStateOf<NativePage?>(null)
+    private var activeSettingsAction by mutableStateOf("")
+    private var pendingSettingsSwitch by mutableStateOf<String?>(null)
+    private var autoOpenedSettingsSession by mutableStateOf<String?>(null)
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
     private var lastPrimaryTab by mutableIntStateOf(0)
@@ -1187,11 +1191,63 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
                         val shownLibrary=if(selectedTab==1)pages["home"]?.takeIf{it.enabled&&it.key.startsWith("library:")&&pageNavigations["home"]==navigation}
                             ?:retained.find("home",1,"") else null
-                        NativePageView(shown,placement,scale,libraryPage=shownLibrary,libraryAction={action,text,value->
-                            val library=pages["home"]
-                            if(active&&!pendingStageEntry&&destination=="collection"&&selectedTab==1&&library?.enabled==true&&shownLibrary!=null&&pageInteractionIsCurrent(library,shownLibrary)&&pageNavigations["home"]==navigation)
-                                pageListener?.onAction("home",library.session,library.key,action,text,value)
-                        }){action,text,value->
+                        if (shown.id == "settings" && shown.enabled && shown.document == null && !shown.key.startsWith("settings:rear:")) {
+                            retainedSettingsRoot = shown
+                        }
+                        val padSettingsDual = LocalPadWindow.current.settingsDualPane
+                        LaunchedEffect(destination, shown.id, shown.key, shown.session, shown.document != null, padSettingsDual) {
+                            if (destination != "settings" || !padSettingsDual) {
+                                if (destination != "settings") {
+                                    autoOpenedSettingsSession = null
+                                    pendingSettingsSwitch = null
+                                }
+                                return@LaunchedEffect
+                            }
+                            if (shown.id == "settings" && shown.document == null && !shown.key.startsWith("settings:rear:")) {
+                                val nextAction = pendingSettingsSwitch ?: if (autoOpenedSettingsSession != shown.session) {
+                                    autoOpenedSettingsSession = shown.session
+                                    shown.sections
+                                        .filter { it.id != "rear" }
+                                        .flatMap { it.items }
+                                        .firstOrNull { it.action.isNotBlank() && !it.action.startsWith("support:") && !it.disabled }
+                                        ?.action
+                                } else null
+                                if (!nextAction.isNullOrBlank()) {
+                                    pendingSettingsSwitch = null
+                                    activeSettingsAction = nextAction
+                                    pageListener?.onAction("settings", shown.session, shown.key, nextAction, "", 0.0)
+                                }
+                            }
+                        }
+                        NativePageView(
+                            shown,
+                            placement,
+                            scale,
+                            libraryPage=shownLibrary,
+                            libraryAction={action,text,value->
+                                val library=pages["home"]
+                                if(active&&!pendingStageEntry&&destination=="collection"&&selectedTab==1&&library?.enabled==true&&shownLibrary!=null&&pageInteractionIsCurrent(library,shownLibrary)&&pageNavigations["home"]==navigation)
+                                    pageListener?.onAction("home",library.session,library.key,action,text,value)
+                            },
+                            settingsRootPage = retainedSettingsRoot?.takeIf { it.enabled },
+                            settingsActiveAction = activeSettingsAction,
+                            onSettingsSelect = { itemAction, _, _ ->
+                                if (itemAction.startsWith("support:")) {
+                                    val root = retainedSettingsRoot ?: pages[shown.id]
+                                    supportCopyJson = root?.sections?.firstOrNull { it.id == "support" }?.text
+                                    showNativeSettings(NativeSettingsDestination(itemAction.removePrefix("support:"), supportCopyJson))
+                                } else if (itemAction.isNotBlank()) {
+                                    activeSettingsAction = itemAction
+                                    val current = pages[shown.id] ?: shown
+                                    if (current.document != null || current.key.startsWith("settings:rear:")) {
+                                        pendingSettingsSwitch = itemAction
+                                        pageListener?.onAction(current.id, current.session, current.key, "back", "", 0.0)
+                                    } else {
+                                        pageListener?.onAction(current.id, current.session, current.key, itemAction, "", 0.0)
+                                    }
+                                }
+                            },
+                        ){action,text,value->
                             if(nativeSettingsLayerHeld)return@NativePageView
                             val current=pages[shown.id]
                             val reason=when {

@@ -106,11 +106,11 @@ internal object NativeFooterLayout {
             "home"->true
             "collection"->!detail||width>=840f
             "search"->true
-            "settings"->settingsRoot
+            "settings"->settingsRoot||width>=840f
             else->false
         }
         // 设置页不显示迷你条；歌单详情反而保留它。
-        else->route in setOf("home","collection","search")||width>=840f&&route=="settings"&&settingsRoot
+        else->route in setOf("home","collection","search")||width>=840f&&route=="settings"
     }
     }
     fun rect(id:String,width:Float,height:Float,top:Float,bottom:Float,detail:Boolean):ChromeRect {

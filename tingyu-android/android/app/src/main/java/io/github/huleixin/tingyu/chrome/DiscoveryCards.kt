@@ -152,7 +152,9 @@ internal fun DiscoveryHero(section: NativePageSection, modifier: Modifier = Modi
 @Composable
 internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Modifier, action: PageAction) {
     val palette = LocalInterfacePalette.current
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    val window = LocalPadWindow.current
+    val wideRadar = window.tablet && window.landscape
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (window.tablet) 14.dp else 10.dp)) {
         section.items.forEach { item ->
             val canPlay = item.secondary.isNotBlank() && !item.disabled
             Column(
@@ -164,7 +166,13 @@ internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Mo
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
+                        .then(
+                            when {
+                                wideRadar -> Modifier.heightIn(max = 176.dp).aspectRatio(16f / 9f)
+                                window.tablet -> Modifier.heightIn(max = 220.dp).aspectRatio(1f)
+                                else -> Modifier.aspectRatio(1f)
+                            }
+                        )
                         .clip(RoundedCornerShape(14.dp))
                 ) {
                     DiscoveryAssetImage(item.id, Modifier.matchParentSize())

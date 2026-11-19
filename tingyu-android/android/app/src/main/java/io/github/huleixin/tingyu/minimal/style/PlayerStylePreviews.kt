@@ -39,21 +39,61 @@ internal fun PlayerStylePreviews(runtime: MinimalPlayerRuntime, commands: Minima
     var failure by remember { mutableStateOf(false) }
     val jobs = remember { PlayerStyle.entries.flatMap { style -> listOf(style to 0, style to 1) } }
     val passive = remember { BridgeMinimalCommands(MinimalCommandSender { _, _ -> false }) { false } }
-    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PlayerStyle.entries.forEach { style ->
-            Column(Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
-                .border(if (selected == style) 2.dp else 1.dp,
-                    if (selected == style) theme.accent else theme.line, RoundedCornerShape(16.dp))
-                .clickable(enabled = enabled) { onSelect(style) }.padding(8.dp)) {
-                val bitmap = images[style to page]
-                Box(Modifier.fillMaxWidth().aspectRatio(360f / 780f).clip(RoundedCornerShape(10.dp))
-                    .background(theme.card), contentAlignment = Alignment.Center) {
-                    if (bitmap != null) Image(bitmap, style.label + "真实预览", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                    else Text(if (failure) "预览生成失败" else "生成真实预览…", color = theme.muted, fontSize = 11.sp)
+    val window = LocalPadWindow.current
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+        val entries = PlayerStyle.entries
+        val columns = if (entries.size >= 3 && maxWidth >= 560.dp) 3 else 2
+        val previewHeight = if (window.tablet || maxWidth >= 520.dp) 248.dp else 320.dp
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            entries.chunked(columns).forEach { rowStyles ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    rowStyles.forEach { style ->
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .border(
+                                    if (selected == style) 2.dp else 1.dp,
+                                    if (selected == style) theme.accent else theme.line,
+                                    RoundedCornerShape(16.dp)
+                                )
+                                .clickable(enabled = enabled) { onSelect(style) }
+                                .padding(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            val bitmap = images[style to page]
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(theme.card)
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Box(
+                                    Modifier
+                                        .height(previewHeight)
+                                        .aspectRatio(360f / 780f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(theme.surface),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (bitmap != null) {
+                                        Image(bitmap, style.label + "真实预览", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                                    } else {
+                                        Text(if (failure) "预览生成失败" else "生成真实预览…", color = theme.muted, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Column(Modifier.fillMaxWidth()) {
+                                Text((if (selected == style) "✓ " else "") + style.label, color = theme.text, fontSize = 14.sp)
+                                Text(style.description, color = theme.muted, fontSize = 11.sp, maxLines = 2)
+                            }
+                        }
+                    }
+                    repeat(columns - rowStyles.size) { Spacer(Modifier.weight(1f)) }
                 }
-                Spacer(Modifier.height(8.dp))
-                Text((if (selected == style) "✓ " else "") + style.label, color = theme.text, fontSize = 14.sp)
-                Text(style.description, color = theme.muted, fontSize = 11.sp)
             }
         }
     }
@@ -71,7 +111,7 @@ internal fun PlayerStylePreviews(runtime: MinimalPlayerRuntime, commands: Minima
         val anchor = remember { PlayerArtworkAnchor() }
         // A 1dp layout slot holds an unclipped full-size render target, never sent to the screen.
         Box(Modifier.size(1.dp)) {
-            CompositionLocalProvider(LocalPlayerArtworkAnchor provides anchor,
+            CompositionLocalProvider(LocalPadWindow provides PadWindow(360f, 780f), LocalPlayerArtworkAnchor provides anchor,
                 io.github.huleixin.tingyu.minimal.immersive.LocalImmersiveMorph provides null, LocalMinimalMorph provides null, LocalLiquidReduced provides true) {
                 Box(Modifier.requiredSize(360.dp, 780.dp).drawWithContent {
                     layer.record { this@drawWithContent.drawContent() }

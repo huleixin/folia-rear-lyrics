@@ -75,6 +75,8 @@ internal fun SettingsFlowPage(
     flow: TySettingsPage,
     page: NativePage,
     modifier: Modifier = Modifier,
+    splitPane: Boolean = false,
+    showBack: Boolean = true,
     action: PageAction,
 ) {
     val theme = settingsFlowTheme()
@@ -84,7 +86,9 @@ internal fun SettingsFlowPage(
     val colors = page.surfaceColors()
     // 返回：更内层的面板/弹层各自有 BackHandler，会先吃掉；到这里才是退设置分区。
     // 当 WebView 覆盖层（如音乐平台账号页）处于前台时，不得拦截系统返回手势。
-    BackHandler(enabled = !LocalWebOverlayActive.current) { action(if (flow.modal != null) "dismiss" else "back", "", 0.0) }
+    BackHandler(enabled = !LocalWebOverlayActive.current && (!splitPane || flow.modal != null || showBack)) {
+        action(if (flow.modal != null) "dismiss" else "back", "", 0.0)
+    }
     val density = LocalDensity.current
     val cutouts = remember(flow.key) { SettingsPreviewCutouts() }
     val live = LocalSettingsTraceIdentity.current.liveEnabled
@@ -92,8 +96,11 @@ internal fun SettingsFlowPage(
         val viewportWidth = constraints.maxWidth.toFloat()
         val viewportHeight = constraints.maxHeight.toFloat()
         val inset = 22.dp
-        val railInset = if(LocalPadWindow.current.expanded)104.dp else 0.dp
-        val glass = rememberTyTopGlassState(estimateHeaderBottomDp = page.safeTop + 84f)
+        val railInset = if (!splitPane && LocalPadWindow.current.expanded) 104.dp else 0.dp
+        val safeTopPad = if (splitPane) 16.dp else (page.safeTop + 24).dp
+        val hostBottom = with(density) { LocalNativePageBottomPx.current.toDp() }
+        val bottomPad = if (splitPane) maxOf(hostBottom, (24 + page.safeBottom).dp) else (24 + page.safeBottom).dp
+        val glass = rememberTyTopGlassState(estimateHeaderBottomDp = (if (splitPane) 16f else page.safeTop + 24f) + 60f)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(
                 glass, colors, ambientImage = null, ambientViewportHeight = null,
@@ -112,7 +119,7 @@ internal fun SettingsFlowPage(
                     theme = theme,
                     modifier = Modifier.fillMaxSize().padding(start=railInset),
                     contentTop = glass.contentTop,
-                    bottomPadding = (24 + page.safeBottom).dp,
+                    bottomPadding = bottomPad,
                     onAction = action,
                 ) } }
             }
@@ -122,20 +129,22 @@ internal fun SettingsFlowPage(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = inset + railInset, end = inset, top = (page.safeTop + 24).dp, bottom = 20.dp)
+                        .padding(start = inset + railInset, end = inset, top = safeTopPad, bottom = 16.dp)
                         .heightIn(min = 40.dp)
                         .onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .semantics { contentDescription = "返回" }
-                            .chromeClickable(role = Role.Button, scaleTo = .94f) { action("back", "", 0.0) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        PageIcon("chevron-left", topGlassForegroundColor(theme.text, LocalInterfacePalette.current.topInk), Modifier.size(24.dp))
+                    if (showBack) {
+                        Box(
+                            Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .semantics { contentDescription = "返回" }
+                                .chromeClickable(role = Role.Button, scaleTo = .94f) { action("back", "", 0.0) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            PageIcon("chevron-left", topGlassForegroundColor(theme.text, LocalInterfacePalette.current.topInk), Modifier.size(24.dp))
+                        }
                     }
                     Text(
                         flow.title.ifBlank { page.title },

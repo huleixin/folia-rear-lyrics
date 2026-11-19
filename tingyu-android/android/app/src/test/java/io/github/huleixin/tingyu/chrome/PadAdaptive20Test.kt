@@ -123,16 +123,15 @@ class PadAdaptive20Test {
             }
         }
 
-        // Expanded / Large uses master-detail directory + detail
+        // Expanded / Large uses full settings directory + live detail pane
         compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
         compose.onNodeWithTag("pad-settings-detail").assertIsDisplayed()
         compose.onNodeWithText("音乐平台账号").assertIsDisplayed()
+        compose.onNodeWithText("播放设置").assertIsDisplayed()
         compose.onNodeWithText("背屏歌词").assertDoesNotExist()
         shot("settings-master-detail-1280x800-glacier-light")
 
-        // Switch category in left directory -> right detail updates
-        compose.onNodeWithText("播放与交互").performClick()
-        compose.onNodeWithText("播放设置").assertIsDisplayed()
+        // Clicking an item in middle directory directly triggers its subpage action
         compose.onNodeWithText("播放设置").performClick()
         assertEquals("open:playback", events.last())
 
@@ -142,7 +141,6 @@ class PadAdaptive20Test {
             window = PadWindow(1920f, 1080f)
         }
         compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
-        compose.onNodeWithText("系统与关于").performClick()
         compose.onNodeWithText("关于与使用说明").assertIsDisplayed()
         shot("settings-master-detail-1920x1080-classic-dark")
 

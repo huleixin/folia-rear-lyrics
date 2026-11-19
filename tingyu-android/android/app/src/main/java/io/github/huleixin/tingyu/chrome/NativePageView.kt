@@ -28,7 +28,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
     else -> LocalInterfacePalette.current.backgrounds
 }
 
-@Composable fun NativePageView(page: NativePage, modifier: Modifier, cssScale: Float? = null, libraryPage:NativePage?=null, libraryAction:PageAction={_,_,_->}, onAction: PageAction) {
+@Composable fun NativePageView(page: NativePage, modifier: Modifier, cssScale: Float? = null, libraryPage:NativePage?=null, libraryAction:PageAction={_,_,_->}, settingsRootPage:NativePage?=null, settingsActiveAction:String="", onSettingsSelect:PageAction={_,_,_->}, onAction: PageAction) {
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
     val action: PageAction = { id, text, value ->
@@ -64,7 +64,37 @@ internal typealias PageAction = (String, String, Double) -> Unit
                 }
                 // 语义化设置页（原生化专项·第 22 轮）：自带底色 + 毛玻璃顶栏 + 原生排版，
                 // 不消费任何 DOM 矩形。没有 flow 的分区继续走下面的测量显示列表。
-                page.document?.flow!=null -> SettingsFlowPage(page.document.flow,page,Modifier.fillMaxSize(),action)
+                padWindow.settingsDualPane && page.id == "settings" && page.document?.flow?.layout != null ->
+                    SettingsFlowPage(page.document.flow, page, Modifier.fillMaxSize(), action = action)
+                padWindow.settingsDualPane && page.id == "settings" && page.document?.flow != null && settingsRootPage != null -> {
+                    val isDeeper = page.document.flow.key.count { it == ':' } > 2 || page.document.flow.modal != null
+                    PadSettingsPage(
+                        settingsRootPage,
+                        Modifier.fillMaxSize(),
+                        onSettingsSelect,
+                        activeAction = settingsActiveAction,
+                        detailContent = {
+                            SettingsFlowPage(page.document.flow, page, Modifier.fillMaxSize(), splitPane = true, showBack = isDeeper, action = action)
+                        },
+                    )
+                }
+                padWindow.settingsDualPane && page.id == "settings" && page.document != null && settingsRootPage != null ->
+                    PadSettingsPage(
+                        settingsRootPage,
+                        Modifier.fillMaxSize(),
+                        onSettingsSelect,
+                        activeAction = settingsActiveAction,
+                        detailContent = { NativeSettingsDocumentView(page.document, Modifier.fillMaxSize(), action) },
+                    )
+                padWindow.settingsDualPane && page.id == "settings" && page.key.startsWith("settings:rear:") && settingsRootPage != null ->
+                    PadSettingsPage(
+                        settingsRootPage,
+                        Modifier.fillMaxSize(),
+                        onSettingsSelect,
+                        activeAction = settingsActiveAction,
+                        detailContent = { NativeRearControlPage(page, Modifier.fillMaxSize(), density.fontScale, action) },
+                    )
+                page.document?.flow!=null -> SettingsFlowPage(page.document.flow,page,Modifier.fillMaxSize(),action=action)
                 page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
                 page.id=="settings"&&page.key.startsWith("settings:rear:")->NativeRearControlPage(page,Modifier.fillMaxSize(),density.fontScale,action)
                 page.id == "settings" -> NativeSettingsPage(page, Modifier.fillMaxSize(), action)
