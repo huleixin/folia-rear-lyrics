@@ -49,7 +49,19 @@ public final class NativeLyricsRepository {
     private static final String USER_AGENT = "Tingyu/1.3.50 (+https://github.com/huleixin/tingyu)";
     private static final String HOST = "https://lrclib.net";
     private static final long MISS_TTL_MS = 15_000L;
-    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.FutureTask<Result>> flights = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final class FlightEntry {
+        final java.util.concurrent.FutureTask<Result> task;
+        volatile boolean urgent;
+        FlightEntry(java.util.concurrent.FutureTask<Result> task, boolean urgent) {
+            this.task = task;
+            this.urgent = urgent;
+        }
+    }
+    private final java.util.concurrent.ConcurrentHashMap<String, FlightEntry> flights = new java.util.concurrent.ConcurrentHashMap<>();
+
+    interface PlatformLyricDelegate {
+        io.github.huleixin.tingyu.resolver.PlatformLyricResult fetch(SongInfo info, OkHttpClient client);
+    }
 
     public enum Status {
         /** 磁盘缓存命中（有时间轴）。 */
@@ -58,8 +70,10 @@ public final class NativeLyricsRepository {
         FETCHED,
         /** 服务端明确表示没有这首歌的同步歌词；允许写负缓存。 */
         NOT_FOUND,
-        /** Backup catalogs did not match; the owning platform may still have lyrics. */
+        /** Available sources did not yield lyrics yet; never treated as confirmed no-lyrics. */
         UNRESOLVED,
+        /** Source does not support background native lyric fetching without JS/WebView. */
+        UNSUPPORTED_SOURCE,
         /** 429 / 限流：本轮放弃，不写负缓存。 */
         RATE_LIMITED,
         /** 超时、断网、5xx：可重试的失败，不写负缓存。 */
@@ -115,8 +129,13 @@ public final class NativeLyricsRepository {
     private final java.util.concurrent.atomic.AtomicInteger writesSincePrune = new java.util.concurrent.atomic.AtomicInteger();
     private final File dir;
     private final OkHttpClient client;
+    private final PlatformLyricDelegate platformDelegate;
 
     private NativeLyricsRepository(Context context) {
+        this(context, NativeLyricsRepository::fetchOriginalPlatform);
+    }
+
+    NativeLyricsRepository(Context context, PlatformLyricDelegate platformDelegate) {
         File base = context.getApplicationContext().getFilesDir();
         dir = new File(base, "native-lyrics");
         // 目录创建失败不该影响播放：缓存不可用时退化成「每次都联网」。
@@ -128,6 +147,7 @@ public final class NativeLyricsRepository {
                 .callTimeout(6, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
                 .build();
+        this.platformDelegate = platformDelegate != null ? platformDelegate : NativeLyricsRepository::fetchOriginalPlatform;
     }
 
     /** 只查本地（不联网）。命中返回可发布的 payload，否则 null。 */
@@ -174,22 +194,40 @@ public final class NativeLyricsRepository {
     public Result load(SongInfo info, int generation, LyricFetchBudget budget,
                        java.util.function.BooleanSupplier stillWanted) {
         if (info == null || info.songKey.isEmpty()) return new Result(Status.NO_IDENTITY, null, false, "", 0, "none", 0, 0, -1);
-        java.util.concurrent.FutureTask<Result> task = new java.util.concurrent.FutureTask<>(() -> {
-            SongInfoLoader loader = SongInfoLoader.get();
-            boolean urgent = loader != null && loader.isCurrent(info.songKey);
-            if (!urgent) backgroundRequests.acquire();
+        SongInfoLoader loader = SongInfoLoader.get();
+        boolean callerUrgent = loader != null && loader.isCurrent(info.songKey);
+        for (int attempt = 0; attempt < 2; attempt++) {
+            final FlightEntry[] holder = new FlightEntry[1];
+            java.util.concurrent.FutureTask<Result> task = new java.util.concurrent.FutureTask<>(() -> {
+                boolean urgent = (holder[0] != null && holder[0].urgent) || (loader != null && loader.isCurrent(info.songKey));
+                if (!urgent) backgroundRequests.acquire();
+                try {
+                    requests.acquire();
+                    try { return loadSingle(info, generation, budget, stillWanted); }
+                    finally { requests.release(); }
+                } finally { if (!urgent) backgroundRequests.release(); }
+            });
+            FlightEntry entry = new FlightEntry(task, callerUrgent);
+            holder[0] = entry;
+            FlightEntry old = flights.putIfAbsent(info.songKey, entry);
             try {
-                requests.acquire();
-                try { return loadSingle(info, generation, budget, stillWanted); }
-                finally { requests.release(); }
-            } finally { if (!urgent) backgroundRequests.release(); }
-        });
-        java.util.concurrent.FutureTask<Result> old = flights.putIfAbsent(info.songKey, task);
-        try {
-            if (old != null) return old.get();
-            task.run(); return task.get();
-        } catch (Exception error) { return networkStatus(Status.NETWORK, -1, "single-flight"); }
-        finally { if (old == null) flights.remove(info.songKey, task); }
+                if (old != null) {
+                    if (callerUrgent) old.urgent = true;
+                    Result shared = old.task.get();
+                    if (callerUrgent && (shared == null || (!shared.hasTimeline() && "aborted".equals(shared.attempt)))) {
+                        continue;
+                    }
+                    return shared;
+                }
+                task.run();
+                return task.get();
+            } catch (Exception error) {
+                return networkStatus(Status.NETWORK, -1, "single-flight");
+            } finally {
+                if (old == null) flights.remove(info.songKey, entry);
+            }
+        }
+        return networkStatus(Status.NETWORK, -1, "single-flight");
     }
 
     private Result loadSingle(SongInfo info, int generation, LyricFetchBudget budget,
@@ -208,9 +246,17 @@ public final class NativeLyricsRepository {
             return new Result(Status.NO_IDENTITY, null, false, "", 0, "none", 0, 0, -1);
         }
 
-        // 中文曲目优先走国内可达且毫秒级响应的酷狗接口，避免 lrclib.net 阻塞耗尽预算；
+        // 1) 原平台直取优先：统一复用原生平台接口与凭证，不再只依赖酷狗/LRCLIB 搜索。
+        Attempt originalAttempt = requestOriginalPlatform(info, generation);
+        if (originalAttempt.result.status == Status.RATE_LIMITED) return originalAttempt.result;
+        if (originalAttempt.result.hasTimeline()) return persist(info, originalAttempt.result);
+        boolean originalNetworkFailed = originalAttempt.result.status == Status.NETWORK;
+        boolean originalUnsupported = originalAttempt.result.status == Status.UNSUPPORTED_SOURCE;
+
+        // 2) 中文曲目优先走国内可达且毫秒级响应的酷狗接口，避免 lrclib.net 阻塞耗尽预算；
         // 非中文曲目仍先走 LRCLIB 精准匹配，且单次调用超时收敛至 6s，保障两条链均有机会执行。
         if (containsCjk(info.title)) {
+            if (!mayContinue(budget, stillWanted, "kugou")) return aborted("kugou", originalAttempt.result);
             Attempt kugouFirst = requestKugou(info);
             if (kugouFirst.result.hasTimeline()) return persist(info, kugouFirst.result);
             if (kugouFirst.result.status == Status.RATE_LIMITED) return kugouFirst.result;
@@ -225,16 +271,24 @@ public final class NativeLyricsRepository {
             if (searchAttempt.result.status == Status.RATE_LIMITED) return searchAttempt.result;
             if (searchAttempt.result.hasTimeline()) return persist(info, searchAttempt.result);
 
+            if (originalNetworkFailed) {
+                return networkStatus(Status.NETWORK, originalAttempt.result.httpStatus, originalAttempt.result.attempt);
+            }
             if (searchAttempt.result.status == Status.NOT_FOUND && kugouFirst.result.status == Status.NOT_FOUND) {
-                Result negative = new Result(Status.UNRESOLVED, null, false, "backup-miss", 404,
+                Status missStatus = originalUnsupported ? Status.UNSUPPORTED_SOURCE : Status.UNRESOLVED;
+                Result negative = new Result(missStatus, null, false,
+                        originalUnsupported ? "unsupported-source" : "backup-miss", 404,
                         "search", searchAttempt.result.candidateCount, 0, -1);
-                writeRecord(info.songKey, "miss", null, false, "backup-miss", 0, -1);
+                if (!originalUnsupported) {
+                    writeRecord(info.songKey, "miss", null, false, "backup-miss", 0, -1);
+                }
                 return negative;
             }
             return searchAttempt.result.status == Status.NOT_FOUND ? kugouFirst.result : searchAttempt.result;
         }
 
         // 1) 精准取：LRCLIB 的 /api/get 只在时长匹配（±2s）时才返回，正好就是我们要的防错词行为。
+        if (!mayContinue(budget, stillWanted, "get")) return aborted("get", originalAttempt.result);
         Attempt attempt = requestGet(info);
         if (attempt.result.status == Status.RATE_LIMITED) return attempt.result;
         if (attempt.result.hasTimeline()) return persist(info, attempt.result);
@@ -251,15 +305,88 @@ public final class NativeLyricsRepository {
         if (search.result.status == Status.RATE_LIMITED) return search.result;
         if (search.result.hasTimeline()) return persist(info, search.result);
 
+        if (originalNetworkFailed) {
+            return networkStatus(Status.NETWORK, originalAttempt.result.httpStatus, originalAttempt.result.attempt);
+        }
         if (search.result.status == Status.NOT_FOUND && kugou.result.status == Status.NOT_FOUND) {
-            // Neither backup catalog owns this track. A miss is not a global no-lyrics verdict.
-            Result negative = new Result(Status.UNRESOLVED, null, false, "backup-miss", 404,
+            Status missStatus = originalUnsupported ? Status.UNSUPPORTED_SOURCE : Status.UNRESOLVED;
+            Result negative = new Result(missStatus, null, false,
+                    originalUnsupported ? "unsupported-source" : "backup-miss", 404,
                     "search", search.result.candidateCount, 0, -1);
-            writeRecord(info.songKey, "miss", null, false, "backup-miss", 0, -1);
+            if (!originalUnsupported) {
+                writeRecord(info.songKey, "miss", null, false, "backup-miss", 0, -1);
+            }
             return negative;
         }
         // 网络失败/超时：不要写负缓存，下一次换歌或重试还能再问。
         return search.result.status == Status.NOT_FOUND ? kugou.result : search.result;
+    }
+
+    private Attempt requestOriginalPlatform(SongInfo info, int generation) {
+        String provider = normalizeProvider(info.providerId);
+        if (provider.isEmpty() || "local".equals(provider)) {
+            return new Attempt(new Result(Status.UNSUPPORTED_SOURCE, null, false, provider, 0, "original-skip", 0, 0, -1));
+        }
+        io.github.huleixin.tingyu.resolver.PlatformLyricResult res = platformDelegate.fetch(info, client);
+        if (res == null) {
+            return new Attempt(new Result(Status.UNSUPPORTED_SOURCE, null, false, provider, 0, "original-null", 0, 0, -1));
+        }
+        switch (res.status) {
+            case OK: {
+                String lrcSource = res.mainLrc.isEmpty() ? res.rawWordLrc : res.mainLrc;
+                List<LrcParser.Line> lines = LrcParser.parseWithTranslation(lrcSource, res.transLrc);
+                if (lines.isEmpty()) {
+                    return new Attempt(new Result(Status.UNRESOLVED, null, false, res.source, res.httpStatus, "original-unparsable", 0, 0, -1));
+                }
+                LyricInfoPayload.Result payload = LyricInfoPayload.build(
+                        info.title, info.artist, info.album, info.songId(),
+                        info.durationMs, lines, generation, "native-" + res.source);
+                if (payload == null) {
+                    return new Attempt(new Result(Status.UNRESOLVED, null, false, res.source, res.httpStatus, "original-too-large", 0, 0, -1));
+                }
+                return new Attempt(new Result(Status.FETCHED, payload.json, payload.hasTranslation,
+                        res.source, res.httpStatus, "original-" + res.source, 1, 100, 0));
+            }
+            case RATE_LIMITED:
+                return new Attempt(new Result(Status.RATE_LIMITED, null, false, res.source, res.httpStatus, "original-" + res.source, 0, 0, -1));
+            case NETWORK_ERROR:
+                return new Attempt(new Result(Status.NETWORK, null, false, res.source, res.httpStatus, "original-" + res.source, 0, 0, -1));
+            case IDENTITY_INCOMPLETE:
+                return new Attempt(new Result(Status.NO_IDENTITY, null, false, res.source, res.httpStatus, "original-" + res.source, 0, 0, -1));
+            case UNSUPPORTED_SOURCE:
+                return new Attempt(new Result(Status.UNSUPPORTED_SOURCE, null, false, res.source, res.httpStatus, "original-" + res.source, 0, 0, -1));
+            default:
+                return new Attempt(new Result(Status.UNRESOLVED, null, false, res.source, res.httpStatus, "original-" + res.source, 0, 0, -1));
+        }
+    }
+
+    static String normalizeProvider(String providerId) {
+        if (providerId == null) return "";
+        String p = providerId.trim().toLowerCase(java.util.Locale.US);
+        if ("tx".equals(p) || "lx-tx".equals(p)) return "qq";
+        if ("wy".equals(p) || "lx-wy".equals(p)) return "netease";
+        if ("kg".equals(p) || "lx-kg".equals(p)) return "kugou";
+        if ("kw".equals(p) || "lx-kw".equals(p)) return "bodian";
+        return p;
+    }
+
+    private static io.github.huleixin.tingyu.resolver.PlatformLyricResult fetchOriginalPlatform(SongInfo info, OkHttpClient http) {
+        String provider = normalizeProvider(info.providerId);
+        switch (provider) {
+            case "netease":
+                return io.github.huleixin.tingyu.resolver.NeteaseResolver.fetchLyric(info.mediaId, http);
+            case "qq":
+                return io.github.huleixin.tingyu.resolver.QqResolver.fetchLyric(info.mediaId, "", http);
+            case "bodian":
+                return io.github.huleixin.tingyu.resolver.BodianResolver.fetchLyric(info.mediaId, http);
+            case "qishui":
+                return io.github.huleixin.tingyu.resolver.QishuiResolver.fetchLyric(info.mediaId);
+            case "kugou":
+                // 酷狗由 requestKugou 携带 hash=mediaId 直查，避免重复请求。
+                return io.github.huleixin.tingyu.resolver.PlatformLyricResult.miss("kugou", 0);
+            default:
+                return io.github.huleixin.tingyu.resolver.PlatformLyricResult.unsupported(provider);
+        }
     }
 
     private static boolean containsCjk(String text) {
@@ -418,11 +545,15 @@ public final class NativeLyricsRepository {
      * 判定则要求歌名一致 + 时长差 ≤ 2 秒；两者缺一就不采用。
      */
     private Attempt requestKugou(SongInfo info) {
+        boolean hashProvided = "kugou".equals(normalizeProvider(info.providerId)) && info.mediaId != null && !info.mediaId.isEmpty();
         HttpUrl.Builder search = base("https://krcs.kugou.com/search")
                 .addQueryParameter("ver", "1")
                 .addQueryParameter("man", "yes")
                 .addQueryParameter("client", "mobi")
                 .addQueryParameter("keyword", info.title);
+        if (hashProvided) {
+            search.addQueryParameter("hash", info.mediaId);
+        }
         if (info.durationMs > 0L) {
             search.addQueryParameter("duration", String.valueOf(info.durationMs));
         }

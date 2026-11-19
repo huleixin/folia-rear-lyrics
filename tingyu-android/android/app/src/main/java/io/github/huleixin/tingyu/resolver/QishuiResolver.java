@@ -519,4 +519,56 @@ public final class QishuiResolver implements SourceResolver {
     public String describe() {
         return "qishui{" + (loggedIn() ? "guard-session" : "client-token") + "}";
     }
+
+    /** 原生后台获取汽水音乐原曲歌词（复用 viaMget 与 display_info.lyric_info）。 */
+    public static PlatformLyricResult fetchLyric(String mediaId) {
+        String id = mediaId == null ? "" : mediaId.trim();
+        if (id.isEmpty()) return PlatformLyricResult.incomplete("qishui");
+        try {
+            QishuiResolver resolver = fromCredentials();
+            String raw = resolver.viaMget(id);
+            org.json.JSONObject root = new org.json.JSONObject(raw);
+            org.json.JSONArray media = root.optJSONArray("media");
+            if (media == null || media.length() == 0) {
+                org.json.JSONObject data = root.optJSONObject("data");
+                if (data != null) media = data.optJSONArray("media");
+            }
+            if (media == null || media.length() == 0) return PlatformLyricResult.miss("qishui", 200);
+            org.json.JSONObject first = media.optJSONObject(0);
+            org.json.JSONObject track = first != null && first.optJSONObject("track") != null ? first.optJSONObject("track") : first;
+            org.json.JSONObject displayInfo = track == null ? null : track.optJSONObject("display_info");
+            org.json.JSONObject lyricInfo = displayInfo == null ? null : displayInfo.optJSONObject("lyric_info");
+            if (lyricInfo == null) return PlatformLyricResult.miss("qishui", 200);
+            String lrc = lyricInfo.optString("content", lyricInfo.optString("lyric", lyricInfo.optString("lrc", ""))).trim();
+            if (lrc.isEmpty()) {
+                org.json.JSONArray sentences = lyricInfo.optJSONArray("sentences");
+                if (sentences != null && sentences.length() > 0) {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < sentences.length(); i++) {
+                        org.json.JSONObject s = sentences.optJSONObject(i);
+                        if (s == null) continue;
+                        long startMs = Math.max(0L, s.optLong("start_ms", s.optLong("startMs", 0L)));
+                        String text = s.optString("text", "").trim();
+                        if (text.isEmpty()) continue;
+                        long totalSec = startMs / 1000L;
+                        long min = totalSec / 60L;
+                        long sec = totalSec % 60L;
+                        long ms = startMs % 1000L;
+                        sb.append(String.format(java.util.Locale.US, "[%02d:%02d.%03d]%s\n", min, sec, ms, text));
+                    }
+                    lrc = sb.toString().trim();
+                }
+            }
+            if (lrc.isEmpty()) return PlatformLyricResult.miss("qishui", 200);
+            return PlatformLyricResult.ok(lrc, "", "", "qishui", 200);
+        } catch (AuthRequired error) {
+            return PlatformLyricResult.networkError("qishui", 401);
+        } catch (IOException error) {
+            String msg = error.getMessage() == null ? "" : error.getMessage();
+            if (msg.contains("429")) return PlatformLyricResult.rateLimited("qishui", 429);
+            return PlatformLyricResult.networkError("qishui", -1);
+        } catch (Exception error) {
+            return PlatformLyricResult.networkError("qishui", -1);
+        }
+    }
 }

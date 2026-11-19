@@ -46,6 +46,36 @@ public final class LrcParser {
     private LrcParser() {
     }
 
+    /** 解析主歌词并合并独立翻译 LRC（按最接近时间戳 ±800ms 对齐）。 */
+    public static List<Line> parseWithTranslation(String mainLrc, String transLrc) {
+        List<Line> main = parse(mainLrc);
+        if (main.isEmpty() || transLrc == null || transLrc.trim().isEmpty()) return main;
+        List<Line> trans = parse(transLrc);
+        if (trans.isEmpty()) return main;
+        int tIdx = 0;
+        for (Line m : main) {
+            if (!m.translation.isEmpty()) continue;
+            while (tIdx < trans.size() && trans.get(tIdx).startMs < m.startMs - 800L) {
+                tIdx++;
+            }
+            Line best = null;
+            long bestDelta = 801L;
+            for (int j = tIdx; j < trans.size(); j++) {
+                Line candidate = trans.get(j);
+                long delta = Math.abs(candidate.startMs - m.startMs);
+                if (delta < bestDelta) {
+                    bestDelta = delta;
+                    best = candidate;
+                }
+                if (candidate.startMs > m.startMs + 800L) break;
+            }
+            if (best != null && best.text != null && !best.text.isEmpty() && !best.text.equals(m.text)) {
+                m.translation = best.text;
+            }
+        }
+        return main;
+    }
+
     /** 解析结果；{@code lines} 为空表示这段文本没有可用的时间轴。 */
     public static List<Line> parse(String lrc) {
         if (lrc == null || lrc.isEmpty()) return Collections.emptyList();

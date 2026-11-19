@@ -659,4 +659,123 @@ public final class QqResolver implements SourceResolver {
     public String describe() {
         return "qq{backend=" + isUsableBackendBase(backendBase) + ",musicu=true}";
     }
+
+    /** 原生后台获取 QQ 音乐原曲歌词（复用 musicu PlayLyricInfo 与 fcg_query_lyric_new 双通道）。 */
+    public static PlatformLyricResult fetchLyric(String songMid, String songId, OkHttpClient clientOverride) {
+        String mid = songMid == null ? "" : songMid.trim();
+        String numericId = songId == null ? "" : songId.replaceAll("\\D", "");
+        if (mid.isEmpty() && numericId.isEmpty()) return PlatformLyricResult.incomplete("qq");
+        OkHttpClient http = clientOverride != null ? clientOverride : CLIENT;
+        String cookie = ResolverCredentials.value("qq", "loginCookie");
+        if (cookie.isEmpty()) cookie = ResolverCredentials.value("qq", "cookie");
+
+        PlatformLyricResult primary = fetchLyricViaMusicu(mid, numericId, cookie, http);
+        if (primary.status == PlatformLyricResult.Status.OK || primary.status == PlatformLyricResult.Status.RATE_LIMITED) {
+            return primary;
+        }
+        if (!mid.isEmpty()) {
+            PlatformLyricResult fallback = fetchLyricViaFcg(mid, cookie, http);
+            if (fallback.status == PlatformLyricResult.Status.OK || fallback.status == PlatformLyricResult.Status.RATE_LIMITED) {
+                return fallback;
+            }
+            if (primary.status == PlatformLyricResult.Status.SOURCE_MISS && fallback.status == PlatformLyricResult.Status.SOURCE_MISS) {
+                return fallback;
+            }
+            return fallback.status == PlatformLyricResult.Status.NETWORK_ERROR ? fallback : primary;
+        }
+        return primary;
+    }
+
+    private static PlatformLyricResult fetchLyricViaMusicu(String mid, String numericId, String cookie, OkHttpClient http) {
+        try {
+            org.json.JSONObject param = new org.json.JSONObject();
+            if (!mid.isEmpty()) param.put("songMID", mid);
+            if (!numericId.isEmpty()) param.put("songID", Long.parseLong(numericId));
+            org.json.JSONObject reqBody = new org.json.JSONObject()
+                .put("comm", new org.json.JSONObject().put("ct", 24).put("cv", 0))
+                .put("lyric", new org.json.JSONObject()
+                    .put("module", "music.musichallSong.PlayLyricInfo")
+                    .put("method", "GetPlayLyricInfo")
+                    .put("param", param));
+            Request.Builder builder = new Request.Builder()
+                .url(MUSICU_URL)
+                .addHeader("Content-Type", "application/json;charset=UTF-8")
+                .addHeader("Referer", WEB_REFERER)
+                .addHeader("User-Agent", WEB_USER_AGENT)
+                .post(RequestBody.create(reqBody.toString(), MediaType.get("application/json; charset=utf-8")));
+            if (!cookie.isEmpty()) builder.addHeader("Cookie", cookie);
+            try (Response response = http.newCall(builder.build()).execute()) {
+                int code = response.code();
+                if (code == 429) return PlatformLyricResult.rateLimited("qq", code);
+                if (code < 200 || code >= 300) return PlatformLyricResult.networkError("qq", code);
+                String body = response.body() == null ? "" : response.body().string();
+                org.json.JSONObject root = new org.json.JSONObject(body);
+                org.json.JSONObject lyricObj = root.optJSONObject("lyric");
+                org.json.JSONObject data = lyricObj == null ? null : lyricObj.optJSONObject("data");
+                if (data == null) return PlatformLyricResult.miss("qq", code);
+                String mainLrc = decodeQqLyricText(data.optString("lyric", ""));
+                String transLrc = decodeQqLyricText(data.optString("trans", ""));
+                if (mainLrc.isEmpty()) return PlatformLyricResult.miss("qq", code);
+                return PlatformLyricResult.ok(mainLrc, transLrc, "", "qq", code);
+            }
+        } catch (Exception error) {
+            return PlatformLyricResult.networkError("qq", -1);
+        }
+    }
+
+    private static PlatformLyricResult fetchLyricViaFcg(String mid, String cookie, OkHttpClient http) {
+        try {
+            String uin = cookie.isEmpty() ? "0" : uinFromCookie(cookie);
+            if (uin.isEmpty()) uin = "0";
+            String url = "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=" + encode(mid)
+                + "&songtype=0&format=json&nobase64=1&g_tk=5381&loginUin=" + encode(uin)
+                + "&hostUin=0&inCharset=utf8&outCharset=utf-8&notice=0";
+            Request.Builder builder = new Request.Builder()
+                .url(url)
+                .addHeader("Referer", WEB_REFERER)
+                .addHeader("User-Agent", WEB_USER_AGENT)
+                .get();
+            if (!cookie.isEmpty()) builder.addHeader("Cookie", cookie);
+            try (Response response = http.newCall(builder.build()).execute()) {
+                int code = response.code();
+                if (code == 429) return PlatformLyricResult.rateLimited("qq", code);
+                if (code < 200 || code >= 300) return PlatformLyricResult.networkError("qq", code);
+                String body = response.body() == null ? "" : response.body().string();
+                org.json.JSONObject root = new org.json.JSONObject(body);
+                String mainLrc = decodeQqLyricText(root.optString("lyric", ""));
+                String transLrc = decodeQqLyricText(root.optString("trans", root.optString("tlyric", "")));
+                if (mainLrc.isEmpty()) return PlatformLyricResult.miss("qq", code);
+                return PlatformLyricResult.ok(mainLrc, transLrc, "", "qq", code);
+            }
+        } catch (Exception error) {
+            return PlatformLyricResult.networkError("qq", -1);
+        }
+    }
+
+    static String decodeQqLyricText(String rawText) {
+        if (rawText == null) return "";
+        String raw = unescapeHtml(rawText.trim());
+        if (raw.isEmpty()) return "";
+        String compact = raw.replaceAll("\\s+", "");
+        if (!raw.contains("[") && compact.matches("[A-Za-z0-9+/=]+")) {
+            try {
+                byte[] decoded = java.util.Base64.getDecoder().decode(compact);
+                String text = new String(decoded, java.nio.charset.StandardCharsets.UTF_8);
+                if (text.contains("[") || text.matches("(?s).*[\u4e00-\u9fa5].*")) {
+                    raw = text;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return unescapeHtml(raw).replace("\r\n", "\n").trim();
+    }
+
+    private static String unescapeHtml(String s) {
+        return s.replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace("&quot;", "\"")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&");
+    }
 }

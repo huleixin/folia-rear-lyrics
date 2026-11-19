@@ -89,7 +89,8 @@ public final class SongInfoLoader {
     private final ExecutorService currentArtworkExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "tingyu-artwork-current"));
     /** 这一轮真正需要的 songKey（当前曲 + 后面两首），任务执行前会再核一次。 */
     private final Set<String> wanted = Collections.synchronizedSet(new LinkedHashSet<String>());
-    private final Set<String> lyricsInFlight = ConcurrentHashMap.newKeySet();
+    private final java.util.concurrent.ConcurrentHashMap<String, Boolean> lyricsInFlight = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Set<String> urgentResubmit = ConcurrentHashMap.newKeySet();
     private final Set<String> artworkInFlight = ConcurrentHashMap.newKeySet();
     private final Map<String, Long> lyricsCooldown = new ConcurrentHashMap<>();
     private final Map<String, Long> artworkCooldown = new ConcurrentHashMap<>();
@@ -294,10 +295,20 @@ public final class SongInfoLoader {
                     .put("state", ColorOsLyricBridge.stateOf(info.songKey)));
             return;
         }
-        if (!lyricsInFlight.add(info.songKey)) return;
+        boolean urgent = isCurrent(info.songKey);
+        Boolean prevUrgent = lyricsInFlight.putIfAbsent(info.songKey, urgent);
+        if (prevUrgent != null) {
+            if (urgent && !prevUrgent) {
+                urgentResubmit.add(info.songKey);
+                PlaybackDiagnostics.note("lyrics-chain", describe("native", info, true)
+                        .put("stage", "enqueue-upgrade")
+                        .put("raceUpgraded", true));
+            }
+            return;
+        }
         // 当前曲走独立线程：预取再忙也不能把正在播的这一首挡在后面（队头阻塞是
         // 「播到第 N 首开始没词」的供给端成因，见 {@link LyricFetchBudget}）。
-        ExecutorService executor = isCurrent(info.songKey) ? lyricsExecutor : aheadLyricsExecutor;
+        ExecutorService executor = urgent ? lyricsExecutor : aheadLyricsExecutor;
         executor.execute(() -> {
             try {
                 runLyrics(info);
@@ -308,6 +319,12 @@ public final class SongInfoLoader {
                 LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "exception", 0);
             } finally {
                 lyricsInFlight.remove(info.songKey);
+                if (urgentResubmit.remove(info.songKey) && isCurrent(info.songKey)) {
+                    UnifiedLyricsStore.Record after = unified.get(info.songKey);
+                    if (after == null || !after.hasTimeline()) {
+                        submitLyrics(info.withGeneration(generation.get()));
+                    }
+                }
             }
         });
     }
@@ -362,8 +379,8 @@ public final class SongInfoLoader {
         NativeLyricsRepository.Result result;
         try {
             if (!isCurrent(info.songKey) && !PlaylistResourceCache.get(context).networkAllowed()) return;
-            result = lyrics.load(info, info.generation, budget,
-                    () -> isWanted(info.songKey) && info.generation == generation.get());
+            result = lyrics.load(info, generation.get(), budget,
+                    () -> isWanted(info.songKey) && (info.generation == generation.get() || isCurrent(info.songKey)));
         } catch (Throwable error) {
             result = null;
         }
@@ -489,9 +506,14 @@ public final class SongInfoLoader {
                 LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "rate-limited", 0);
                 break;
             case NO_IDENTITY:
-                lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + 10L * 60_000L);
+                lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + 15_000L);
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "no-identity"));
                 LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "no-identity", 0);
+                break;
+            case UNSUPPORTED_SOURCE:
+                lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);
+                PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "unsupported-source"));
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "unsupported-source", 0);
                 break;
             case UNRESOLVED:
                 lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);

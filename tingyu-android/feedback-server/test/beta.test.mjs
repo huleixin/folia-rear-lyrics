@@ -314,3 +314,38 @@ test('three-channel permanent isolation blocks testing from non-stable or privat
   assert.equal(rejectBetaPublicUrl.status, 403);
   assert.equal((await rejectBetaPublicUrl.json()).error, 'private_beta_must_use_protected_r2');
 });
+
+test('admin beta overview succeeds with non-null betaApkObject after R2 upload', async () => {
+  const f = await fixture();
+  const buf = new Uint8Array(2_000_000);
+  const sha = createHash('sha256').update(buf).digest('hex');
+  const cand = await f.call('/api/admin/releases/candidates', {
+    method: 'POST',
+    headers: { ...admin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: 'rel-private_beta-1.5.90-390',
+      channel: 'private_beta',
+      versionName: '1.5.90',
+      versionCode: 390,
+      apkSizeBytes: 2_000_000,
+      sha256: sha,
+      apkCertSha256: 'a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d',
+      downloadUrls: [{ id: 'beta-r2-primary', label: 'R2', url: 'https://feedback.20262000.xyz/api/beta/download', priority: 1 }],
+    }),
+  });
+  assert.equal(cand.status, 201);
+
+  const up = await f.call('/api/admin/beta/apks/rel-private_beta-1.5.90-390', {
+    method: 'PUT',
+    headers: { ...admin, 'X-Apk-Sha256': sha, 'Content-Type': 'application/vnd.android.package-archive' },
+    body: buf,
+  });
+  assert.equal(up.status, 200);
+
+  const ov = await f.call('/api/admin/beta/overview', { headers: admin });
+  assert.equal(ov.status, 200);
+  const data = await ov.json();
+  assert.equal(data.ok, true);
+  assert.equal(data.summary.betaApkObject.release_id, 'rel-private_beta-1.5.90-390');
+  assert.ok(data.summary.betaApkObject.uploaded_at > 0);
+});

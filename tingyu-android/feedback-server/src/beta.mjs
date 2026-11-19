@@ -499,7 +499,7 @@ export async function getAdminBetaOverview(env) {
         "SELECT id, version_name, version_code, status, published_at, created_at FROM releases WHERE channel='private_beta' ORDER BY version_code DESC, updated_at DESC LIMIT 1",
     ).first();
     const betaApkObject = latestBeta?.id
-        ? await env.DB.prepare('SELECT release_id, r2_key, size_bytes, sha256, created_at FROM beta_apk_objects WHERE release_id=?').bind(latestBeta.id).first()
+        ? await env.DB.prepare('SELECT release_id, r2_key, size_bytes, sha256, uploaded_at FROM beta_apk_objects WHERE release_id=?').bind(latestBeta.id).first()
         : null;
     const betaPolicy = await env.DB.prepare(
         "SELECT channel, policy_revision, policy_action, update_enabled, latest_version_name, latest_version_code, min_supported_version_code, updated_at FROM update_policies WHERE channel='private_beta'",

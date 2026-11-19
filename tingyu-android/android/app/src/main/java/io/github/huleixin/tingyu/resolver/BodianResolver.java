@@ -360,6 +360,56 @@ public final class BodianResolver implements SourceResolver {
         static Attempt auth(String error) { return new Attempt("", error, true); }
     }
 
+    /** 原生后台获取波点原曲歌词（mlyric.kuwo.cn，复用进程内会话与桌面设备头）。 */
+    public static PlatformLyricResult fetchLyric(String mediaId, OkHttpClient clientOverride) {
+        String rid = mediaId == null ? "" : mediaId.replace("MUSIC_", "").trim();
+        if (rid.isEmpty()) return PlatformLyricResult.incomplete("bodian");
+        OkHttpClient http = clientOverride != null ? clientOverride : CLIENT;
+        BodianResolver resolver = fromCredentials();
+        boolean loggedIn = !resolver.uid().isEmpty() && !resolver.token().isEmpty();
+        try {
+            String rawQuery = "type=lyric&req=2&lrcx=1&rid=" + rid
+                + "&songname=&artist=&corp=kuwo&fromchannel=bodian";
+            String encodedQ = java.util.Base64.getEncoder()
+                .encodeToString(rawQuery.getBytes(StandardCharsets.UTF_8));
+            String url = "https://mlyric.kuwo.cn/mobi.s?f=bodian&q=" + urlEncode(encodedQ)
+                + "&uid=" + urlEncode(loggedIn ? resolver.uid() : "-1")
+                + "&token=" + urlEncode(loggedIn ? resolver.token() : "");
+            Request.Builder builder = new Request.Builder().url(url)
+                .header("User-Agent", "Dart/3.3 (dart:io)")
+                .header("plat", "win")
+                .header("channel", "W1")
+                .header("ver", "1.1.7")
+                .header("svrver", "13")
+                .header("brand", "Windows")
+                .header("net", "wifi")
+                .header("devid", DEVICE_ID)
+                .header("qimei36", DEVICE_ID);
+            if (loggedIn) {
+                builder.header("uid", resolver.uid()).header("token", resolver.token());
+            }
+            try (Response response = http.newCall(builder.build()).execute()) {
+                int code = response.code();
+                if (code == 429) return PlatformLyricResult.rateLimited("bodian", code);
+                if (code < 200 || code >= 300) return PlatformLyricResult.networkError("bodian", code);
+                String body = response.body() == null ? "" : response.body().string();
+                org.json.JSONObject root = new org.json.JSONObject(body);
+                org.json.JSONObject data = root.optJSONObject("data");
+                String contentB64 = data == null ? "" : data.optString("content", "").trim();
+                if (contentB64.isEmpty()) return PlatformLyricResult.miss("bodian", code);
+                String decoded = new String(java.util.Base64.getDecoder().decode(contentB64), StandardCharsets.UTF_8);
+                String cleanLrc = decoded.replaceAll("<-?\\d+,-?\\d+>", "")
+                    .replaceAll("\\[kuwo:[^\\]]*\\]", "")
+                    .replace("\r\n", "\n")
+                    .trim();
+                if (cleanLrc.isEmpty()) return PlatformLyricResult.miss("bodian", code);
+                return PlatformLyricResult.ok(cleanLrc, "", "", "bodian", code);
+            }
+        } catch (Exception error) {
+            return PlatformLyricResult.networkError("bodian", -1);
+        }
+    }
+
     /** 从 providerData/session JSON 里取字符串字段（浅层，不抛异常）。 */
     static String jsonField(String json, String name) {
         if (json == null || json.isEmpty()) return "";

@@ -430,4 +430,73 @@ public final class NeteaseResolver implements SourceResolver {
     public String describe() {
         return "netease{cookie=" + !cookie.isEmpty() + "}";
     }
+
+    /** 原生后台获取网易云原曲歌词（复用 EAPI 加密与进程内 cookie，支持逐行 + 翻译 + 逐字 YRC）。 */
+    public static PlatformLyricResult fetchLyric(String songId, OkHttpClient clientOverride) {
+        String id = songId == null ? "" : songId.trim();
+        if (!id.matches("\\d+")) return PlatformLyricResult.incomplete("netease");
+        OkHttpClient http = clientOverride != null ? clientOverride : CLIENT;
+        String cookie = ResolverCredentials.value("netease", "cookie");
+        PlatformLyricResult v1 = fetchLyricViaEapiPath(id, "/api/song/lyric/v1", true, cookie, http);
+        if (v1.status == PlatformLyricResult.Status.OK || v1.status == PlatformLyricResult.Status.RATE_LIMITED) {
+            return v1;
+        }
+        PlatformLyricResult legacy = fetchLyricViaEapiPath(id, "/api/song/lyric", false, cookie, http);
+        return legacy.status == PlatformLyricResult.Status.OK ? legacy : (v1.status == PlatformLyricResult.Status.SOURCE_MISS ? legacy : v1);
+    }
+
+    private static PlatformLyricResult fetchLyricViaEapiPath(String songId, String apiPath, boolean extended,
+                                                              String cookie, OkHttpClient http) {
+        String eapiPath = apiPath.substring("/api".length());
+        Map<String, String> header = buildEapiHeader(cookie, "");
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("id", songId);
+            if (extended) {
+                payload.put("cp", false);
+                payload.put("tv", 0);
+                payload.put("lv", 0);
+                payload.put("rv", 0);
+                payload.put("kv", 0);
+                payload.put("yv", 0);
+                payload.put("ytv", 0);
+                payload.put("yrv", 0);
+            } else {
+                payload.put("lv", -1);
+                payload.put("tv", -1);
+            }
+            payload.put("header", header);
+            String params = eapiEncrypt(apiPath, new org.json.JSONObject(payload).toString());
+            if (params.isEmpty()) return PlatformLyricResult.networkError("netease", 0);
+            RequestBody form = new FormBody.Builder().add("params", params).build();
+            Request request = new Request.Builder()
+                .url(EAPI_BASE + "/eapi" + eapiPath)
+                .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                .addHeader("User-Agent", EAPI_UA)
+                .addHeader("Cookie", formatCookieHeader(header))
+                .post(form)
+                .build();
+            try (Response response = http.newCall(request).execute()) {
+                int code = response.code();
+                if (code == 429) return PlatformLyricResult.rateLimited("netease", code);
+                if (code < 200 || code >= 300) return PlatformLyricResult.networkError("netease", code);
+                String body = response.body() == null ? "" : response.body().string();
+                if (body.isEmpty()) return PlatformLyricResult.miss("netease", code);
+                org.json.JSONObject root = new org.json.JSONObject(body);
+                if (root.optInt("code", 200) == 429) return PlatformLyricResult.rateLimited("netease", 429);
+                org.json.JSONObject lrcObj = root.optJSONObject("lrc");
+                org.json.JSONObject tlyricObj = root.optJSONObject("tlyric");
+                org.json.JSONObject yrcObj = root.optJSONObject("yrc");
+                String mainLrc = lrcObj == null ? "" : lrcObj.optString("lyric", "").trim();
+                String transLrc = tlyricObj == null ? "" : tlyricObj.optString("lyric", "").trim();
+                String yrcLrc = yrcObj == null ? "" : yrcObj.optString("lyric", "").trim();
+                if (mainLrc.isEmpty() && yrcLrc.isEmpty()) {
+                    return PlatformLyricResult.miss("netease", code);
+                }
+                return PlatformLyricResult.ok(mainLrc, transLrc, yrcLrc, "netease", code);
+            }
+        } catch (Exception error) {
+            return PlatformLyricResult.networkError("netease", -1);
+        }
+    }
 }
