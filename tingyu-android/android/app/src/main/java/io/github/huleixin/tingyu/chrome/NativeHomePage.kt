@@ -3,10 +3,13 @@ package io.github.huleixin.tingyu.chrome
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.delay
@@ -431,9 +434,17 @@ internal fun HomePullToRefresh(
             }
     }
 
+    val refreshHoldProgress by animateFloatAsState(
+        targetValue = if (isRefreshing) 1f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "home-refresh-hold",
+    )
+    val pullProgress = state.distanceFraction.coerceIn(0f, 1.15f)
+    val effectiveProgress = maxOf(pullProgress, refreshHoldProgress)
     val pullOffsetPx = with(density) {
-        val raw = state.distanceFraction.coerceIn(0f, 1.35f)
-        (raw * 48.dp.toPx()).coerceAtLeast(if (isRefreshing) 36.dp.toPx() else 0f)
+        val pullDp = (pullProgress * 44f).coerceAtMost(46f)
+        val holdDp = refreshHoldProgress * 38f
+        maxOf(pullDp, holdDp).dp.toPx()
     }
 
     PullToRefreshBox(
@@ -447,16 +458,55 @@ internal fun HomePullToRefresh(
         state = state,
         modifier = modifier,
         indicator = {
-            PullToRefreshDefaults.Indicator(
-                state = state,
-                isRefreshing = isRefreshing,
-                containerColor = palette.card,
-                color = palette.settingsAccentSurface,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = indicatorTopPadding)
-                    .testTag("home-pull-refresh-indicator"),
-            )
+            if (isRefreshing || effectiveProgress > 0.02f) {
+                val indicatorAlpha = if (isRefreshing) refreshHoldProgress else (pullProgress * 1.35f).coerceIn(0f, 1f)
+                val accent = palette.settingsAccentSurface
+                val ringColor = if (isRefreshing || pullProgress >= 1f) accent else palette.ink.copy(alpha = 0.72f)
+                Box(
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = indicatorTopPadding + 4.dp)
+                        .size(22.dp)
+                        .graphicsLayer {
+                            alpha = indicatorAlpha
+                            val scale = (0.72f + 0.28f * effectiveProgress.coerceAtMost(1f))
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .testTag("home-pull-refresh-indicator"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = accent,
+                            trackColor = accent.copy(alpha = 0.16f),
+                            strokeWidth = 2.dp,
+                            strokeCap = StrokeCap.Round,
+                        )
+                    } else {
+                        Canvas(Modifier.size(20.dp)) {
+                            val strokePx = 2.dp.toPx()
+                            drawArc(
+                                color = ringColor.copy(alpha = 0.16f),
+                                startAngle = 0f,
+                                sweepAngle = 360f,
+                                useCenter = false,
+                                style = Stroke(width = strokePx, cap = StrokeCap.Round),
+                            )
+                            val sweep = (pullProgress.coerceIn(0f, 1f) * 290f).coerceAtLeast(18f)
+                            val startAngle = -90f + pullProgress * 180f
+                            drawArc(
+                                color = ringColor,
+                                startAngle = startAngle,
+                                sweepAngle = sweep,
+                                useCenter = false,
+                                style = Stroke(width = strokePx, cap = StrokeCap.Round),
+                            )
+                        }
+                    }
+                }
+            }
         },
     ) {
         content(pullOffsetPx)
