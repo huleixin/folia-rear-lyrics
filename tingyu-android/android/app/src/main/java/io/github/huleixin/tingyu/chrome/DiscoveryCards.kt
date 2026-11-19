@@ -227,30 +227,6 @@ internal fun DiscoveryRadars(section: NativePageSection, modifier: Modifier = Mo
 
 @Composable
 internal fun DiscoveryTextActions(section: NativePageSection, modifier: Modifier = Modifier, action: PageAction) {
-    val palette = LocalInterfacePalette.current
-    if (section.id == "discovery-refresh") {
-        Column(modifier.fillMaxWidth().padding(top = 22.dp, bottom = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.fillMaxWidth().padding(bottom = 16.dp).height(0.8.dp).background(palette.homeBorder.copy(alpha = 0.45f)))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                section.items.forEach { item ->
-                    Row(
-                        Modifier
-                            .heightIn(min = 40.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(palette.homeQuickCard)
-                            .chromeClickable(enabled = !item.disabled, corner = 999.dp) { action(item.action, "", 0.0) }
-                            .padding(horizontal = 18.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        if (item.image.isNotBlank()) PageIcon(item.image, PageMuted, Modifier.size(15.dp))
-                        Text(item.title, color = if (item.disabled) PageMuted else PageInk, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
-        }
-        return
-    }
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         section.items.forEach { item ->
             Row(

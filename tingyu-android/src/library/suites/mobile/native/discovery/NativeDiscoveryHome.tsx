@@ -257,7 +257,24 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             : roaming.exhausted
                 ? '当前曲库已全部漫游完毕'
                 : `正在漫游（${roamModeLabel}）· 下一首继续发现`;
-    const actions: PageActions = { settings: openSettings, sources: onSources, refresh: feed.retry,
+    const pullRefreshActiveRef = useRef(false);
+    useEffect(() => {
+        if (!pullRefreshActiveRef.current || feed.busy) return;
+        pullRefreshActiveRef.current = false;
+        if (!isLocalSource && scopedResults.length > 0 && scopedResults.every(result => result.status === 'error')) {
+            controls.setNotice('推荐刷新失败，已保留当前内容，请稍后重试');
+        }
+    }, [feed.busy, isLocalSource, scopedResults, controls]);
+    const actions: PageActions = { settings: openSettings, sources: onSources,
+        refresh: () => {
+            if (isLocalSource) {
+                setBatch(value => value + 1);
+                return;
+            }
+            if (feed.busy) return;
+            pullRefreshActiveRef.current = true;
+            feed.retry();
+        },
         next: () => setBatch(value => value + 1),
         roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'balanced', fetchMoreRoamingCandidates),
         roamBalanced: () => roaming.active ? switchRoamingMode('balanced', songs) : controls.roam(songs, 'balanced', fetchMoreRoamingCandidates),
@@ -446,8 +463,8 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         if(id==='roam'&&roaming.active)return [sections[id],sections.roamModes];
         if(id==='songs')return [sections[id],{id:'discovery-song-actions',layout:'textActions' as const,items:[{id:'allSongs',title:'全部推荐歌曲',action:'allSongs'}]}];
         return [sections[id]];
-    }),...(isLocalSource ? [] : [{id:'discovery-refresh',layout:'textActions' as const,items:[{id:'refresh',title:'刷新推荐',image:'refresh-cw',action:'refresh',disabled:feed.busy}]}])];
-    if (feed.busy && !isLocalSource) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
+    })];
+    if (feed.busy && !isLocalSource && !songs.length) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
     if (!feed.busy && !songs.length) {
         const emptyText = isLocalSource
             ? '暂无本地音乐，可进入「本地音乐」扫描或导入手机音频目录。'
@@ -476,7 +493,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     });
     if (controls.notice) visible.push({ id: 'notice', layout: 'message', text: controls.notice });
     const orderTag = feed.visibleSourceTabs.map(s => s.providerId).join(',');
-    const model: NativePageModel = { key: `home:discovery:${effectiveSource}:${orderTag}:${feed.owner}`, title: '推荐', subtitle: '发现属于你的下一首', trailing: 'settings', trailingLabel: '推荐设置', trailingIcon: 'settings', background: 'home', bottomClearance: 152, sections: visible };
+    const model: NativePageModel = { key: `home:discovery:${effectiveSource}:${orderTag}:${feed.owner}`, title: '推荐', subtitle: '发现属于你的下一首', trailing: 'settings', trailingLabel: '推荐设置', trailingIcon: 'settings', background: 'home', bottomClearance: 152, refreshAction: 'refresh', refreshing: !isLocalSource && feed.busy, sections: visible };
     // Keep the existing account/bootstrap gate: never replace a retained native page with a false empty state.
     useNativePage(root, 'home', props.isInteractive, sources.online.accountView === 'resolving' || !preferences.ready || !settingsHydrated ? null : model, actions, onReady);
     return <>

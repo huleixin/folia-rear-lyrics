@@ -191,8 +191,8 @@ class PadAdaptive20Test {
     }
 
     @Test
-    fun mobilePlaylistsAndRefreshRenderCleanlyAcrossThemes() {
-        val page = NativePage.parse(
+    fun mobilePlaylistsAndPullToRefreshWorkAcrossThemes() {
+        val basePage = NativePage.parse(
             JSONObject()
                 .put("id", "home")
                 .put("session", "mobile-playlists")
@@ -206,6 +206,8 @@ class PadAdaptive20Test {
                     JSONObject()
                         .put("key", "home:discovery:all")
                         .put("title", "推荐")
+                        .put("refreshAction", "refresh")
+                        .put("refreshing", false)
                         .put(
                             "sections",
                             JSONArray(
@@ -221,24 +223,13 @@ class PadAdaptive20Test {
                                             item("mine:jay", "周杰伦", "QQ音乐 · 42首"),
                                         )
                                     ).put("more", "library").put("moreLabel", "全部"),
-                                    section(
-                                        "discovery-refresh",
-                                        "textActions",
-                                        "",
-                                        listOf(
-                                            JSONObject()
-                                                .put("id", "refresh")
-                                                .put("title", "刷新推荐")
-                                                .put("image", "refresh-cw")
-                                                .put("action", "refresh")
-                                        )
-                                    ),
                                 )
                             )
                         )
                 )
         )
         var palette by mutableStateOf(InterfacePalette(true, "glacier"))
+        var refreshing by mutableStateOf(false)
         compose.setContent {
             CompositionLocalProvider(
                 LocalPadWindow provides PadWindow(393f, 852f),
@@ -246,19 +237,40 @@ class PadAdaptive20Test {
                 LocalChromeRendering provides false,
             ) {
                 Box(Modifier.fillMaxSize()) {
-                    NativePageView(page, Modifier.size(393.dp, 852.dp)) { action, _, _ ->
+                    NativePageView(basePage.copy(refreshing = refreshing), Modifier.size(393.dp, 852.dp)) { action, _, _ ->
                         events += action
+                        if (action == "refresh") refreshing = true
                     }
                 }
             }
         }
         compose.onNodeWithText("我喜欢").assertIsDisplayed()
         compose.onNodeWithText("QQ音乐 · 128首").assertIsDisplayed()
-        compose.onNodeWithText("刷新推荐").assertIsDisplayed().performClick()
-        assertEquals("refresh", events.last())
+        compose.onNodeWithText("刷新推荐").assertDoesNotExist()
+
+        // Short pull below threshold should not trigger refresh
+        compose.onNodeWithTag("native-home-list").performTouchInput {
+            swipeDown(startY = 200f, endY = 240f)
+        }
+        assertFalse(events.contains("refresh"))
+
+        // Full pull down triggers refresh once
+        compose.onNodeWithTag("native-home-list").performTouchInput {
+            swipeDown(startY = 200f, endY = 650f)
+        }
+        assertEquals(1, events.count { it == "refresh" })
         shot("mobile-playlists-glacier-light")
 
-        compose.runOnIdle { palette = InterfacePalette(false, "classic") }
+        // Rapid second pull while already refreshing is deduplicated
+        compose.onNodeWithTag("native-home-list").performTouchInput {
+            swipeDown(startY = 200f, endY = 650f)
+        }
+        assertEquals(1, events.count { it == "refresh" })
+
+        compose.runOnIdle {
+            refreshing = false
+            palette = InterfacePalette(false, "classic")
+        }
         compose.onNodeWithText("我喜欢").assertIsDisplayed()
         shot("mobile-playlists-classic-dark")
     }

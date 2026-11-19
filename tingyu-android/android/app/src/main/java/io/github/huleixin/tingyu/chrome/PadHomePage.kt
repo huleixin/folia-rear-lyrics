@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,7 +70,14 @@ import kotlin.math.ceil
                 val recentColumns=((paneWidth.value+14f)/(coverLimit.value+14f)).toInt().coerceIn(2,6)
                 val recentCover=minOf((paneWidth-14.dp*(recentColumns-1))/recentColumns,coverLimit)
                 val recentHeight=(recentCover+44.dp)*2+14.dp
-                LazyColumn(Modifier.fillMaxSize().clipToBounds().testTag("pad-home-list"),
+                HomePullToRefresh(
+                    enabled=page.refreshAction.isNotBlank(),
+                    refreshing=page.refreshing,
+                    indicatorTopPadding=4.dp,
+                    onRefresh={action(page.refreshAction,"",0.0)},
+                    modifier=Modifier.fillMaxSize().testTag("pad-pull-refresh-box"),
+                ) { pullOffsetPx ->
+                LazyColumn(Modifier.fillMaxSize().graphicsLayer{translationY=pullOffsetPx}.clipToBounds().testTag("pad-home-list"),
                     contentPadding=PaddingValues(bottom=12.dp),verticalArrangement=Arrangement.spacedBy(if(window.shortWindow)12.dp else 16.dp)){
                     if(hasDualHero&&hero!=null&&recent!=null)item(key="recommendation-band"){
                         Column{
@@ -178,6 +186,7 @@ import kotlin.math.ceil
                             }
                         }
                     }
+                }
                 }
             }
         }

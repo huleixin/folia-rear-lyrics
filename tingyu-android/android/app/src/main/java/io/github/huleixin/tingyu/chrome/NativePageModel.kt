@@ -13,7 +13,7 @@ data class NativePageSection(val id: String, val title: String, val layout: Stri
 data class NativePage(val id: String, val session: String, val generation: Long, val revision: Long, val enabled: Boolean,
     val rect: ChromeRect, val viewport: Float, val safeTop: Float, val safeBottom: Float,
     val key: String, val title: String, val subtitle: String, val leading: String, val trailing: String,
-    val trailingLabel: String, val trailingIcon: String, val home: Boolean, val bottomClearance: Float, val topPadding: Float, val sections: List<NativePageSection>,internal val document:NativeSettingsDocument?=null) {
+    val trailingLabel: String, val trailingIcon: String, val home: Boolean, val bottomClearance: Float, val topPadding: Float, val sections: List<NativePageSection>,internal val document:NativeSettingsDocument?=null,val refreshAction:String="",val refreshing:Boolean=false) {
     val priority get() = when(id) { "settings" -> 4; "search" -> 3; "collection" -> 2; else -> 1 }
     companion object {
         fun parse(value: JSONObject): NativePage {
@@ -52,7 +52,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                 viewport,number("safeTop").coerceIn(0f,200f),number("safeBottom").coerceIn(0f,200f),model.getString("key"),
                 model.optString("title"),model.optString("subtitle"),model.optString("leading"),model.optString("trailing"),
                 model.optString("trailingLabel"),model.optString("trailingIcon"),model.optString("background")=="home",metric("bottomClearance",20.0),metric("topPadding",18.0),sections,
-                model.optJSONObject("document")?.let{NativeSettingsDocument.parse(it)})
+                model.optJSONObject("document")?.let{NativeSettingsDocument.parse(it)},model.optString("refreshAction"),model.optBoolean("refreshing"))
         }
     }
 }

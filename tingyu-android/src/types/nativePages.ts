@@ -24,6 +24,7 @@ export type NativePageModel = {
     trailingLabel?: string; /** 顶部右侧胶囊的前置图标（lucide 几何名），本地音源用 smartphone。 */
     trailingIcon?: string; background?: 'home' | 'dark'; sections: PageSection[];
     bottomClearance?: number; topPadding?: number;
+    refreshAction?: string; refreshing?: boolean;
     document?:NativeSettingsDocument;
 };
 export type NativePageFrame = {

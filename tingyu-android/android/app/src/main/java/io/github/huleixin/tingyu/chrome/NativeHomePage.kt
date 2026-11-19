@@ -1,7 +1,15 @@
 package io.github.huleixin.tingyu.chrome
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,7 +70,14 @@ import kotlinx.coroutines.launch
         val bottomPadding = maxOf((page.bottomClearance + page.safeBottom + 12f).dp, hostBottom + 12.dp)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=contentTopPadding,bottom=bottomPadding)) {
+            HomePullToRefresh(
+                enabled=page.refreshAction.isNotBlank(),
+                refreshing=page.refreshing,
+                indicatorTopPadding=contentTopPadding+4.dp,
+                onRefresh={action(page.refreshAction,"",0.0)},
+                modifier=Modifier.fillMaxSize().testTag("home-pull-refresh-box"),
+            ) { pullOffsetPx ->
+            LazyColumn(Modifier.fillMaxSize().graphicsLayer{translationY=pullOffsetPx}.testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=contentTopPadding,bottom=bottomPadding)) {
                 sections.forEach { section ->
                     when {
                         section.layout=="discoveryHero" && section.items.isNotEmpty() -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=12.dp),action)}
@@ -262,6 +277,7 @@ import kotlinx.coroutines.launch
                 }
             }
             }
+            }
             if (discovery) {
                 TyTopGlassForeground {
                     Box(Modifier.onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}) {
@@ -369,5 +385,80 @@ import kotlinx.coroutines.launch
                 PageIcon("ellipsis-vertical",PageMuted,Modifier.size(16.dp))
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun HomePullToRefresh(
+    enabled: Boolean,
+    refreshing: Boolean,
+    indicatorTopPadding: Dp,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable (contentOffsetPx: Float) -> Unit,
+) {
+    if (!enabled) {
+        Box(modifier) { content(0f) }
+        return
+    }
+    val state = rememberPullToRefreshState()
+    val palette = LocalInterfacePalette.current
+    val view = LocalView.current
+    val density = LocalDensity.current
+    var localRefreshing by remember { mutableStateOf(false) }
+    var thresholdHapticFired by remember { mutableStateOf(false) }
+    val isRefreshing = refreshing || localRefreshing
+
+    LaunchedEffect(refreshing) {
+        if (refreshing) localRefreshing = false
+    }
+    LaunchedEffect(localRefreshing) {
+        if (localRefreshing) {
+            delay(1800)
+            localRefreshing = false
+        }
+    }
+    LaunchedEffect(state) {
+        snapshotFlow { state.distanceFraction }
+            .collect { fraction ->
+                if (fraction >= 1f && !thresholdHapticFired && !isRefreshing) {
+                    thresholdHapticFired = true
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                } else if (fraction < 0.75f) {
+                    thresholdHapticFired = false
+                }
+            }
+    }
+
+    val pullOffsetPx = with(density) {
+        val raw = state.distanceFraction.coerceIn(0f, 1.35f)
+        (raw * 48.dp.toPx()).coerceAtLeast(if (isRefreshing) 36.dp.toPx() else 0f)
+    }
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            if (!isRefreshing) {
+                localRefreshing = true
+                onRefresh()
+            }
+        },
+        state = state,
+        modifier = modifier,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = state,
+                isRefreshing = isRefreshing,
+                containerColor = palette.card,
+                color = palette.settingsAccentSurface,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = indicatorTopPadding)
+                    .testTag("home-pull-refresh-indicator"),
+            )
+        },
+    ) {
+        content(pullOffsetPx)
     }
 }
