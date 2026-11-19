@@ -41,9 +41,9 @@ import androidx.compose.ui.unit.sp
             val inset=if(maxWidth<374.dp)18.dp else 22.dp
             // 沉浸式毛玻璃顶栏（TopGlassBar）：背屏控制分组全幅滚动进入固定返回栏玻璃后方。
             val colors=page.surfaceColors()
-            val topPad=if(splitPane)16.dp else (page.safeTop+24).dp
-            val bottomPad=if(splitPane)maxOf(hostBottom,(page.safeBottom+if(LocalPadWindow.current.expanded)96 else 36).dp) else (24+page.safeBottom).dp
-            val glass=rememberTyTopGlassState(estimateHeaderBottomDp=(if(splitPane)16f else page.safeTop+24f)+60f)
+            val topPad = if (splitPane) (page.safeTop + if (LocalPadWindow.current.shortWindow) 14 else 20).dp else (page.safeTop + 24).dp
+            val bottomPad = if (splitPane) maxOf(hostBottom, (page.safeBottom + if (LocalPadWindow.current.expanded) 96 else 36).dp) else (24 + page.safeBottom).dp
+            val glass = rememberTyTopGlassState(estimateHeaderBottomDp = topPad.value + 60f)
             Box(Modifier.fillMaxSize()){
                 TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
                 val list = rememberLazyListState()

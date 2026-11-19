@@ -104,7 +104,9 @@ internal typealias PageAction = (String, String, Double) -> Unit
                                 page.document?.flow != null ->
                                     SettingsFlowPage(page.document.flow, page, Modifier.fillMaxSize(), splitPane = true, showBack = isDeeper, action = action)
                                 page.document != null ->
-                                    NativeSettingsDocumentView(page.document, Modifier.fillMaxSize(), action)
+                                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(colors))) {
+                                        NativeSettingsDocumentView(page.document, Modifier.fillMaxSize(), action)
+                                    }
                                 else ->
                                     NativeRearControlPage(page, Modifier.fillMaxSize(), density.fontScale, splitPane = true, showBack = isDeeper, action = action)
                             }

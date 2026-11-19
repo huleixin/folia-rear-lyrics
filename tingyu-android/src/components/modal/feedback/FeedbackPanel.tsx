@@ -351,7 +351,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                 )}
 
                 <div
-                    className="flex flex-col gap-2 border-t px-5 py-3" data-settings-layout="column" data-settings-style='{"gap":8}'
+                    className="flex flex-col gap-2 border-t px-5 py-3" data-settings-layout="column" data-settings-style='{"gap":8,"divider":true}'
                     style={{ borderColor: palette.border, backgroundColor: palette.surface }}
                 >
                     {phase!=='preview'&&<CloudFeedbackSubmit flow={cloud} disabled={busy} style={{backgroundColor:palette.accent,color:palette.accentText}}/>}

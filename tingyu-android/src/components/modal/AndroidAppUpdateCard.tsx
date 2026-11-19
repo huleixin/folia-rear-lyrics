@@ -70,6 +70,17 @@ export default function AndroidAppUpdateCard() {
                 setTelemetryEnabledState(Boolean(res?.enabled));
             }).catch(() => {});
         }
+        const handleRefresh = () => {
+            if (document.visibilityState !== 'hidden') {
+                void refreshStatus();
+            }
+        };
+        window.addEventListener('focus', handleRefresh);
+        document.addEventListener('visibilitychange', handleRefresh);
+        return () => {
+            window.removeEventListener('focus', handleRefresh);
+            document.removeEventListener('visibilitychange', handleRefresh);
+        };
     }, [refreshStatus]);
 
     const handleToggleTelemetry = async () => {
@@ -152,7 +163,12 @@ export default function AndroidAppUpdateCard() {
             tapTrackerRef.current = { count: 0, lastAt: 0 };
             setTapHint('正在打开内测激活窗口…');
             tapHintTimerRef.current = window.setTimeout(() => setTapHint(''), 2200);
-            void getFoliaPlugin()?.openBetaActivationDialog?.();
+            void getFoliaPlugin()?.openBetaActivationDialog?.().then(() => {
+                // 原生内测激活弹窗关闭后刷新通道与授权状态，避免关于页仍滞留旧状态。
+                window.setTimeout(() => void refreshStatus(), 1500);
+                window.setTimeout(() => void refreshStatus(), 4000);
+                window.setTimeout(() => void refreshStatus(), 8000);
+            });
             return;
         }
         if (nextCount >= 5) {

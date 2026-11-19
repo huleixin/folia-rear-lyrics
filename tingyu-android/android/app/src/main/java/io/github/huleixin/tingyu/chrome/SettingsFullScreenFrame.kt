@@ -31,12 +31,12 @@ import androidx.compose.ui.unit.sp
     val colors=LocalInterfacePalette.current.settingsBackgrounds
     val density=LocalDensity.current
     val safe=LocalSettingsSafeInsets.current
-    val top=if(splitPane) 0f else safe?.top?:WindowInsets.safeDrawing.getTop(density)/density.density
-    val hostBottom=with(density){LocalNativePageBottomPx.current.toDp()}
-    val bottom=(safe?.bottom?:WindowInsets.safeDrawing.getBottom(density)/density.density)
-    val bottomClearance=if(splitPane) maxOf(hostBottom, (bottom + if(LocalPadWindow.current.expanded) 96f else 36f).dp) else (bottom+24).dp
-    val topBarPad=if(splitPane) 16.dp else (top+16).dp
-    val glass=rememberTyTopGlassState(estimateHeaderBottomDp=(if(splitPane) 16f else top+16f)+76f)
+    val top = safe?.top ?: (WindowInsets.safeDrawing.getTop(density) / density.density)
+    val hostBottom = with(density) { LocalNativePageBottomPx.current.toDp() }
+    val bottom = safe?.bottom ?: (WindowInsets.safeDrawing.getBottom(density) / density.density)
+    val bottomClearance = if (splitPane) maxOf(hostBottom, (bottom + if (LocalPadWindow.current.expanded) 96f else 36f).dp) else (bottom + 24).dp
+    val topBarPad = (top + if (splitPane && LocalPadWindow.current.shortWindow) 14 else 16).dp
+    val glass = rememberTyTopGlassState(estimateHeaderBottomDp = topBarPad.value + 76f)
     Box(Modifier.fillMaxSize().testTag(if(splitPane)"native-settings-split-frame" else "native-settings-fullscreen").let{if(splitPane)it else it.pointerInput(Unit){detectTapGestures(onTap={})}}){
         TyTopGlassContentLayer(glass,colors,null,null,Modifier.fillMaxSize()){
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()){

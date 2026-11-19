@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
@@ -557,5 +558,179 @@ class PadAdaptive20Test {
         shot("phone-p1-radar-glacier-light")
         compose.runOnIdle { palette = InterfacePalette(false, "classic") }
         shot("phone-p1-radar-classic-dark")
+    }
+
+    @Test
+    fun settingsSplitOpaqueBackdropAndGlobalFeedbackModalPinnedFooter() {
+        val rootIndex = settingsPage()
+        val modalNodes = listOf(
+            JSONObject().put("id", "cat-pad").put("kind", "action").put("title", "Pad适配异常").put("selected", true),
+            JSONObject().put("id", "desc-field").put("kind", "input").put("title", "问题描述").put("value", "设置页显示异常"),
+            JSONObject().put("id", "diag-toggle").put("kind", "toggle").put("title", "附带诊断日志").put("checked", true),
+            JSONObject().put("id", "repro-field").put("kind", "input").put("title", "复现步骤（可选）").put("value", ""),
+            JSONObject().put("id", "manual-export").put("kind", "action").put("title", "手动导出"),
+            JSONObject().put("id", "submit-feedback").put("kind", "action").put("title", "提交反馈").put("primary", true),
+        )
+        val modalLayout = JSONObject()
+            .put("id", "feedback-root")
+            .put("kind", "column")
+            .put("style", JSONObject().put("gap", 12))
+            .put(
+                "children",
+                JSONArray(
+                    listOf(
+                        JSONObject().put("id", "body").put("kind", "column").put("style", JSONObject().put("gap", 12)).put(
+                            "children",
+                            JSONArray(
+                                listOf(
+                                    JSONObject().put("id", "l1").put("kind", "control").put("ref", "cat-pad"),
+                                    JSONObject().put("id", "l2").put("kind", "control").put("ref", "desc-field").put("style", JSONObject().put("minHeight", 140)),
+                                    JSONObject().put("id", "l3").put("kind", "control").put("ref", "diag-toggle"),
+                                    JSONObject().put("id", "l4").put("kind", "control").put("ref", "repro-field").put("style", JSONObject().put("minHeight", 120)),
+                                    JSONObject().put("id", "l5").put("kind", "control").put("ref", "manual-export"),
+                                )
+                            ),
+                        ),
+                        JSONObject().put("id", "footer").put("kind", "column").put("style", JSONObject().put("gap", 8).put("divider", true)).put(
+                            "children",
+                            JSONArray(listOf(JSONObject().put("id", "l6").put("kind", "control").put("ref", "submit-feedback"))),
+                        ),
+                    )
+                ),
+            )
+        val feedbackModal = JSONObject()
+            .put("key", "settings-flow:about:modal")
+            .put("title", "问题反馈")
+            .put("subtitle", "")
+            .put("nodes", JSONArray(modalNodes))
+            .put("layout", modalLayout)
+
+        val aboutDoc = NativePage.parse(
+            JSONObject()
+                .put("id", "settings")
+                .put("session", "pad-fix-about")
+                .put("enabled", true)
+                .put("width", 1280)
+                .put("height", 800)
+                .put("viewportWidth", 1280)
+                .put("safeTop", 24)
+                .put(
+                    "model",
+                    JSONObject()
+                        .put("key", "settings:document:about")
+                        .put("title", "关于与使用说明")
+                        .put("sections", JSONArray())
+                        .put(
+                            "document",
+                            JSONObject()
+                                .put("paints", JSONArray())
+                                .put("controls", JSONArray())
+                                .put("areas", JSONArray())
+                                .put("live", JSONArray())
+                                .put(
+                                    "flow",
+                                    JSONObject()
+                                        .put("key", "about")
+                                        .put("title", "关于与使用说明")
+                                        .put(
+                                            "nodes",
+                                            JSONArray(
+                                                listOf(
+                                                    JSONObject().put("id", "ver").put("kind", "action").put("title", "当前听屿版本 v1.5.94").put("hint", "Build 310 · 私有内测通道"),
+                                                    JSONObject().put("id", "fb").put("kind", "action").put("title", "问题反馈与诊断").put("hint", "预览并主动提交云端反馈"),
+                                                )
+                                            ),
+                                        )
+                                        .put("modal", feedbackModal),
+                                ),
+                        ),
+                )
+        )
+
+        var window by mutableStateOf(PadWindow(1280f, 800f))
+        var palette by mutableStateOf(InterfacePalette(true, "glacier"))
+        var modalOpen by mutableStateOf(true)
+        val events = mutableListOf<String>()
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalPadWindow provides window,
+                LocalInterfacePalette provides palette,
+                LocalChromeRendering provides false,
+                LocalGlobalSettingsModalHostActive provides true,
+            ) {
+                Box(Modifier.size(window.width.dp, window.height.dp)) {
+                    NativePageView(
+                        page = aboutDoc,
+                        modifier = Modifier.fillMaxSize(),
+                        settingsRootPage = rootIndex,
+                        settingsActiveAction = "settings:about",
+                        onSettingsSelect = { action, _, _ -> events += action },
+                    ) { action, _, _ -> events += action }
+
+                    // Mirror ComposeChromeHost's global modal overlay at zIndex 11f
+                    val modal = if (modalOpen) aboutDoc.document?.flow?.modal else null
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    TyPanelOverlay(
+                        visible = modal != null,
+                        light = palette.light,
+                        modifier = Modifier.fillMaxSize().testTag("global-settings-modal-overlay"),
+                        onClose = { modalOpen = false; events += "dismiss" },
+                    ) {
+                        modal?.let {
+                            SettingsModalDialogContent(
+                                modal = it,
+                                theme = settingsFlowTheme(),
+                                viewportWidth = with(density) { window.width.dp.toPx() },
+                                viewportHeight = with(density) { window.height.dp.toPx() },
+                                onAction = { a, _, _ -> events += a },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1. Global modal must center across the full 1280dp window (NOT trapped inside right pane x >= 434)
+        compose.onNodeWithTag("ty-dialog-card").assertIsDisplayed()
+        compose.onNodeWithTag("ty-dialog-footer").assertIsDisplayed()
+        compose.onNodeWithText("提交反馈").assertIsDisplayed()
+        val cardBounds = compose.onNodeWithTag("ty-dialog-card").fetchSemanticsNode().boundsInRoot
+        val footerBounds = compose.onNodeWithTag("ty-dialog-footer").fetchSemanticsNode().boundsInRoot
+        val cardCenterX = (cardBounds.left + cardBounds.right) / 2f
+        assertTrue("Modal must center across full 1280px window; centerX=$cardCenterX", kotlin.math.abs(cardCenterX - 640f) < 40f)
+        assertTrue("Pinned submit footer must fit completely inside card & window; footer=$footerBounds, card=$cardBounds", footerBounds.bottom <= cardBounds.bottom + 1f && footerBounds.bottom <= 800f)
+        shot("settings-fix-feedback-global-landscape")
+
+        // 2. Classic Dark theme verification
+        compose.runOnIdle { palette = InterfacePalette(false, "classic") }
+        shot("settings-fix-feedback-global-dark")
+
+        // 3. Dismiss modal -> verify clean opaque split settings page (left gutter + middle directory opaque)
+        compose.runOnIdle { palette = InterfacePalette(true, "glacier"); modalOpen = false }
+        compose.onNodeWithTag("pad-settings-directory").assertIsDisplayed()
+        compose.onNodeWithText("当前听屿版本 v1.5.94").assertIsDisplayed()
+        shot("settings-fix-split-opaque-glacier-light")
+
+        // Verify left nav gutter (x=40, y=300) and middle directory area are 100% opaque (alpha == 255)
+        compose.runOnIdle {
+            val view = compose.activity.window.decorView
+            val bmp = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(bmp))
+            val leftGutterAlpha = android.graphics.Color.alpha(bmp.getPixel(40, 300))
+            val rightEdgeAlpha = android.graphics.Color.alpha(bmp.getPixel(1270, 300))
+            bmp.recycle()
+            assertEquals("Left nav gutter must have opaque background fill", 255, leftGutterAlpha)
+            assertEquals("Right edge must have opaque background fill (no transparent endInset strip)", 255, rightEdgeAlpha)
+        }
+
+        // 4. Tablet portrait 800x1280 with modal open -> submit button visible & unclipped
+        compose.runOnIdle { window = PadWindow(800f, 1280f); modalOpen = true }
+        compose.onNodeWithText("提交反馈").assertIsDisplayed()
+        shot("settings-fix-feedback-portrait")
+
+        // 5. Phone 393x852 with modal open -> submit button visible & unclipped
+        compose.runOnIdle { window = PadWindow(393f, 852f); modalOpen = true }
+        compose.onNodeWithText("提交反馈").assertIsDisplayed()
+        shot("settings-fix-feedback-phone")
     }
 }

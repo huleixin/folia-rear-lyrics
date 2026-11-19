@@ -21,16 +21,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -137,7 +141,7 @@ internal fun TySheetFrame(
     }
 }
 
-/** 居中卡片容器：宽不超过 400dp，内容超高才滚动。 */
+/** 居中卡片容器：受窗口可用高度、系统安全区与输入法约束；头部固定、中部独立滚动、底部操作区可固定。 */
 @Composable
 internal fun TyDialogFrame(
     theme: TyPanelTheme,
@@ -145,37 +149,87 @@ internal fun TyDialogFrame(
     subtitle: String,
     onClose: () -> Unit,
     settingsLayout: Boolean = false,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BackHandler(enabled = true) { onClose() }
-    BoxWithConstraints(Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.Center) {
-        val maxCardHeight = maxHeight * 0.82f
+    val padWindow = LocalPadWindow.current
+    val maxDialogWidth = if (padWindow.tablet && settingsLayout) 520.dp else 400.dp
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .imePadding()
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        val maxCardHeight = maxHeight.coerceAtMost(720.dp)
+        val horizPad = if (settingsLayout) 24.dp else TyPanelDims.HorizontalPadding.dp
         Column(
             Modifier
-                .widthIn(max = 400.dp)
-                .fillMaxWidth(0.92f)
+                .widthIn(max = maxDialogWidth)
+                .fillMaxWidth(if (padWindow.tablet && settingsLayout) 0.96f else 0.92f)
                 .heightIn(max = maxCardHeight)
                 .liquidPanel("dialog")
                 .clip(RoundedCornerShape(TyPanelDims.DialogRadius.dp))
                 .background(theme.surface)
-                .padding(horizontal = if(settingsLayout)24.dp else TyPanelDims.HorizontalPadding.dp),
+                .testTag("ty-dialog-card"),
         ) {
             if (title.isNotBlank()) {
-                Spacer(Modifier.height(20.dp))
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    Text(title, color=theme.text,fontSize=if(settingsLayout)20.sp else 17.sp,lineHeight=if(settingsLayout)28.sp else 23.sp,
-                        fontWeight=if(settingsLayout)FontWeight.Bold else FontWeight.SemiBold,modifier=Modifier.weight(1f))
-                    if(settingsLayout)Box(Modifier.size(32.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription="关闭"}
-                        .chromeClickable(role=Role.Button){onClose()},contentAlignment=Alignment.Center){PageIcon("x",theme.muted,Modifier.size(18.dp))}
+                Column(Modifier.fillMaxWidth().padding(horizontal = horizPad).testTag("ty-dialog-header")) {
+                    Spacer(Modifier.height(20.dp))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            title,
+                            color = theme.text,
+                            fontSize = if (settingsLayout) 20.sp else 17.sp,
+                            lineHeight = if (settingsLayout) 28.sp else 23.sp,
+                            fontWeight = if (settingsLayout) FontWeight.Bold else FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (settingsLayout) {
+                            Box(
+                                Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .semantics { contentDescription = "关闭" }
+                                    .chromeClickable(role = Role.Button) { onClose() },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                PageIcon("x", theme.muted, Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                    if (subtitle.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(subtitle, color = theme.muted, fontSize = 12.5.sp, lineHeight = 18.sp)
+                    }
+                    Spacer(Modifier.height(12.dp))
                 }
-                if (subtitle.isNotBlank()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(subtitle, color = theme.muted, fontSize = 12.5.sp, lineHeight = 18.sp)
-                }
-                Spacer(Modifier.height(12.dp))
-            } else Spacer(Modifier.height(16.dp))
-            Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()), content = content)
-            Spacer(Modifier.height(18.dp))
+            } else {
+                Spacer(Modifier.height(16.dp))
+            }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = horizPad)
+                    .testTag("ty-dialog-body"),
+                content = content,
+            )
+            if (footer != null) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(theme.line))
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizPad, vertical = 14.dp)
+                        .testTag("ty-dialog-footer"),
+                    content = footer,
+                )
+            } else {
+                Spacer(Modifier.height(18.dp))
+            }
         }
     }
 }

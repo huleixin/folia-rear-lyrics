@@ -65,6 +65,54 @@ internal fun settingsFlowTheme(): TyPanelTheme {
     )
 }
 
+internal val LocalGlobalSettingsModalHostActive = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/**
+ * 统一的设置弹窗内容渲染：如果语义布局的末尾节点声明了 `divider = true`（如问题反馈的底部提交栏），
+ * 则自动拆分至 `TyDialogFrame` 的固定底部操作区，中部表单独立滚动，顶部标题与关闭按钮固定。
+ */
+@Composable
+internal fun SettingsModalDialogContent(
+    modal: TySettingsPage,
+    theme: TyPanelTheme,
+    viewportWidth: Float,
+    viewportHeight: Float,
+    onAction: PageAction,
+) {
+    val rootLayout = modal.layout
+    val hasPinnedFooter = rootLayout != null &&
+        rootLayout.kind == "column" &&
+        rootLayout.children.size >= 2 &&
+        rootLayout.children.last().style.divider
+    val bodyPage = if (hasPinnedFooter) {
+        modal.copy(layout = rootLayout.copy(children = rootLayout.children.dropLast(1)))
+    } else {
+        modal
+    }
+    val footerPage = if (hasPinnedFooter) {
+        val last = rootLayout.children.last()
+        modal.copy(layout = last.copy(style = last.style.copy(divider = false)))
+    } else {
+        null
+    }
+    CompositionLocalProvider(LocalSettingsPreviewViewport provides Rect(0f, 0f, viewportWidth, viewportHeight)) {
+        TyDialogFrame(
+            theme = theme,
+            title = modal.title,
+            subtitle = modal.subtitle,
+            onClose = { onAction("dismiss", "", 0.0) },
+            settingsLayout = modal.layout != null,
+            footer = footerPage?.let { pinned ->
+                {
+                    key("${modal.key}:footer") { TySettingsContent(pinned, theme, onAction) }
+                }
+            },
+        ) {
+            key(modal.key) { TySettingsContent(bodyPage, theme, onAction) }
+        }
+    }
+}
+
 /**
  * 一张语义化设置二级页的完整呈现：底色 + 毛玻璃固定顶栏（返回 / 标题）+ 原生内容。
  *
@@ -80,13 +128,14 @@ internal fun SettingsFlowPage(
     action: PageAction,
 ) {
     val theme = settingsFlowTheme()
+    val globalModalHosted = LocalGlobalSettingsModalHostActive.current
     val retainedModal = remember(flow.key) { androidx.compose.runtime.mutableStateOf(flow.modal) }
     val currentModal = androidx.compose.runtime.rememberUpdatedState(flow.modal)
     androidx.compose.runtime.SideEffect { if (flow.modal != null) retainedModal.value = flow.modal }
     val colors = page.surfaceColors()
     // 返回：更内层的面板/弹层各自有 BackHandler，会先吃掉；到这里才是退设置分区。
     // 当 WebView 覆盖层（如音乐平台账号页）处于前台时，不得拦截系统返回手势。
-    BackHandler(enabled = !LocalWebOverlayActive.current && (!splitPane || flow.modal != null || showBack)) {
+    BackHandler(enabled = !LocalWebOverlayActive.current && (!splitPane || (!globalModalHosted && flow.modal != null) || showBack)) {
         action(if (flow.modal != null) "dismiss" else "back", "", 0.0)
     }
     val density = LocalDensity.current
@@ -97,10 +146,10 @@ internal fun SettingsFlowPage(
         val viewportHeight = constraints.maxHeight.toFloat()
         val inset = 22.dp
         val railInset = if (!splitPane && LocalPadWindow.current.expanded) 104.dp else 0.dp
-        val safeTopPad = if (splitPane) 16.dp else (page.safeTop + 24).dp
+        val safeTopPad = if (splitPane) (page.safeTop + if (LocalPadWindow.current.shortWindow) 14 else 20).dp else (page.safeTop + 24).dp
         val hostBottom = with(density) { LocalNativePageBottomPx.current.toDp() }
         val bottomPad = if (splitPane) maxOf(hostBottom, (page.safeBottom + if (LocalPadWindow.current.expanded) 96 else 36).dp) else (24 + page.safeBottom).dp
-        val glass = rememberTyTopGlassState(estimateHeaderBottomDp = (if (splitPane) 16f else page.safeTop + 24f) + 60f)
+        val glass = rememberTyTopGlassState(estimateHeaderBottomDp = safeTopPad.value + 60f)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(
                 glass, colors, ambientImage = null, ambientViewportHeight = null,
@@ -166,17 +215,14 @@ internal fun SettingsFlowPage(
                     } }
                 }
             }
-            TyPanelOverlay(flow.modal != null, LocalInterfacePalette.current.light, onClose = { action("dismiss", "", 0.0) }) {
-                (flow.modal ?: retainedModal.value)?.let { modal ->
-                    // Retain pixels for exit, not authority to act on a closed/replaced form.
-                    val modalAction: PageAction = { name, text, value ->
-                        if (currentModal.value?.key == modal.key) action(name, text, value)
-                    }
-                    // Modal layouts need the same native viewport width for responsive rules.
-                    CompositionLocalProvider(LocalSettingsPreviewViewport provides Rect(0f, 0f, viewportWidth, viewportHeight)) {
-                        TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { modalAction("dismiss", "", 0.0) }, settingsLayout = modal.layout != null) {
-                            key(modal.key) { TySettingsContent(modal, theme, modalAction) }
+            if (!globalModalHosted) {
+                TyPanelOverlay(flow.modal != null, LocalInterfacePalette.current.light, onClose = { action("dismiss", "", 0.0) }) {
+                    (flow.modal ?: retainedModal.value)?.let { modal ->
+                        // Retain pixels for exit, not authority to act on a closed/replaced form.
+                        val modalAction: PageAction = { name, text, value ->
+                            if (currentModal.value?.key == modal.key) action(name, text, value)
                         }
+                        SettingsModalDialogContent(modal, theme, viewportWidth, viewportHeight, modalAction)
                     }
                 }
             }

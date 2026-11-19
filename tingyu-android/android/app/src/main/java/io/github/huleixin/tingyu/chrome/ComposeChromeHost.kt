@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 import android.webkit.WebView
 import androidx.compose.foundation.layout.Box
@@ -1220,6 +1221,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 }
                             }
                         CompositionLocalProvider(LocalNativePageBottomPx provides pageBottomPx,
+                            LocalGlobalSettingsModalHostActive provides true,
                             LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
                         val shownLibrary=if(selectedTab==1)pages["home"]?.takeIf{it.enabled&&it.key.startsWith("library:")&&pageNavigations["home"]==navigation}
                             ?:retained.find("home",1,"") else null
@@ -1735,6 +1737,48 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             }
             // 二级操作面板：盖在底栏/迷你播放器/极简页之上，任何路由都可呈现。
             TyPanelLayer(panelHost,interfaceLight,Modifier.fillMaxSize().zIndex(9f))
+            // 全局设置模态弹窗宿主（问题反馈等）：挂在整个应用窗口最高业务层（zIndex 11f），
+            // 遮罩覆盖全局导航栏、中间设置列表、右侧详情与迷你播放器，不再被裁切或困在右侧分栏内。
+            val activeSettingsModalPage = presented?.takeIf {
+                destination == "settings" && !webOverlay && active && !stageExit.active && it.document?.flow?.modal != null
+            }
+            val activeSettingsModal = activeSettingsModalPage?.document?.flow?.modal
+            var retainedSettingsModal by remember { mutableStateOf<Pair<NativePage, TySettingsPage>?>(null) }
+            LaunchedEffect(activeSettingsModalPage?.session, activeSettingsModal?.key) {
+                if (activeSettingsModalPage != null && activeSettingsModal != null) {
+                    retainedSettingsModal = activeSettingsModalPage to activeSettingsModal
+                }
+            }
+            val currentGlobalModalKey = activeSettingsModal?.key
+            val globalModalDensity = LocalDensity.current
+            val globalModalViewportW = with(globalModalDensity) { width.dp.toPx() }
+            val globalModalViewportH = with(globalModalDensity) { height.dp.toPx() }
+            TyPanelOverlay(
+                visible = activeSettingsModal != null,
+                light = interfaceLight,
+                modifier = Modifier.fillMaxSize().zIndex(11f).testTag("global-settings-modal-overlay"),
+                onClose = {
+                    val targetPage = activeSettingsModalPage ?: retainedSettingsModal?.first
+                    if (targetPage != null && currentGlobalModalKey != null) {
+                        pageListener?.onAction(targetPage.id, targetPage.session, targetPage.key, "dismiss", "", 0.0)
+                    }
+                },
+            ) {
+                val shownPair = if (activeSettingsModalPage != null && activeSettingsModal != null) {
+                    activeSettingsModalPage to activeSettingsModal
+                } else {
+                    retainedSettingsModal
+                }
+                shownPair?.let { (modalPage, modal) ->
+                    val modalTheme = settingsFlowTheme()
+                    val modalAction: PageAction = { name, text, value ->
+                        if (currentGlobalModalKey == modal.key) {
+                            pageListener?.onAction(modalPage.id, modalPage.session, modalPage.key, name, text, value)
+                        }
+                    }
+                    SettingsModalDialogContent(modal, modalTheme, globalModalViewportW, globalModalViewportH, modalAction)
+                }
+            }
             // 原生软件内更新弹窗与强制更新业务拦截门（UpdateGate）：独立于 WebView，置于最高层级。
             io.github.huleixin.tingyu.update.UpdateOverlayHost(
                 manager = remember(web.context) { io.github.huleixin.tingyu.update.UpdateManager.getInstance(web.context) },
