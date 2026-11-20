@@ -97,11 +97,15 @@ function verifyApkWithBuildTools(apkPath, expectedAppId, expectedCertSha256) {
     if (sigRes.status !== 0) {
         throw new Error(`apksigner 校验失败: ${(sigRes.stderr || sigRes.stdout).slice(0, 240)}`);
     }
-    const certMatch = /Signer #1 certificate SHA-256 digest:\s*([a-fA-F0-9]{64})/.exec(sigRes.stdout || '');
-    const certSha256 = certMatch ? certMatch[1].toLowerCase() : '';
-    if (certSha256 !== expectedCertSha256.toLowerCase()) {
-        throw new Error(`APK 签名证书不匹配: ${certSha256}`);
+    // Build-tools 37 labels certificates by signing scheme, e.g. V3.0 Signer.
+    const certDigests = [...(sigRes.stdout || '').matchAll(
+        /^(?:Signer #[1-9]\d*|V\d[\d.]* Signer(?::| #[1-9]\d*:?)) certificate SHA-256 digest:\s*([a-fA-F0-9]{64})\s*$/gm,
+    )].map(match => match[1].toLowerCase());
+    if (!certDigests.length) throw new Error('无法读取 APK 签名证书摘要');
+    if (certDigests.some(digest => digest !== expectedCertSha256.toLowerCase())) {
+        throw new Error(`APK 签名证书不匹配: ${certDigests.join(', ')}`);
     }
+    const certSha256 = certDigests[0];
 
     const badgeRes = spawnSync(aapt2Bin, ['dump', 'badging', apkPath], { encoding: 'utf8' });
     if (badgeRes.status !== 0) {
