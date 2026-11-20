@@ -8,7 +8,7 @@ const consoleOrigin = 'https://feedback.20262000.xyz';
 const repository = 'https://cnb.cool/tingyu-2026/releases.git';
 const rawOrigin = 'https://cnb.cool/tingyu-2026/releases/-/git/raw/main/';
 const secret = process.env.PROMOTE_RUNNER_SECRET;
-const token = process.env.CNB_TOKEN;
+const token = (process.env.ANNOUNCEMENT_CNB_TOKEN || process.env.CNB_TOKEN)?.trim();
 if (!secret || !token) throw Error('公告同步凭据未配置');
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -36,6 +36,7 @@ const bundle = await response.json();
 const files = new Map();
 const root = mkdtempSync(join(tmpdir(), 'tingyu-announcements-'));
 let pushed = false;
+let failureCode;
 
 try {
     for (const [path, value] of Object.entries(bundle.files)) {
@@ -76,12 +77,18 @@ try {
         }
     }
     pushed = true;
+} catch (error) {
+    if (/repository not found|authentication failed|401|403|permission denied/i.test(String(error.stderr || ''))) {
+        failureCode = 'cnb_repository_auth';
+        throw Error('Cloud runner does not have access to the CNB release repository');
+    }
+    throw Error('CNB announcement synchronization failed: ' + (error.stderr ? 'git operation failed' : error.message));
 } finally {
     rmSync(root, { recursive: true, force: true });
     for (const [channel, feedRevision] of Object.entries(bundle.revisions)) {
         const ok = pushed && !(channel === 'private_beta' && bundle.missingEncryptionKey);
         const result = await api('report', {
-            ok, channel, feedRevision,
+            ok, channel, feedRevision, error: ok ? undefined : failureCode,
             syncedImageFilenames: ok ? bundle.images.filter(x => x.channel === 'public').map(x => x.filename) : [],
         });
         if (!result.ok && result.status !== 409) throw Error('回报 CNB 同步状态失败 HTTP ' + result.status);
