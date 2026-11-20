@@ -45,7 +45,7 @@ jobs:
           PROMOTE_JOB_ID: ${{ github.event.inputs.job_id }}
           PROMOTE_MODE: ${{ github.event.inputs.mode }}
           PROMOTE_RUNNER_SECRET: ${{ secrets.PROMOTE_RUNNER_SECRET }}
-          CNB_TOKEN: ${{ secrets.ANNOUNCEMENT_CNB_TOKEN || secrets.CNB_TOKEN }}
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TINGYU_CONSOLE_API_BASE: 'https://feedback.20262000.xyz'
         run: node tingyu-android/tools/cloud-promote-runner.mjs
