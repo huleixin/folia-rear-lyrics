@@ -26,7 +26,7 @@ import { pipeline } from 'node:stream/promises';
 
 const CONSOLE_API_BASE = (process.env.TINGYU_CONSOLE_API_BASE || 'https://feedback.20262000.xyz').replace(/\/+$/, '');
 const RUNNER_SECRET = process.env.PROMOTE_RUNNER_SECRET || '';
-const CNB_TOKEN = process.env.CNB_TOKEN || '';
+const CNB_TOKEN = readCnbToken(process.env.CNB_TOKEN || '');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const CNB_REPO = process.env.CNB_REPO || 'tingyu-2026/releases';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'huleixin/folia-rear-lyrics';
@@ -35,6 +35,25 @@ const RUN_MODE = process.env.PROMOTE_MODE || 'promote';
 const RUNNER_RUN_URL = process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : '';
+
+function readCnbToken(value) {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('{')) {
+        if (/\s/.test(trimmed)) throw new Error('CNB 登录令牌格式无效');
+        return trimmed;
+    }
+    let config;
+    try { config = JSON.parse(trimmed); } catch {
+        throw new Error('CNB 登录配置格式无效');
+    }
+    const auth = config.auths?.['cnb.cool'];
+    const token = auth?.access_token || auth?.token;
+    if (typeof token !== 'string' || !token.trim() || /\s/.test(token.trim())) {
+        throw new Error('CNB 登录配置缺少有效令牌');
+    }
+    return token.trim();
+}
+
 
 function assertEnv() {
     if (!JOB_ID) throw new Error('PROMOTE_JOB_ID_REQUIRED');
