@@ -775,10 +775,10 @@ async function cmdVerify(flags) {
 
     if (channel === 'private_beta') {
         const overview = await consoleRequest('/api/admin/beta/overview', { slot: 'read' });
-        const matched = (overview.apks || []).find(a => a.release_id === draft.id && a.sha256 === draft.sha256);
-        if (!matched) {
-            throw new Error(`私有内测 R2 存储中未找到匹配的 APK 记录: ${draft.id}`);
-        }
+        // Older consoles expose only the latest object's metadata, not an APK object list.
+        // A protected full download proves candidate existence and integrity independently of that view.
+        const matched = (overview.apks || []).find(a => a.release_id === draft.id && a.sha256 === draft.sha256)
+            || (overview.summary?.betaApkObject?.release_id === draft.id ? overview.summary.betaApkObject : null);
         // Verify the actual protected download path before approval, using an existing authorized device.
         const device = (overview.devices || []).find(d => d.role === 'developer' && d.status === 'active' && (!d.expiresAt || d.expiresAt > Date.now()));
         if (!device) throw new Error('完整回验需要现有有效的个人内测设备，不会自动创建或更改设备授权');
@@ -1229,6 +1229,6 @@ async function main() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     main().catch(err => {
         console.error(`✖ [release-cli] ${err.message || err}`);
-        process.exit(1);
+        process.exitCode = 1;
     });
 }
