@@ -2,22 +2,22 @@
   "schemaVersion": 1,
   "appId": "io.github.huleixin.tingyu",
   "channel": "stable",
-  "policyRevision": 5,
+  "policyRevision": 6,
   "policyAction": "normal",
   "updateEnabled": true,
-  "latestVersionName": "1.5.84",
-  "latestVersionCode": 300,
-  "minSupportedVersionCode": 300,
-  "releaseId": "rel-stable-1.5.84-300",
-  "gitCommit": "38bda046",
-  "releaseNotes": "听屿 v1.5.84 (Build 300) 正式版本更新说明\n\n1. 私有内测与更新通道治理\n- 将原公开测试通道收拢为私有邀请制内测通道，普通用户统一保留在正式稳定通道（stable），关于页不再展示公开测试通道切换入口。\n- 新增版本卡 7 连击隐藏激活入口与开发者/内测设备鉴权管理，旧版测试通道用户升级后自动回归正式稳定通道。\n\n2. 后台播放与歌词稳定性修复\n- 修复后台、锁屏及自动切歌场景下的歌词加载异常，统一前后台歌词获取、调度与时长校准机制。\n- 修复冷启动恢复快照过大导致的内存溢出（OOM）、前台服务与通知点击栈异常，以及播放器音频焦点恢复与本地音频代理断连异常。\n\n3. 播放控制与漫游体验优化\n- 在「设置 → 播放设置」新增「允许与其他应用同时播放」开关（默认关闭，实时生效），开启后可与其他媒体应用同时发声，同时保留来电暂停与耳机拔出/蓝牙断开自动暂停保护。\n- 优化「听屿漫游」：初始队列提升至 20 首，剩余未播 ≤ 8 首时自动续补 10–20 首；支持漫游中无感切换「听屿漫游 / 偏熟悉 / 多探索」模式，并支持后台自动续队。",
-  "publishedAt": "2026-11-19T03:12:30.631Z",
-  "publishedAtEpochMs": 1795057950631,
-  "policyExpiresAt": "2026-12-19T03:12:30.631Z",
-  "policyExpiresAtEpochMs": 1797649950631,
+  "latestVersionName": "1.5.98",
+  "latestVersionCode": 314,
+  "minSupportedVersionCode": 314,
+  "releaseId": "rel-stable-1.5.98-314",
+  "gitCommit": "7cf9351b8c4fe533c7a42012704fe2234c421746",
+  "releaseNotes": "听屿 v1.5.98 正式版（314）\n\n本次更新汇总了自 1.5.84 正式版以来、已通过个人内测验收的改进：\n\n1. 修复第三方音源 JS 文件与 URL 导入卡住、初始化超时及相关闪退问题；导入时显示处理阶段，支持取消，并改善失败提示和诊断信息。\n2. 按音乐平台实际能力显示推荐内容与快捷入口，隐藏无内容的栏目；移除汽水音乐中被误当作歌单展示的场景电台卡片，修复空结果缓存导致刷新后仍不显示内容的问题。\n3. 完善平板横竖屏适配，优化推荐、资料库、搜索、歌单及设置页面的分栏、网格和间距；修复设置跳转、重复分栏、弹窗遮挡、选中样式及反馈提交区域显示问题。\n4. 推荐页加入原生下拉刷新，优化刷新指示、歌单卡片、栏目标题及间距，统一喜欢歌曲的展示和计数，补全 QQ 音乐喜欢歌曲列表及支持平台的歌单读取回退。\n5. 完善网易云、QQ、酷狗、波点和汽水的原生后台歌词获取，优化歌词任务优先级、重试和时长处理，改善未匹配、网络失败与暂无歌词等状态的区分。\n6. 修复播放切歌时旧请求干扰新歌曲、播放状态同步及后台播放服务通知时序问题，改善播放失败提示，避免 QQ 音乐空播放地址被直接误判为登录失效。\n7. 改善汽水扫码登录网络失败后的重试与提示，修复页面返回动画中断后的状态残留，以及私有内测授权后版本状态未及时刷新的问题。\n\n本次为正式必更版本，请通过软件内更新下载安装；更新沿用原安装签名，可覆盖安装。",
+  "publishedAt": "2026-11-20T00:26:25.878Z",
+  "publishedAtEpochMs": 1795134385878,
+  "policyExpiresAt": "2026-12-20T00:26:25.878Z",
+  "policyExpiresAtEpochMs": 1797726385878,
   "offlineGraceHours": 168,
-  "apkSizeBytes": 58694708,
-  "sha256": "bb3da463104c7b3e78a947c9b56158a192668820ec646fc4c05f46b0ed4fbf16",
+  "apkSizeBytes": 58755186,
+  "sha256": "e086c03a8b55a7d673ebc2b268df5f43f473906f3871a16a6a0048885243eaaf",
   "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
   "minSdk": 24,
   "supportedAbis": [
@@ -30,17 +30,17 @@
     {
       "id": "cnb-primary",
       "label": "CNB 国内高速主节点",
-      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.84/tingyu-1.5.84-release.apk",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.98/tingyu-1.5.98-release.apk",
       "priority": 1
     },
     {
       "id": "github-backup",
       "label": "GitHub 备用节点",
-      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.84/tingyu-1.5.84-release.apk",
+      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.98/tingyu-1.5.98-release.apk",
       "priority": 2
     }
   ],
   "signatureAlgorithm": "ECDSA-P256-SHA256",
   "keyId": "tingyu-policy-2026-k1",
-  "signature": "MEQCIHZNeNgjoyIK4fxd9r62Euw+CRwe9BtMRiP+tMAt6zU4AiAtorj5luwhv+ZdCvjjHRvSKpTvg8nTykaxxcF+dKL66Q=="
+  "signature": "MEUCIArZqA+slRgqaL9Gq7qPgEZeTTnZqD4C9R+MWazwJvSHAiEApHkh9Al1W6vR256b222IY0vvYyF4r73reUK0RMEH4Ew="
 }
