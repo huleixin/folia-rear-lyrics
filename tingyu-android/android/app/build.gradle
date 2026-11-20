@@ -104,7 +104,6 @@ android {
                 // Native Compose screenshots and large audio fixtures share this test VM.
                 maxHeapSize = '1536m'
                 maxParallelForks = 1
-                forkEvery = 50
             }
         }
     }
