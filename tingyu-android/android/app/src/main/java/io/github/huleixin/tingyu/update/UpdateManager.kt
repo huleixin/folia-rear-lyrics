@@ -6,6 +6,7 @@ import io.github.huleixin.tingyu.BuildConfig
 import io.github.huleixin.tingyu.CrashDiagnostics
 import io.github.huleixin.tingyu.telemetry.TelemetryManager
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,7 +29,11 @@ class UpdateManager internal constructor(
     private val betaAuth: BetaAuthManager = BetaAuthManager(appContext),
     private val api: UpdateApi = UpdateApi(),
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, throwable ->
+            recordDiagnostic("update-scope-exception", throwable.javaClass.simpleName)
+        }
+    )
     private val store = UpdateStateStore(appContext)
     private val downloader = UpdateDownloader(appContext)
 
@@ -240,6 +245,7 @@ class UpdateManager internal constructor(
 
         checkJob = scope.launch {
             val now = System.currentTimeMillis()
+            try {
             // 若设备持有内测授权但当前处于 stable，也在后台静默校验内测授权是否被撤销或过期（网络异常不误杀）
             if (channel != "private_beta" && betaAuth.hasActiveAuthorization(now)) {
                 when (betaAuth.verifyAuthorization(activeChannel = channel)) {
@@ -417,6 +423,18 @@ class UpdateManager internal constructor(
                     val nodeDetail = outcome.nodeErrors.joinToString(",") { "${it.first}:${it.second}" }.take(180)
                     recordDiagnostic("check-failed", "reason=$reason ch=$channel err=${outcome.reason} nodes=[$nodeDetail]")
                 }
+            }
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                _state.update { prev ->
+                    prev.copy(
+                        checkPhase = CheckPhase.CHECK_FAILED,
+                        checkMessage = if (manual) "检查更新失败，请稍后重试" else prev.checkMessage,
+                        lastCheckedAtMs = now,
+                    )
+                }
+                recordDiagnostic("check-exception", "reason=$reason ch=$channel err=${t.javaClass.simpleName}")
             }
         }
     }

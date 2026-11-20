@@ -1,5 +1,6 @@
 package io.github.huleixin.tingyu.update
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -37,62 +38,86 @@ class UpdateApi(
         trustedKeysSpki: Map<String, String> = UpdateTrustAnchors.TRUSTED_PUBLIC_KEYS_SPKI,
         expectedAppId: String = UpdateTrustAnchors.APP_ID,
     ): FetchOutcome = withContext(Dispatchers.IO) {
-        if (endpoints.isEmpty()) {
-            return@withContext FetchOutcome.Failure("no_endpoints", emptyList())
-        }
+        try {
+            val safeEndpoints = endpoints.orEmpty().filter { it.id.isNotBlank() && it.url.isNotBlank() }
+            if (safeEndpoints.isEmpty()) {
+                return@withContext FetchOutcome.Failure("no_endpoints", emptyList())
+            }
 
-        // 并发查询 CNB 国内主节点与云端实时签名策略节点（及备用节点），按最高有效 policyRevision 裁决
-        val results = supervisorScope {
-            endpoints.sortedBy { it.priority }.map { node ->
-                async {
-                    fetchSingleNode(node)
-                }
-            }.awaitAll()
-        }
+            // 并发查询 CNB 国内主节点与云端实时签名策略节点（及备用节点），按最高有效 policyRevision 裁决
+            val results = supervisorScope {
+                safeEndpoints.sortedBy { it.priority }.map { node ->
+                    async {
+                        try {
+                            fetchSingleNode(node)
+                        } catch (ce: CancellationException) {
+                            throw ce
+                        } catch (t: Throwable) {
+                            node.id to Result.failure(RuntimeException(t.javaClass.simpleName))
+                        }
+                    }
+                }.awaitAll()
+            }
 
-        val rawCandidates = mutableListOf<UpdatePolicy.NodeCandidate>()
-        val networkErrors = mutableListOf<Pair<String, String>>()
+            val rawCandidates = mutableListOf<UpdatePolicy.NodeCandidate>()
+            val networkErrors = mutableListOf<Pair<String, String>>()
 
-        for ((nodeId, res) in results) {
-            res.fold(
-                onSuccess = { body -> rawCandidates.add(UpdatePolicy.NodeCandidate(nodeId, body)) },
-                onFailure = { err -> networkErrors.add(nodeId to (err.message ?: "network_error")) },
+            for ((nodeId, res) in results) {
+                res.fold(
+                    onSuccess = { body ->
+                        if (body.isNotBlank()) {
+                            rawCandidates.add(UpdatePolicy.NodeCandidate(nodeId, body))
+                        } else {
+                            networkErrors.add(nodeId to "empty_body")
+                        }
+                    },
+                    onFailure = { err -> networkErrors.add(nodeId to (err.message ?: "network_error")) },
+                )
+            }
+
+            if (rawCandidates.isEmpty()) {
+                return@withContext FetchOutcome.Failure("all_nodes_unreachable", networkErrors)
+            }
+
+            val selection = UpdatePolicy.selectAuthoritativeManifest(
+                candidates = rawCandidates,
+                expectedChannel = channel,
+                nowMs = nowMs,
+                minAcceptedRevision = minAcceptedRevision,
+                trustedKeysSpki = trustedKeysSpki,
+                expectedAppId = expectedAppId,
             )
-        }
 
-        if (rawCandidates.isEmpty()) {
-            return@withContext FetchOutcome.Failure("all_nodes_unreachable", networkErrors)
-        }
-
-        val selection = UpdatePolicy.selectAuthoritativeManifest(
-            candidates = rawCandidates,
-            expectedChannel = channel,
-            nowMs = nowMs,
-            minAcceptedRevision = minAcceptedRevision,
-            trustedKeysSpki = trustedKeysSpki,
-            expectedAppId = expectedAppId,
-        )
-
-        val chosen = selection.manifest
-        val chosenNode = selection.selectedNodeId
-        if (chosen != null && chosenNode != null) {
-            FetchOutcome.Success(chosenNode, chosen, networkErrors + selection.rejections)
-        } else {
-            FetchOutcome.Failure("no_valid_signed_policy", networkErrors + selection.rejections)
+            val chosen = selection.manifest
+            val chosenNode = selection.selectedNodeId
+            if (chosen != null && chosenNode != null) {
+                FetchOutcome.Success(chosenNode, chosen, networkErrors + selection.rejections)
+            } else {
+                FetchOutcome.Failure("no_valid_signed_policy", networkErrors + selection.rejections)
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            FetchOutcome.Failure("unexpected_${t.javaClass.simpleName}", emptyList())
         }
     }
 
     private fun fetchSingleNode(node: UpdateEndpointNode): Pair<String, Result<String>> {
-        if (!node.url.startsWith("https://") && !node.url.startsWith("http://127.0.0.1")) {
+        val url = node.url.trim()
+        if (!url.startsWith("https://") && !url.startsWith("http://127.0.0.1")) {
             return node.id to Result.failure(IllegalArgumentException("insecure_scheme"))
         }
-        val request = Request.Builder()
-            .url(node.url)
-            .cacheControl(CacheControl.FORCE_NETWORK)
-            .header("Accept", "application/json")
-            .header("User-Agent", "Tingyu-Android-Updater/1.0")
-            .get()
-            .build()
+        val request = try {
+            Request.Builder()
+                .url(url)
+                .cacheControl(CacheControl.FORCE_NETWORK)
+                .header("Accept", "application/json")
+                .header("User-Agent", "Tingyu-Android-Updater/1.0")
+                .get()
+                .build()
+        } catch (t: Throwable) {
+            return node.id to Result.failure(RuntimeException("invalid_url_${t.javaClass.simpleName}"))
+        }
 
         return try {
             httpClient.newCall(request).execute().use { response ->
@@ -101,13 +126,18 @@ class UpdateApi(
                 }
                 val body = response.body?.string()
                     ?: return node.id to Result.failure(RuntimeException("empty_body"))
+                if (body.isBlank()) {
+                    return node.id to Result.failure(RuntimeException("empty_body"))
+                }
                 if (body.length > 262_144) {
                     return node.id to Result.failure(RuntimeException("body_too_large"))
                 }
                 node.id to Result.success(body)
             }
-        } catch (e: Exception) {
-            node.id to Result.failure(RuntimeException(e.javaClass.simpleName))
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            node.id to Result.failure(RuntimeException(t.javaClass.simpleName))
         }
     }
 
