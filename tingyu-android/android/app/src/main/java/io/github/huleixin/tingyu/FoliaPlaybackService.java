@@ -1378,6 +1378,30 @@ public class FoliaPlaybackService extends Service {
         }
     }
 
+    public static void notifyEngineReleased() {
+        FoliaPlaybackService service = activeService;
+        if (service == null) return;
+        Runnable clear = () -> {
+            service.cachedPlaying = false;
+            service.lastPlaying = false;
+            service.updatePlaybackLocks(false);
+            if (service.mediaSession != null) {
+                service.lastPlaybackStateAtElapsed = SystemClock.elapsedRealtime();
+                service.mediaSession.setPlaybackState(
+                    service.buildPlaybackState(false, service.cachedPositionMs, service.cachedSongKey));
+            }
+            if (service.foregroundStarted) {
+                NotificationManager manager = service.getSystemService(NotificationManager.class);
+                if (manager != null) {
+                    manager.notify(NOTIFICATION_ID,
+                        service.buildNotification(service.cachedTitle, service.cachedArtist, false, service.appliedArtworkBitmap));
+                }
+            }
+        };
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) clear.run();
+        else service.mainHandler.post(clear);
+    }
+
     @Override
     public void onDestroy() {
         if (lyricsFeatures != null) { lyricsFeatures.close(); lyricsFeatures = null; }
@@ -1387,6 +1411,8 @@ public class FoliaPlaybackService extends Service {
             new com.getcapacitor.JSObject()
                 .put("lastSong", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
                 .put("positionMs", cachedPositionMs).put("playing", cachedPlaying));
+        cachedPlaying = false;
+        lastPlaying = false;
         if (activeService == this) activeService = null;
         running = false;
         io.github.huleixin.tingyu.playback.NativeAudioEngine.releaseIfPresent();

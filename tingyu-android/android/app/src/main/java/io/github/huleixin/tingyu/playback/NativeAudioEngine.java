@@ -145,6 +145,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private boolean sleepStopped;
     private volatile String sourceId="";
     private String shuffleClockKey = "";
+    private volatile boolean released=false;
+    public boolean isReleased(){return released;}
     private volatile String songKey="";
     private volatile String songUri="";
     private final PowerManager.WakeLock handoffWake;
@@ -1933,7 +1935,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         listeningTracker.clearAll();
     }
 
-    private void release(){listeningTracker.onEndedOrStopped(SystemClock.elapsedRealtime(),System.currentTimeMillis());mixer.close();sourceId="";io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
-            .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
+    private void release(){released=true;desiredPaused=true;retryGeneration++;failure=null;networkRetries=0;urlRefreshRetries=0;urlRefreshInFlight=false;listeningTracker.onEndedOrStopped(SystemClock.elapsedRealtime(),System.currentTimeMillis());mixer.close();sourceId="";io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+            .put("positionMs",Math.max(0,player.getCurrentPosition())));songKey="";songUri="";releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
+            io.github.huleixin.tingyu.FoliaPlaybackService.notifyEngineReleased();
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();}
 }

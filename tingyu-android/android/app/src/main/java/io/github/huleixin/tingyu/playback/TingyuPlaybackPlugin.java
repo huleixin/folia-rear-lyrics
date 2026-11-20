@@ -444,6 +444,16 @@ if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enq
             io.github.huleixin.tingyu.lx.LxScriptChain.INSTANCE.install(data==null?null:data.optJSONArray("fallbackScripts"));
             // 脚本换了，之前"这首取不到"的判定不再适用：清掉续播的有界预算。
             BackgroundContinuation.get().resetBudgets();
+            if(!installed){
+                PlaybackDiagnostics.note("lx-script-sync",new JSObject()
+                    .put("installed",false)
+                    .put("started",false)
+                    .put("sources","")
+                    .put("version","")
+                    .put("bytes",0));
+                call.resolve(new JSObject().put("installed",false).put("warming",false));
+                return;
+            }
             // 预热：前台就把 QuickJS 拉起来。后台真要取地址时引擎已经是热的，
             // 诊断里也就能看到 started=yes / sources=tx，而不是等到续播失败才发现没起来。
             // 引擎初始化会阻塞，所以放在后台线程，不占主线程。
@@ -506,6 +516,11 @@ if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enq
         }catch(Exception error){call.reject("读取音源状态失败："+error.getClass().getSimpleName());}
     }
 
+    static boolean shouldRestorePreparedAfterEngineSwap(boolean hadPreviousEngine,boolean previousReleased){
+        // 睡眠定时或服务销毁主动释放引擎后，绝不自动恢复/续播旧曲目，尊重定时停止意图。
+        return hadPreviousEngine&&!previousReleased;
+    }
+
     private static NativePlaylist.Mode parseMode(String value){
         if(value==null)return NativePlaylist.Mode.SEQUENCE;
         switch(value){
@@ -522,8 +537,11 @@ if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enq
             PlaybackTestDiagnostics.note("command",new JSObject().put("action",call.getString("action")).put("sequence",call.getData().optLong("sequence")));
             NativeAudioEngine current=NativeAudioEngine.get(getContext());
             if(current!=engine){
+                boolean previousReleased=engine!=null&&engine.isReleased();
                 if(engine!=null)engine.unlisten(events);
-                boolean restoring=engine!=null;engine=current;engine.listen(events);
+                if(previousReleased){prepared=null;lastState=null;}
+                boolean restoring=shouldRestorePreparedAfterEngineSwap(engine!=null,previousReleased);
+                engine=current;engine.listen(events);
                 if(restoring&&prepared!=null&&!"prepare".equals(call.getString("action"))&&prepared.optString("id").equals(call.getString("id"))){
                     JSObject restore=JSObject.fromJSONObject(prepared);
                     restore.put("sequence",call.getData().optLong("sequence"));
