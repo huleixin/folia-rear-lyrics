@@ -156,6 +156,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private boolean desiredPaused=true;
     private PlaybackException failure;
     private int networkRetries;
+    private int urlRefreshRetries;
+    private boolean urlRefreshInFlight;
     private int errorSkips;
     /** 连续跳过的坏歌数量：中间只要有一首真的播出声就清零，达到上限就停下来说清楚。 */
     private int consecutiveSkips;
@@ -468,9 +470,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     ?(com.getcapacitor.JSObject)tagObject:null;
                 boolean proxied=currentUri!=null&&"127.0.0.1".equals(String.valueOf(currentUri.getHost()));
                 long adoptedAt=tagMeta==null?0L:(long)tagMeta.optDouble("adoptedAt",0L);
+                long posMs=Math.max(0L,player.getCurrentPosition());
+                long urlAgeMs=adoptedAt>0?SystemClock.elapsedRealtime()-adoptedAt:-1L;
+                int upstreamStatus=upstreamStatusOf(error);
                 PlaybackDiagnostics.note("player-error",new JSObject().put("code",error.errorCode)
                     .put("name",error.getErrorCodeName()).put("song",PlaybackDiagnostics.anonKey(songKey))
-                    .put("positionMs",Math.max(0,player.getCurrentPosition()))
+                    .put("positionMs",posMs)
                     .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
                     .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1))
                     .put("retries",networkRetries)
@@ -480,9 +485,13 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("phase",phase)
                     .put("redirectSeen",redirectSeen(error))
                     .put("proxied",proxied)
-                    .put("upstreamStatus",upstreamStatusOf(error))
-                    .put("urlAgeMs",adoptedAt>0?SystemClock.elapsedRealtime()-adoptedAt:-1));
+                    .put("upstreamStatus",upstreamStatus)
+                    .put("urlAgeMs",urlAgeMs));
                 if(recoverCachedAudio(error))return;
+                if(UrlRefreshPolicy.shouldRefreshUrl(error.errorCode,httpStatus,upstreamStatus,proxied,urlAgeMs,posMs,networkRetries,urlRefreshRetries,desiredPaused,urlRefreshInFlight)){
+                    long generation=++retryGeneration;
+                    if(refreshCurrentItemBeforeRetry(songKey,generation,sourceId,posMs,error))return;
+                }
                 if(!desiredPaused&&NativeRetryPolicy.canRetry(error.errorCode,networkRetries)){
                     int attempt=++networkRetries;String token=sourceId;long generation=++retryGeneration;
                     PlaybackTestDiagnostics.note("network-retry",new JSObject().put("attempt",attempt).put("code",error.errorCode));
@@ -612,7 +621,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 同一首歌、地址刷新了：只换当前项的地址，队列其余部分与已入队的下一首保留。
                 configure(value);
                 MediaItem refreshed=new MediaItem.Builder().setUri(uri).setMediaId(wantKey).setTag(copy(value)).build();
-                sourceId=id;sequence=seq;failure=null;networkRetries=0;errorSkips=0;desiredPaused=false;
+                sourceId=id;sequence=seq;failure=null;networkRetries=0;urlRefreshRetries=0;urlRefreshInFlight=false;errorSkips=0;desiredPaused=false;
                 player.replaceMediaItem(Math.max(0,player.getCurrentMediaItemIndex()),refreshed);
                 player.prepare();player.play();
                 scheduleSongInfo(player.getCurrentMediaItem());emit("load",false);
@@ -621,7 +630,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
                 return new JSObject().put("accepted",true);
             }
-            mixer.cancel();sourceId="";songKey=wantKey;endedHandoff=false;sequence=seq;failure=null;networkRetries=0;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
+            mixer.cancel();sourceId="";songKey=wantKey;endedHandoff=false;sequence=seq;failure=null;networkRetries=0;urlRefreshRetries=0;urlRefreshInFlight=false;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
         BackgroundContinuation.get().cancel();
             // A new source starts a new continuation story; the window command that follows
             // re-declares it. The generation is never invented here - JS owns that counter.
@@ -974,7 +983,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     // 重试必然复现同一错误，这正是真机上 31 次 502 里大部分的重试消耗。
                     // 刷新失败（网络抖动/解析失败）退回原来的原地重试，有界性由
                     // PlaybackSkipPolicy 的重试上限保证，行为不变。
-                    if(refreshCurrentItemBeforeRetry(target,generation,token))return;
+                    if(refreshCurrentItemBeforeRetry(target,generation,token,Math.max(0L,player.getCurrentPosition()),null))return;
                     failure=null;player.prepare();player.play();
                 },Math.max(400L,attempt*800L));
                 return true;
@@ -1043,28 +1052,38 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
      * 重新解析或登记失败时返回 false，调用方退回原来的原地重试 —— 有界性不变。
      * 任何返回 true 的路径都已经完成 prepare/play，调用方不要再动播放器。
      */
-    private boolean refreshCurrentItemBeforeRetry(String target,long generation,String token){
+    private boolean refreshCurrentItemBeforeRetry(String target,long generation,String token,long resumePositionMs,PlaybackException fallbackError){
+        if(urlRefreshInFlight||urlRefreshRetries>=UrlRefreshPolicy.MAX_URL_REFRESH_PER_TRACK)return false;
         MediaItem current=player.getCurrentMediaItem();
-        Object tag=current==null||current.localConfiguration==null?null:current.localConfiguration.tag;
-        if(!(tag instanceof JSObject)||!((JSObject)tag).optBoolean("nativeContinuation",false))return false;
+        if(current==null||current.localConfiguration==null)return false;
         NativePlaylist list=NativePlaylist.get();
         final NativePlaylist.Track self=list.trackFor(target);
         if(self==null||!io.github.huleixin.tingyu.resolver.ResolverRegistry.get().canResolveNatively(self))return false;
         final String quality=QualityPreference.get();
+        final long credentialsRev=io.github.huleixin.tingyu.resolver.ResolverCredentials.revision();
+        final long resumePosition=Math.max(0L,resumePositionMs);
+        urlRefreshInFlight=true;
+        urlRefreshRetries++;
         Thread worker=new Thread(()->{
             io.github.huleixin.tingyu.resolver.SourceResolution resolution;
             try{resolution=io.github.huleixin.tingyu.resolver.ResolverRegistry.get().resolve(self,quality);}
             catch(Throwable error){resolution=null;}
             final io.github.huleixin.tingyu.resolver.SourceResolution fresh=resolution;
             main.post(()->{
-                if(generation!=retryGeneration||!sourceId.equals(token)||desiredPaused)return;
+                urlRefreshInFlight=false;
+                if(generation!=retryGeneration||!sourceId.equals(token)||!songKey.equals(target)||desiredPaused
+                    ||credentialsRev!=io.github.huleixin.tingyu.resolver.ResolverCredentials.revision())return;
                 MediaItem existing=player.getCurrentMediaItem();
                 if(existing==null||existing.localConfiguration==null)return;
                 if(fresh==null||!fresh.ok()){
                     PlaybackDiagnostics.note("retry-refresh",new JSObject()
                         .put("song",PlaybackDiagnostics.anonKey(target)).put("refreshed",false)
                         .put("reason",fresh==null?"resolve-crashed":fresh.reason));
-                    failure=null;player.prepare();player.play();
+                    if(fallbackError!=null){
+                        if(!handleUnplayableError(fallbackError)){failure=fallbackError;emit("error",false);}
+                    }else{
+                        failure=null;player.prepare();player.play();
+                    }
                     return;
                 }
                 String refreshedUri;
@@ -1073,20 +1092,27 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     PlaybackDiagnostics.note("retry-refresh",new JSObject()
                         .put("song",PlaybackDiagnostics.anonKey(target)).put("refreshed",false)
                         .put("reason","register:"+error.getClass().getSimpleName()));
-                    failure=null;player.prepare();player.play();
+                    if(fallbackError!=null){
+                        if(!handleUnplayableError(fallbackError)){failure=fallbackError;emit("error",false);}
+                    }else{
+                        failure=null;player.prepare();player.play();
+                    }
                     return;
                 }
-                JSObject refreshedTag=copy((JSObject)existing.localConfiguration.tag);
+                Object rawTag=existing.localConfiguration.tag;
+                JSObject refreshedTag=rawTag instanceof JSObject?copy((JSObject)rawTag):new JSObject();
                 refreshedTag.put("adoptedAt",SystemClock.elapsedRealtime());
                 MediaItem refreshed=new MediaItem.Builder()
                     .setUri(Uri.parse(refreshedUri)).setMediaId(existing.mediaId)
                     .setTag(refreshedTag).build();
                 int index=Math.max(0,player.getCurrentMediaItemIndex());
                 player.replaceMediaItem(index,refreshed);
+                if(resumePosition>0L)player.seekTo(index,resumePosition);
                 PlaybackDiagnostics.note("retry-refresh",new JSObject()
                     .put("song",PlaybackDiagnostics.anonKey(target)).put("refreshed",true)
+                    .put("positionMs",resumePosition)
                     .put("quality",fresh.quality).put("proxy",fresh.proxy()));
-                failure=null;player.prepare();player.play();
+                failure=null;networkRetries=0;player.prepare();player.play();
             });
         },"tingyu-retry-refresh");
         worker.setDaemon(true);
@@ -1098,7 +1124,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private void executeSkip(String reason){
         if(desiredPaused||player.getNextMediaItemIndex()<0)return;
         consecutiveSkips++;skipCount++;errorSkips++;
-        failure=null;networkRetries=0;retryGeneration++;
+        failure=null;networkRetries=0;urlRefreshRetries=0;urlRefreshInFlight=false;retryGeneration++;
         noteSkip(reason,PlaybackDiagnostics.anonKey(songKey));
         player.seekToNextMediaItem();player.prepare();player.play();
     }

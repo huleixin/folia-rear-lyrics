@@ -3,6 +3,8 @@ package io.github.huleixin.tingyu.resolver;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 原生解析所需的凭据，**只放在内存里**。
@@ -22,25 +24,35 @@ public final class ResolverCredentials {
     private static final Map<String, Long> STAMPED_AT =
         Collections.synchronizedMap(new HashMap<>());
 
+    /** 账号切换/登出单调版本号，用于作废在飞的音频地址刷新任务。 */
+    private static final AtomicLong REVISION = new AtomicLong(0L);
+
     private ResolverCredentials() { throw new AssertionError(); }
+
+    public static long revision() {
+        return REVISION.get();
+    }
 
     public static void configure(String providerId, Map<String, String> values) {
         if (providerId == null || providerId.isEmpty()) return;
         if (values == null || values.isEmpty()) {
-            BY_PROVIDER.remove(providerId);
+            if (BY_PROVIDER.remove(providerId) != null) REVISION.incrementAndGet();
             STAMPED_AT.remove(providerId);
             return;
         }
-        BY_PROVIDER.put(providerId, Collections.unmodifiableMap(new HashMap<>(values)));
+        Map<String, String> next = Collections.unmodifiableMap(new HashMap<>(values));
+        Map<String, String> prev = BY_PROVIDER.put(providerId, next);
+        if (!Objects.equals(prev, next)) REVISION.incrementAndGet();
         STAMPED_AT.put(providerId, System.currentTimeMillis());
     }
 
     public static void clear(String providerId) {
-        if (providerId != null) BY_PROVIDER.remove(providerId);
+        if (providerId != null && BY_PROVIDER.remove(providerId) != null) REVISION.incrementAndGet();
         if (providerId != null) STAMPED_AT.remove(providerId);
     }
 
     public static void clearAll() {
+        if (!BY_PROVIDER.isEmpty()) REVISION.incrementAndGet();
         BY_PROVIDER.clear();
         STAMPED_AT.clear();
     }
