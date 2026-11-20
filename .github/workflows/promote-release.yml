@@ -1,51 +1,36 @@
-name: Cloud Promote Beta to Stable
+name: Cloud Announcement Sync
 
 on:
   workflow_dispatch:
     inputs:
       job_id:
-        description: 'Cloud promote job ID from Tingyu Developer Console'
         required: true
         type: string
       mode:
-        description: 'Execution mode (promote | sync_only)'
-        required: false
-        default: 'promote'
+        required: true
         type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: tingyu-announcement-sync
+  cancel-in-progress: false
 
 jobs:
-  promote:
+  sync:
+    if: inputs.mode == 'announcement_sync'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 8
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Verify Android SDK build-tools
-        run: |
-          echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          ls -la "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools"
-
-      - name: Run cloud promote runner
+      - name: Publish and verify announcement files
         env:
-          PROMOTE_JOB_ID: ${{ github.event.inputs.job_id }}
-          PROMOTE_MODE: ${{ github.event.inputs.mode }}
           PROMOTE_RUNNER_SECRET: ${{ secrets.PROMOTE_RUNNER_SECRET }}
           CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TINGYU_CONSOLE_API_BASE: 'https://feedback.20262000.xyz'
-        run: node tingyu-android/tools/cloud-promote-runner.mjs
+        run: node tingyu-android/tools/cloud-announcement-runner.mjs
