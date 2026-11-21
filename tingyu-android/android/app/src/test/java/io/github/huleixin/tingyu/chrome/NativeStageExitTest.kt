@@ -13,4 +13,18 @@ class NativeStageExitTest {
         exit.begin(null){replies++};assertFalse(exit.completed)
         exit.clear();assertEquals(3,replies)
     }
+
+    @Test fun reopenCancelsRoutingAndASecondCloseCanCommit() {
+        val exit = NativeStageExit()
+        val routeDecisions = mutableListOf<Boolean>()
+        exit.begin(null, true) { routeDecisions.add(it) }
+        exit.cancel()
+        exit.finish()
+        assertEquals(listOf(false), routeDecisions)
+        assertFalse(exit.active)
+        assertFalse(exit.suppressReturnMotion)
+        exit.begin(null, true) { routeDecisions.add(it) }
+        exit.finish()
+        assertEquals(listOf(false, true), routeDecisions)
+    }
 }

@@ -2,7 +2,8 @@ package io.github.huleixin.tingyu.minimal.immersive
 
 import io.github.huleixin.tingyu.minimal.PlayerPanelState
 import androidx.compose.animation.core.spring
-import androidx.compose.runtime.*
+import androidx.compose.runtime.State
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.*
 import androidx.compose.ui.graphics.*
@@ -20,25 +21,17 @@ internal fun immersiveSettleSpec() = spring<Float>(dampingRatio = 1f,
 internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
     val entry: State<Float>, val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean,
     val interactive: PlayerPanelState? = null) {
-    var drag by mutableFloatStateOf(0f)
-    fun fraction(): Float {
-        val live = interactive?.takeIf { it.initialized }?.progress
-        // `finish()` completes the collapse before the JS route commit clears the exit.
-        // Without this hold the fallback to `entry` (1f) snapped the shell back to full
-        // screen for the frames between the two, which read as the player "jumping".
-        if (exit.completed && (live == null || live <= .001f)) return 0f
-        return ((live ?: entry.value) *
-            (1f - if (exit.active) leaving.value else 0f) * (1f - drag)).coerceIn(0f, 1f)
-    }
-    fun active() = interactive?.dragging == true || fraction() < .9999f || exit.active
+    fun fraction(): Float = interactive?.takeIf { it.initialized }?.progress
+        ?: (entry.value * (if (exit.active) 1f - leaving.value else 1f)).coerceIn(0f, 1f)
+
+    fun active() = interactive?.dragging == true || fraction() < 1f
     fun panelBounds(size: Size): Rect {
         return lerp(panel ?: Rect(0f,size.height,size.width,size.height), Rect(Offset.Zero,size), fraction())
     }
     fun coverBounds(target: Rect): Rect = lerp(cover ?: target, target, fraction())
-    fun miniAlpha() = ((1f - fraction()) * 5f - 3.5f).coerceIn(0f,1f)
-    // Keep the moving shell opaque until it reaches the mini bar. Fading the whole
-    // scene during the drag exposes the page underneath and makes lyrics look static.
-    fun shellAlpha() = 1f
+    fun miniAlpha() = 1f - playerMotionReveal(fraction(), 0f, .12f)
+    // Fade only the final overlap, where the live mini bar takes over the same pixels.
+    fun shellAlpha() = if (panel != null) playerMotionReveal(fraction(), 0f, .12f) else 1f
     fun materialFraction(): Float {
         val p = ((fraction() - .03f) / .80f).coerceIn(0f, 1f)
         return p * p * (3f - 2f * p)
@@ -48,8 +41,7 @@ internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
 
     /** Vertical travel of the full-size scene; the shell clip supplies the remaining geometry. */
     fun sceneTranslationY(size: Size): Float {
-        val bounds = panelBounds(size)
-        return bounds.top - (size.height - bounds.height) * 0f
+        return panelBounds(size).top
     }
 
 }
@@ -84,18 +76,5 @@ internal fun Modifier.immersiveSceneReveal(motion: ImmersivePlayerMotion?) = gra
     }
 }
 
-@Composable internal fun Modifier.immersiveMovingCover(anchor: PlayerArtworkAnchor, active: Boolean): Modifier {
-    val motion = LocalImmersiveMorph.current
-    val overlay = LocalMinimalCoverOverlay.current ?: return this
-    return with(overlay) { renderInSharedTransitionScopeOverlay(zIndexInOverlay = 5f,
-        renderInOverlay = { active && motion?.active() == true }) }.graphicsLayer {
-        val target = anchor.bounds
-        if (active && motion?.active() == true && target != null && target.width > 0f && target.height > 0f) {
-            val bounds = motion.coverBounds(target)
-            transformOrigin = TransformOrigin(0f, 0f)
-            scaleX = bounds.width / target.width; scaleY = bounds.height / target.height
-            translationX = bounds.left - target.left; translationY = bounds.top - target.top
-            alpha = motion.coverAlpha()
-        } else { scaleX = 1f; scaleY = 1f; translationX = 0f; translationY = 0f; alpha = 1f }
-    }
-}
+internal fun Modifier.immersiveMovingCover(anchor: PlayerArtworkAnchor, motion: ImmersivePlayerMotion?) =
+    if (motion == null) this else playerCoverTransform(anchor, motion::active, motion::coverBounds, motion::coverAlpha)

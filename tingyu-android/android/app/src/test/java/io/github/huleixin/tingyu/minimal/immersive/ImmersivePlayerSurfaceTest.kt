@@ -147,11 +147,11 @@ class ImmersivePlayerSurfaceTest {
                 assertEquals("Cover width in $name",expected.width,(right-left).toFloat(),16f)
             }
         }
-        compose.runOnIdle { entry.value=.01f }; assertFrame("entry-near-mini")
+        compose.runOnIdle { entry.value=.12f }; assertFrame("entry-near-mini")
         compose.runOnIdle { entry.value=.2f }; assertFrame("entry-mid")
         compose.runOnIdle { entry.value=1f }; assertFrame("entry-finished")
-        compose.runOnIdle { motion.drag=.3f }; assertFrame("drag-mid")
-        compose.runOnIdle { motion.drag=0f }; assertFrame("drag-canceled")
+        compose.runOnIdle { entry.value=.7f }; assertFrame("drag-mid")
+        compose.runOnIdle { entry.value=1f }; assertFrame("drag-canceled")
         compose.runOnIdle { exit.begin(null,true) {}; interaction.value=false; leaving.value=.3f }; assertFrame("exit-inactive-mid")
         compose.runOnIdle { leaving.value=.65f }; assertFrame("exit-inactive-tail")
     }

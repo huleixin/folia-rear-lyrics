@@ -35,3 +35,23 @@ it('still returns if an unavailable native renderer never replies',async()=>{
     const back=vi.fn(()=>useAppViewStore.setState({view:'home'}));returnFromNativeStage(back);
     await vi.advanceTimersByTimeAsync(900);expect(back).toHaveBeenCalledOnce();
 });
+
+it('keeps the route and resumes the stage when the mini player reverses the collapse', async () => {
+    vi.useFakeTimers();
+    useAppViewStore.setState({ view: 'player' });
+    useSettingsModalStore.getState().closeSettings();
+    native.collapseStage.mockResolvedValueOnce({ committed: false });
+    const back = vi.fn(() => useAppViewStore.setState({ view: 'home' }));
+
+    returnFromNativeStage(back);
+    await vi.advanceTimersByTimeAsync(900);
+
+    expect(useAppViewStore.getState().view).toBe('player');
+    expect(back).not.toHaveBeenCalled();
+    expect(suspend).toHaveBeenLastCalledWith(false);
+
+    native.collapseStage.mockResolvedValueOnce({ committed: true });
+    returnFromNativeStage(back);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(back).toHaveBeenCalledOnce();
+});

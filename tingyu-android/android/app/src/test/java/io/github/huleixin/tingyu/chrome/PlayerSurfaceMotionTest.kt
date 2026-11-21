@@ -28,7 +28,7 @@ class PlayerSurfaceMotionTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private fun top()=compose.onNodeWithTag("moving").fetchSemanticsNode().positionInRoot.y
 
-    @Test fun minimalCollapseTravelsOneFullHeightBeforeAcknowledgingBack() {
+    @Test fun webStageCollapseTravelsOneFullHeightBeforeAcknowledgingBack() {
         val exit=NativeStageExit();var replies=0
         compose.mainClock.autoAdvance=false
         compose.setContent {
@@ -38,7 +38,7 @@ class PlayerSurfaceMotionTest {
             }
         }
         val height=compose.onNodeWithTag("moving").fetchSemanticsNode().size.height.toFloat()
-        compose.runOnIdle { exit.begin(null,true){replies++} }
+        compose.runOnIdle { exit.begin(null,false){replies++} }
         // LaunchedEffect 启动有 1~2 帧延迟（实测 t=48ms 时仍在 0），逐帧泵到动画真正起步，
         // 避免把"效果尚未启动"误判为"动画跳变"。
         var moved=false

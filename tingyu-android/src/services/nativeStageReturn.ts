@@ -19,8 +19,9 @@ export function returnFromNativeStage(action:()=>void){
     };
     const unsubscribe=useAppViewStore.subscribe(state=>{if(state.view!=='player')release()});
     let timeout:ReturnType<typeof setTimeout>|undefined;
-    void Promise.race([chromeNative.collapseStage().catch(()=>{}),new Promise<void>(resolve=>{timeout=setTimeout(resolve,900)})]).then(()=>{
+    void Promise.race([chromeNative.collapseStage().catch(()=>undefined),new Promise<undefined>(resolve=>{timeout=setTimeout(()=>resolve(undefined),900)})]).then(result=>{
         clearTimeout(timeout);
+        if(result?.committed===false){release();return}
         if(useAppViewStore.getState().view==='player'&&!useSettingsModalStore.getState().settingsModalState.isOpen)action();
         else setVisualizerRenderingSuspended(false);
         timer=setTimeout(release,1000);

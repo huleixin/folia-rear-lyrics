@@ -82,7 +82,7 @@ class LiquidMotionTest {
         }
         compose.mainClock.advanceTimeBy(128)
         assertTrue(entry.value>0f && entry.value<1f)
-        compose.runOnIdle {exit.begin(null,true){replies++}}
+        compose.runOnIdle {exit.begin(null,false){replies++}}
         compose.mainClock.advanceTimeBy(64)
         val frozen=entry.value;val before=frozen*(1f-leaving.value)
         compose.mainClock.advanceTimeBy(80)

@@ -142,6 +142,7 @@ fun MinimalCoverPage(
     /** 封面区域的拖动手势。**只**挂在这块封面上，页面其余区域不经过它。 */
     coverGesture: Modifier = Modifier,
     modifier: Modifier = Modifier,
+    visiblePage: Boolean = active,
 ) {
     val anchor = LocalPlayerArtworkAnchor.current
     val playback = state.playback
@@ -165,7 +166,7 @@ fun MinimalCoverPage(
             verticalArrangement = Arrangement.Bottom,
         ) {
             Box(Modifier.size(stageWidth).then(if(splitPlayer)Modifier.align(Alignment.CenterHorizontally)else Modifier).onGloballyPositioned {
-                anchor.artwork(it)
+                if (visiblePage) anchor.artwork(it)
                 val origin = it.positionInRoot()
                 val root = it.findRootCoordinates().size
                 stack.setViewport(-origin.x, -origin.y, root.width - origin.x, root.height - origin.y)
@@ -181,7 +182,7 @@ fun MinimalCoverPage(
                 covers = covers,
                 gesture = coverGesture,
                 modifier = Modifier
-                    .fillMaxSize().minimalMovingCover(anchor,active) { stack.phase != StackPhase.IDLE }
+                    .fillMaxSize().minimalMovingCover(anchor,visiblePage,active) { stack.phase != StackPhase.IDLE }
                     // 拖动 / 切歌动画期间把整摞封面提到本页文字之上：只有正在移动的那一张
                     // 会越出封面区域（后两层不越界，视觉上就是"拿起最上面这张盖住文字"），
                     // 松手回弹 / 补位完成（phase 回 IDLE）后立即恢复原层级。zIndex 只改

@@ -25,7 +25,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PlayerFrameInvalidationTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-    @Test fun draggingAndLateClassicFadesRedrawTheRootWithoutSceneRecomposition() {
+    @Test fun draggingAndSettlingRedrawTheRootWithoutSceneRecomposition() {
         compose.mainClock.autoAdvance = false
         lateinit var panel: PlayerPanelState
         var scenes = 0
@@ -33,7 +33,7 @@ class PlayerFrameInvalidationTest {
         compose.setContent {
             scenes++
             val scope = rememberCoroutineScope()
-            panel = remember { PlayerPanelState(scope).apply { useClassicMotion(true) } }
+            panel = remember { PlayerPanelState(scope) }
             val leaving = remember { mutableStateOf(0f) }
             Box(Modifier.size(120.dp, 240.dp)
                 .drawWithContent { draws++; drawContent() }
@@ -55,11 +55,11 @@ class PlayerFrameInvalidationTest {
             lastDraws = draws
         }
         compose.runOnIdle { panel.open(false) }
-        compose.mainClock.advanceTimeBy(780); compose.waitForIdle()
-        assertEquals(1f, panel.classicFrame!!.channels[0], .0001f)
-        lastDraws = draws
-        compose.mainClock.advanceTimeBy(80); compose.waitForIdle()
-        assertTrue("late classic fades did not redraw root", draws > lastDraws)
+        compose.mainClock.advanceTimeBy(96); compose.waitForIdle()
+        assertTrue(panel.progress in .01f.. .99f)
+        assertTrue("root did not redraw while settling", draws > lastDraws)
         assertEquals(initialScenes, scenes)
+        compose.mainClock.advanceTimeBy(320); compose.waitForIdle()
+        assertEquals(1f, panel.progress, .0001f)
     }
 }

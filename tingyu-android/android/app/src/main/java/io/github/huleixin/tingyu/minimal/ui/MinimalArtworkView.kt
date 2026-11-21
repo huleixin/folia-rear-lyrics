@@ -21,6 +21,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import io.github.huleixin.tingyu.chrome.LocalMinimalMorph
+import io.github.huleixin.tingyu.chrome.FullPlayerCoverRadiusDp
+import io.github.huleixin.tingyu.chrome.playerCoverLocalRadius
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -116,8 +118,12 @@ fun MinimalArtworkView(
     val cards = stack.cards
     BoxWithConstraints(modifier) {
         val side = minOf(maxWidth, maxHeight)
-        val corner = (side.value * 0.07f).coerceIn(18f, 30f).dp
         val density = LocalDensity.current
+        val corner = FullPlayerCoverRadiusDp.dp
+        val localCorner = {
+            playerCoverLocalRadius(morph?.interactiveFraction() ?: 1f,
+                morph?.cover?.width?.div(density.density), side.value, corner.value).dp
+        }
         val sidePx = with(density) { side.toPx() }
         stack.setSize(sidePx, density.density)
         LaunchedEffect(sidePx, density.density) { stack.setSize(sidePx, density.density) }
@@ -184,7 +190,7 @@ fun MinimalArtworkView(
                         ShadowLayer(
                             card = card,
                             stack = stack,
-                            corner = corner,
+                            corner = localCorner,
                             z = z - 0.5f,
                             motionAlpha = { decoration() },
                         )
@@ -192,7 +198,7 @@ fun MinimalArtworkView(
                             card = card,
                             stack = stack,
                             covers = covers,
-                            corner = corner,
+                            corner = localCorner,
                             ink = ink,
                             z = z,
                             motionAlpha = { if(index==0)1f else decoration() },
@@ -210,7 +216,7 @@ fun MinimalArtworkView(
                                 ghost = ghost,
                                 stack = stack,
                                 covers = covers,
-                                corner = corner,
+                                corner = localCorner,
                                 z = GHOST_Z + ghost,
                             )
                         }
@@ -255,11 +261,10 @@ private const val SHADOWS_DISABLED = false
 private fun ShadowLayer(
     card: CoverCard,
     stack: CoverStackState,
-    corner: androidx.compose.ui.unit.Dp,
+    corner: () -> androidx.compose.ui.unit.Dp,
     z: Float,
     motionAlpha: () -> Float = { 1f },
 ) {
-    val shape = remember(corner) { RoundedCornerShape(corner) }
     Box(
         Modifier
             .fillMaxSize()
@@ -272,13 +277,12 @@ private fun ShadowLayer(
                 scaleY = frame[2]
                 rotationZ = frame[3]
                 alpha = motionAlpha()
-                this.shape = shape
                 // 不裁剪：阴影必须延伸到卡片边界之外
             }
             .drawBehind {
                 if (SHADOWS_DISABLED) return@drawBehind
                 val strength = shadowStrengthAt(stack.slotFor(card).coerceIn(0f, 3f))
-                val radius = corner.toPx()
+                val radius = corner().toPx()
                 // ---- 环境阴影：由外向内逐层加深（先画最外最淡，后画较内较深）----
                 val ambientRings = 7
                 for (i in ambientRings - 1 downTo 0) {
@@ -322,12 +326,11 @@ private fun CoverLayer(
     card: CoverCard,
     stack: CoverStackState,
     covers: CoverStackArtwork,
-    corner: androidx.compose.ui.unit.Dp,
+    corner: () -> androidx.compose.ui.unit.Dp,
     ink: MinimalInk,
     z: Float,
     motionAlpha: () -> Float = { 1f },
 ) {
-    val shape = remember(corner) { RoundedCornerShape(corner) }
     Box(
         Modifier
             .fillMaxSize()
@@ -340,7 +343,7 @@ private fun CoverLayer(
                 scaleY = frame[2]
                 rotationZ = frame[3]
                 alpha = motionAlpha()
-                this.shape = shape
+                shape = RoundedCornerShape(corner())
                 // 只裁剪封面图片本身；阴影由独立的 ShadowLayer 承担，
                 // 不再使用 RenderNode 的 shadowElevation（原因见 ShadowLayer 注释）。
                 clip = true
@@ -376,7 +379,10 @@ private fun CoverLayer(
                     )
                 }
         )
-        Box(Modifier.matchParentSize().border(1.dp, Color.White.copy(alpha = 0.12f), shape))
+        Box(Modifier.matchParentSize().drawBehind {
+            drawRoundRect(Color.White.copy(alpha = .12f), cornerRadius = CornerRadius(corner().toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()))
+        })
     }
 }
 
@@ -387,10 +393,9 @@ private fun GhostLayer(
     ghost: Int,
     stack: CoverStackState,
     covers: CoverStackArtwork,
-    corner: androidx.compose.ui.unit.Dp,
+    corner: () -> androidx.compose.ui.unit.Dp,
     z: Float,
 ) {
-    val shape = remember(corner) { RoundedCornerShape(corner) }
     Box(
         Modifier
             .fillMaxSize()
@@ -404,7 +409,7 @@ private fun GhostLayer(
                 scaleY = frame[2]
                 rotationZ = frame[3]
                 alpha = offset[2]
-                this.shape = shape
+                shape = RoundedCornerShape(corner())
                 clip = true
             }
     ) {

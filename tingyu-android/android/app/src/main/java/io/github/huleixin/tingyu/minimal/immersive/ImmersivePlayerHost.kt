@@ -16,7 +16,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.*
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
@@ -105,7 +104,6 @@ internal fun ImmersivePlayerHost(
     val backdrop = rememberLayerBackdrop()
     val anchor = LocalPlayerArtworkAnchor.current
     val outer = LocalImmersiveMorph.current
-    val expanded = remember(outer) { { outer?.fraction() ?: 1f } }
     val shellTransitioning = remember(outer) { derivedStateOf { outer?.active() == true } }
     SideEffect { if (!preview) MeloXUiMotionRuntime.shellTransition = shellTransitioning.value }
     val closing = remember(outer) { derivedStateOf { outer?.exit?.active == true } }
@@ -186,21 +184,17 @@ internal fun ImmersivePlayerHost(
                     }
                 }
             }
-            // Shell, scene and shared artwork retain separate transforms; the host redraws
-            // the complete underlay while the player is travelling.
-            SharedTransitionLayout(Modifier.fillMaxSize()
+            // Keep scene artwork and any internal shared elements inside the same clip.
+            SharedTransitionLayout(Modifier.fillMaxSize().immersivePlayerContainer(outer)
+                .graphicsLayer { alpha = outer?.shellAlpha() ?: 1f }
                 .then(if (!window.isLandscape) Modifier.nestedScroll(scroll) else Modifier)
                 .then(if (page == MeloXNowPlayingPage.Artwork && !window.isLandscape) grabber else Modifier)) {
                 val shared = this
-                // Retained drawing survives interaction shutdown during exit.
-                val drawing = !preview && foreground && (active || closing.value)
                 val miniSurface = ChromeGlassPresets.active().surface(LocalInterfacePalette.current.light, ChromeGlassPresets.MiniFill)
                 var paletteReady by remember { mutableStateOf(false) }
                 val paletteVisibility by animateFloatAsState(if (paletteReady) 1f else 0f, tween(if (outer?.reduced == true) 0 else 220), label = "immersive-palette-ready")
-                CompositionLocalProvider(LocalMinimalCoverOverlay provides shared) {
-                    Box(Modifier.fillMaxSize().immersivePlayerContainer(outer)
-                        .graphicsLayer { alpha = outer?.shellAlpha() ?: 1f }
-                        .background(miniSurface)) {
+                Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(miniSurface)) {
                         Box(Modifier.fillMaxSize().graphicsLayer {
                             alpha = (outer?.materialFraction() ?: 1f) * paletteVisibility
                         }.layerBackdrop(backdrop)) {
@@ -221,12 +215,12 @@ internal fun ImmersivePlayerHost(
                             }
                         }
                     }
-                    SharedArtworkDestination(state, page, { select(MeloXNowPlayingPage.Lyrics) }, expanded,
+                    SharedArtworkDestination(state, page, { select(MeloXNowPlayingPage.Lyrics) },
                         gesturesEnabled = foreground && active && !shellTransitioning.value,
                         orientTransition = orient, columnCenterProgress = { center.value },
-                        closingIntent = closing.value,
-                        movingArtwork = Modifier.onGloballyPositioned { anchor.artwork(it) }
-                            .immersiveMovingCover(anchor, drawing))
+                        playerMotion = outer,
+                        movingArtwork = Modifier.immersiveMovingCover(anchor, outer),
+                        onArtworkPositioned = anchor::artwork)
                 }
             }
         }

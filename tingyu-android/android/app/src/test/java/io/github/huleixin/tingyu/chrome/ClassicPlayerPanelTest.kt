@@ -1,117 +1,78 @@
 package io.github.huleixin.tingyu.chrome
 
-import androidx.activity.ComponentActivity
-import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.geometry.lerp
 import io.github.huleixin.tingyu.minimal.PlayerPanelState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import org.junit.After
 import org.junit.Assert.*
-import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 
-// android/app/src/test/java/io/github/huleixin/tingyu/chrome/ClassicPlayerPanelTest.kt
-// Test the initialized shared controller used by the host, rather than the timed fallback.
-@RunWith(RobolectricTestRunner::class)
-@GraphicsMode(GraphicsMode.Mode.LEGACY)
-@Config(sdk = [34])
 class ClassicPlayerPanelTest {
-    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-    private lateinit var panel: PlayerPanelState
-    private lateinit var morph: MinimalPlayerMorph
-    private val origin = Rect(10f, 700f, 390f, 760f)
+    private val clock = BroadcastFrameClock()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined + clock)
+    private val panel = PlayerPanelState(scope)
+    private val miniPanel = Rect(10f, 700f, 390f, 760f)
+    private val miniCover = Rect(24f, 710f, 64f, 750f)
+    private val fullCover = Rect(75f, 120f, 325f, 370f)
     private val size = Size(400f, 800f)
-    private fun setup() {
-        compose.mainClock.autoAdvance = false
-        compose.setContent {
-            val scope = rememberCoroutineScope()
-            panel = remember { PlayerPanelState(scope).apply { useClassicMotion(true) } }
-            morph = remember { MinimalPlayerMorph(origin, Rect(20f, 710f, 60f, 750f),
-                mutableStateOf(1f), NativeStageExit(), mutableStateOf(0f), false, panel) }
-            Box {}
+    private val fullPanel = Rect(0f, 0f, size.width, size.height)
+    private val exit = NativeStageExit()
+    private val morph = MinimalPlayerMorph(miniPanel, miniCover, mutableStateOf(1f), exit, mutableStateOf(0f), false, panel)
+    private var now = 0L
+
+    @After fun closeScope() { scope.cancel() }
+
+    private fun frame() {
+        now += 16_000_000
+        clock.sendFrame(now)
+        val p = panel.progress
+        val shell = morph.panelBounds(size)
+        val cover = morph.coverBounds(fullCover)
+        assertEquals(lerp(miniPanel, fullPanel, p), shell)
+        assertEquals(lerp(miniCover, fullCover, p), cover)
+        assertTrue(cover.left >= shell.left && cover.right <= shell.right)
+        assertTrue(cover.top >= shell.top && cover.bottom <= shell.bottom)
+        val radius = playerCoverLocalRadius(p, miniCover.width, fullCover.width, FullPlayerCoverRadiusDp)
+        assertEquals(10f + 12f * p, radius * cover.width / fullCover.width, .001f)
+    }
+
+    @Test fun twentyOpenCloseCyclesKeepTheCoverInsideThePanel() {
+        repeat(20) {
+            panel.prepareEntry()
+            assertEquals(0f, panel.progress, 0f)
+            panel.open(false)
+            repeat(25) { frame() }
+            assertEquals(1f, panel.progress, 0f)
+            assertFalse(morph.active())
+            panel.close(false)
+            repeat(25) { frame() }
+            assertEquals(0f, panel.progress, 0f)
+            assertEquals(0f, morph.coverAlpha(), 0f)
+            assertTrue(panel.collapsePending)
+            panel.reset()
         }
     }
-    private fun frame(expected: ClassicPlayerFrame) {
-        val actual = panel.classicFrame!!
-        assertArrayEquals(expected.channels, morph.channels(), .0001f)
-        assertEquals(expected.shell, morph.shellAlpha(), .0001f)
-        assertEquals(expected.decorations, morph.decorations(), .0001f)
-        assertEquals(expected.mini, morph.miniAlpha(), .0001f)
-        for (role in listOf("header", "controls", "lyrics"))
-            assertEquals(expected.section(role), morph.sectionAlpha(role), .0001f)
-        assertEquals(expected.expanded, actual.expanded)
-    }
-    @Test fun clicksRestoreTheSevenOriginalCurvesAndIndependentFades() {
-        setup()
-        compose.runOnIdle { panel.open(false) }
-        repeat(75) {
-            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
-            frame(ClassicPlayerFrame.opening(panel.progress))
-        }
-        assertTrue(panel.classicFrame!!.expanded)
-        compose.runOnIdle { panel.close(false) }
-        var fadeSeenBeforeShellFade = false
-        var independentCoverSeen = false
-        repeat(42) {
-            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
-            val current = panel.classicFrame!!
-            if (current.controls in .01f.. .99f && current.shell >= .9999f) {
-                assertTrue(morph.active()); fadeSeenBeforeShellFade = true
-                assertEquals(current.controls, morph.sectionAlpha("controls"), .0001f)
-            }
-            if (current.channels[0] in .1f.. .9f &&
-                kotlin.math.abs(current.channels[4] - current.channels[0]) > .02f) independentCoverSeen = true
-        }
-        assertTrue(fadeSeenBeforeShellFade); assertTrue(independentCoverSeen)
-        assertTrue(panel.collapsePending); frame(ClassicPlayerFrame.Collapsed)
-    }
-    @Test fun grabbingEntryRetainsOffsetsAndDragHasNoJumpOrDirectionHistory() {
-        setup()
-        compose.runOnIdle { panel.open(false) }
-        compose.mainClock.advanceTimeBy(160); compose.waitForIdle()
-        val before = panel.classicFrame!!
-        val bounds = morph.panelBounds(size)
-        compose.runOnIdle { panel.beginDrag() }
-        assertEquals(bounds, morph.panelBounds(size)); frame(before)
-        compose.runOnIdle { panel.dragBy(100f, 700f) }
-        assertEquals(bounds.top + 100f, morph.panelBounds(size).top, .01f)
-        val dragged = panel.classicFrame!!
-        compose.runOnIdle { panel.dragBy(-50f, 700f); panel.dragBy(50f, 700f) }
-        frame(dragged)
-        compose.runOnIdle { panel.release(0f, canceled = true, reduced = true) }
-        frame(ClassicPlayerFrame.Expanded); assertFalse(panel.collapsePending)
-    }
-    @Test fun interruptedCloseStartsAtCapturedFrameAndOnlyCurrentAnimationCanCommit() {
-        setup()
-        compose.runOnIdle { panel.open(false) }
-        compose.mainClock.advanceTimeBy(160); compose.waitForIdle()
-        val before = panel.classicFrame!!
-        compose.runOnIdle { panel.close(false) }
-        frame(before)
-        repeat(8) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
-        compose.runOnIdle { panel.beginDrag(); panel.dragBy(-600f, 700f); panel.release(0f, true, true) }
-        // Canceling a closing drag restores its original destination: collapsed.
-        assertTrue(panel.collapsePending)
-        compose.runOnIdle { panel.open(true) }
-        compose.mainClock.advanceTimeBy(1100); compose.waitForIdle()
-        assertFalse(panel.collapsePending); frame(ClassicPlayerFrame.Expanded)
-    }
-    @Test fun catchingLateDecorationsDoesNotDisableTheRemainingAnimation() {
-        setup()
-        compose.runOnIdle { panel.open(false) }
-        compose.mainClock.advanceTimeBy(780); compose.waitForIdle()
-        assertEquals(1f, panel.classicFrame!!.channels[0], .0001f)
-        assertFalse(panel.classicFrame!!.expanded)
-        compose.runOnIdle { panel.beginDrag(); panel.release(0f, true) }
-        assertTrue(morph.active())
-        compose.mainClock.advanceTimeBy(400); compose.waitForIdle()
-        frame(ClassicPlayerFrame.Expanded); assertFalse(morph.active())
+
+    @Test fun rapidReversalsPreserveCurrentGeometryAndIgnoreCanceledExit() {
+        panel.open(false)
+        repeat(8) { frame() }
+        val opening = morph.coverBounds(fullCover)
+        panel.close(false)
+        assertEquals(opening, morph.coverBounds(fullCover))
+        repeat(4) { frame() }
+        val closing = morph.coverBounds(fullCover)
+        assertTrue(panel.progress in .01f.. .99f)
+        panel.open(false)
+        assertEquals(closing, morph.coverBounds(fullCover))
+        repeat(25) { frame() }
+        assertFalse(panel.collapsePending)
+        assertEquals(fullCover, morph.coverBounds(fullCover))
     }
 }

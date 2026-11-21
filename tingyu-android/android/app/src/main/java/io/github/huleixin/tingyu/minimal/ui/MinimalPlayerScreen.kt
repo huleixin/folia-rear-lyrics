@@ -412,7 +412,7 @@ fun MinimalPlayerScreen(
                     Column(Modifier.weight(1f)){
                         MinimalCoverPage(state,artwork,palette,ink,!dark,clock,!detour,still,coverStackState,coverCaches,
                             skipTransaction=skipTransaction,onOpenLyrics={},onAudioTools={onOpenTools("quality")},
-                            onOpenArtist={commands.openArtist(it)},coverGesture=Modifier.coverStackDrag(coverStackState,coverController),modifier=Modifier.weight(1f))
+                            onOpenArtist={commands.openArtist(it)},coverGesture=Modifier.coverStackDrag(coverStackState,coverController),modifier=Modifier.weight(1f),visiblePage=true)
                         MinimalTransport(playback=playback,controls=state.controls,clock=clock,ink=ink,accent=Color(palette.accent),commands=sheetCommands,light=!dark,
                             onOpenSleep=onOpenSleep,sleepActive=sleepActive,sleepLabel=sleepLabel,onSleepAnchor=onSleepAnchor,
                             onOpenMore={menuOpen=true;menuClosing=false},onMoreAnchor={moreAnchor=it},moreMenu={},onPrevious={coverController.skip(DragDirection.PREV)},onNext={coverController.skip(DragDirection.NEXT)})
@@ -449,6 +449,7 @@ fun MinimalPlayerScreen(
                         light = !dark,
                         clock = clock,
                         active = page == 0 && !detour,
+                        visiblePage = page == 0,
                         still = still,
                         stack = coverStackState,
                         covers = coverCaches,

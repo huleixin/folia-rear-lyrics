@@ -1,7 +1,6 @@
 package io.github.huleixin.tingyu.chrome
 
 import io.github.huleixin.tingyu.minimal.style.PlayerStyle
-import io.github.huleixin.tingyu.minimal.immersive.immersivePlayerContainer
 import android.os.Build
 import android.os.SystemClock
 import android.view.ViewGroup
@@ -327,12 +326,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         toolsPage = ""
         toolActions.send("toolsClose", 0.0)
     }
-    fun collapseStage(reply:()->Unit){
+    fun collapseStage(reply:(Boolean)->Unit){
         sleepMenuOpen=false
-        if(destination!="stage"||webOverlay){reply();return}
+        if(destination!="stage"||webOverlay){reply(true);return}
         val nativeMinimal=minimalPlayerEnabled()&&playerPresentation=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
         stageExit.begin(retained.lastBrowsing(),nativeMinimal,reply)
-        if (nativeMinimal && playerCollapseSettled) stageExit.finish()
     }
     private var playerCollapseSettled = false
     private var presented by mutableStateOf<NativePage?>(null)
@@ -786,6 +784,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val motionOrigin=remember{MotionOrigin()}
         val playerArtwork = remember(configuration.screenWidthDp, configuration.screenHeightDp) { PlayerArtworkAnchor() }
         var miniCoverBounds by remember(configuration.screenWidthDp, configuration.screenHeightDp) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+        var lastMiniPanelBounds by remember(configuration.screenWidthDp, configuration.screenHeightDp) {
+            mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+        }
         var playerPanelOrigin by remember(configuration.screenWidthDp, configuration.screenHeightDp) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
         var playerOrigin by remember(configuration.screenWidthDp, configuration.screenHeightDp){mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)}
         LaunchedEffect(destination, pendingStageEntry) { if(destination!="stage"&&!pendingStageEntry) { playerOrigin=null;playerPanelOrigin=null } }
@@ -804,16 +805,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val immersiveStyle = playerStyle == PlayerStyle.IMMERSIVE
         val playerPanelScope = rememberCoroutineScope()
         val playerPanel = remember { io.github.huleixin.tingyu.minimal.PlayerPanelState(playerPanelScope) }
-        SideEffect { playerPanel.useClassicMotion(!immersiveStyle) }
         LaunchedEffect(destination, pendingStageEntry) {
             if (destination != "stage" && !pendingStageEntry) {
                 playerPanel.reset(); playerCollapseSettled = false
             }
         }
-        // Immersive collapse uses the MeloX critical-damped settle curve directly on the
-        // shell fraction. Passing only the classic reference flag left it on a 500ms
-        // LinearEasing tween, which is the flat, mechanical exit users reported.
-        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null,immersiveStyle)
+        // Only the WebView lyric stage uses the route-exit clock.
+        val exitProgress = rememberStageExitProgress(stageExit, motionReduced, playerPanelOrigin != null, immersiveStyle)
         // 极简页归 Compose 所有时，WebView 那条 stage 控制条必须退场：两个传输并排出现
         // 就是两套「播放/暂停」在同一个屏幕上，和 1.3.119 里「极简页 vs 舞台」的规则一致。
         // 条件里的 bound 是握手：只有 JS 正在推帧（也就意味着它已经把 WebView 极简页让出来）
@@ -836,39 +834,55 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val detourAbove by remember(nativeDetour,detourOffset) { derivedStateOf { nativeDetour && detourOffset.value < .9999f } }
         val stageAboveMinimal=playerHost.stageMotionDetour||detourAbove
         val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
-        // Immersive entry and exit share one critical-damped settle curve, so a quick
-        // open/close reverses from the current fraction instead of switching curves.
-        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady,playerPanelOrigin!=null,immersiveStyle)
-        val immersiveMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced) {
-            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced,playerPanel)
-        }
-        val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced,immersiveStyle) {
-            if (immersiveStyle) null else {
-                val panel = playerPanelOrigin ?: androidx.compose.ui.geometry.Rect(
-                    0f, configuration.screenHeightDp * .9f * sceneDensity.density,
-                    configuration.screenWidthDp * sceneDensity.density,
-                    configuration.screenHeightDp * sceneDensity.density)
-                MinimalPlayerMorph(panel, playerOrigin ?: panel,
-                    playerEntry, stageExit, exitProgress, motionReduced, playerPanel)
-            }
-        }
-        val playerReveal=remember(playerEntry,exitProgress){derivedStateOf{playerEntry.value*(if(stageExit.active)1f-exitProgress.value else 1f)}}
-        val playerEntering by remember(playerEntry,immersiveStyle,immersiveMorph){derivedStateOf{destination=="stage"&&
-            (if(immersiveStyle) immersiveMorph.active() else minimalMorph?.active() ?: (playerEntry.value<.9999f))&&!stageExit.active}}
-        LaunchedEffect(playerPanel.collapsePending, destination, playerReady) {
-            if (playerPanel.collapsePending && destination == "stage" && playerReady) {
-                playerCollapseSettled = true
-                playerPanel.consumeCollapse()
-                minimalCommands.collapse()
-            }
-        }
-        // Once the exit clock has delivered the shell to the mini endpoint, freeze the panel
-        // there. Otherwise clearing stageExit lets the panel's progress fall back to expanded
-        // for a frame, which is the visible jump right before the route commits.
-        LaunchedEffect(stageExit.completed) {
-            if (stageExit.completed && playerPanel.initialized) playerPanel.holdCollapsed()
-        }
         val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" && !webOverlay && minimalBound
+        val playerEntry = rememberLiquidPlayerProgress(destination=="stage",
+            returningFromSettings || minimalResumePending, motionReduced, stageExit.active, playerReady, playerPanelOrigin != null, immersiveStyle)
+        val nativeEntry = remember { mutableStateOf(1f) }
+        val nativePanelOrigin = playerPanelOrigin ?: lastMiniPanelBounds
+        val nativeCoverOrigin = playerOrigin ?: miniCoverBounds
+        val immersiveMorph = remember(nativePanelOrigin, nativeCoverOrigin, nativeEntry, exitProgress, motionReduced) {
+            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(
+                nativePanelOrigin, nativeCoverOrigin, nativeEntry, stageExit, exitProgress, motionReduced, playerPanel)
+        }
+        val fallbackPanel = androidx.compose.ui.geometry.Rect(
+            0f, configuration.screenHeightDp * .9f * sceneDensity.density,
+            configuration.screenWidthDp * sceneDensity.density, configuration.screenHeightDp * sceneDensity.density)
+        val minimalMorph = remember(nativePanelOrigin, nativeCoverOrigin, fallbackPanel, nativeEntry, exitProgress, motionReduced, immersiveStyle) {
+            if (immersiveStyle) null else MinimalPlayerMorph(nativePanelOrigin ?: fallbackPanel,
+                nativeCoverOrigin ?: androidx.compose.ui.geometry.Rect.Zero, nativeEntry, stageExit, exitProgress, motionReduced, playerPanel)
+        }
+        val webMorph = remember(playerPanelOrigin, playerOrigin, playerEntry, exitProgress, motionReduced, immersiveStyle) {
+            if (immersiveStyle) null else MinimalPlayerMorph(playerPanelOrigin ?: fallbackPanel,
+                playerOrigin ?: fallbackPanel, playerEntry, stageExit, exitProgress, motionReduced)
+        }
+        val playerReveal = remember(playerEntry, exitProgress, minimalBase) { derivedStateOf {
+            if (minimalBase) playerPanel.progress
+            else playerEntry.value * (if (stageExit.active) 1f - exitProgress.value else 1f)
+        } }
+        val playerEntering by remember(playerReveal) { derivedStateOf {
+            destination == "stage" && playerReveal.value < 1f && !stageExit.active
+        } }
+        LaunchedEffect(minimalBase, playerPanel.awaitingEntry, motionReduced) {
+            if (minimalBase && playerPanel.awaitingEntry && !stageExit.active) {
+                // Let the real artwork and panel lay out before either advances.
+                withFrameNanos { }
+                if (playerPanel.awaitingEntry && !stageExit.active) playerPanel.open(motionReduced)
+            }
+        }
+        LaunchedEffect(stageExit.active, motionReduced) {
+            if (stageExit.active && stageExit.minimal && !stageExit.completed) {
+                if (playerCollapseSettled) stageExit.finish()
+                else playerPanel.close(motionReduced)
+            }
+        }
+        LaunchedEffect(playerPanel.collapsePending, destination, playerReady, stageExit.active) {
+            if (playerPanel.collapsePending && destination == "stage" && playerReady) {
+                playerPanel.consumeCollapse()
+                playerCollapseSettled = true
+                if (stageExit.active && stageExit.minimal) stageExit.finish()
+                else minimalCommands.collapse()
+            }
+        }
         val minimalOwns = minimalBase && !stageAboveMinimal && !stageExit.active
         // 极简歌词页常亮（需求一）：只有「真正显示 Compose 极简歌词页」时才申请。
         // 播放/暂停无关（页在就算）；切换封面页、退出播放器、顺访完整舞台、应用退后台
@@ -886,16 +900,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             )
         }
         val nativeMinimalCollapse=stageExit.active&&stageExit.minimal
-        val page=presented?:if(stageExit.active)stageExit.returning else null
-        // The browsing page must stay composed for the whole player visit. Dropping it made
-        // the reveal during a drag or a collapse fall through to the window background (the
-        // flat white slab), and remounting it at route commit reloaded scroll/page state.
-        // Recorded synchronously: an effect would leave one frame with no underlay right
-        // when the stage route commits, and AnimatedContent would start a page exit.
+        val page = presented ?: if (stageExit.active) stageExit.returning else null
         val browsingUnderlay = remember { arrayOfNulls<NativePage>(1) }
-        page?.let { if (it.id in setOf("home","collection","search")) browsingUnderlay[0] = it }
-        val stageRoute=destination=="stage"||pendingStageEntry
-        val underlayPage=page?:if(stageRoute||stageExit.active)browsingUnderlay[0] else null
+        val stageRoute = destination == "stage" || pendingStageEntry
+        if (!stageRoute) presented?.let {
+            if (it.id == "home" || it.id == "collection" || it.id == "search") browsingUnderlay[0] = it
+        }
+        // The same route instance, model and bottom inset stay under the player through its visit.
+        val underlayPage = if (stageRoute) browsingUnderlay[0] ?: page else page
         val browsingRoute = browsingFooter.route
         val footerDetail = if(destination=="stage"||pendingStageEntry)browsingFooter.detail else collectionDetail
         val isArtistRoute = if(destination=="stage"||pendingStageEntry)browsingFooter.artist else pageTarget.startsWith("collection:artist:")
@@ -1015,7 +1027,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // During player collapse, use the player's single exit clock for the
             // navigation bar. Its route target is already available at frame zero;
             // an independent delayed tween caused the bar to pop in near the end.
-            val navVisualPresence = if (stageExit.active) exitProgress.value else navPresence
+            fun navVisualPresence() = when {
+                minimalBase -> if (NativeFooterLayout.visible("nav", browsingRoute, footerDetail, width, artist = isArtistRoute)) 1f - playerPanel.progress else 0f
+                stageExit.active -> exitProgress.value
+                else -> navPresence
+            }
             // Same endpoint handoff as the mini bar: the nav's own presence still starts at
             // zero on the route commit, which would drop it 20dp and fade it back in.
             // Arm the handoff only when the exit clock has actually landed. Arming it at the
@@ -1050,8 +1066,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // The stage owns the mini-player pixels during its exit. Drive that
             // incoming footer from the same exit clock instead of starting from
             // miniPresence's zero stage target and making the footer pop in.
-            val miniExitPresence = if (immersiveStyle) immersiveMorph.miniAlpha()
-                else minimalMorph?.miniAlpha() ?: ((exitProgress.value - .58f) / .42f).coerceIn(0f, 1f)
+            fun miniExitPresence() = ((exitProgress.value - .58f) / .42f).coerceIn(0f, 1f)
             // The shell already landed on the real mini bar. Its presence must not restart
             // from the footer's own zero-to-one entry tween after the route commits, or the
             // bar vanishes and slides in again (the visible "pop" at the end of the exit).
@@ -1065,17 +1080,21 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             LaunchedEffect(miniStageHandoff, miniPresence, playerPanel.initialized) {
                 if (miniStageHandoff && !stageExit.active && !playerPanel.initialized && miniPresence >= .999f) miniStageHandoff = false
             }
-            val miniVisualPresence = when {
-                stageExit.active -> miniExitPresence
+            fun miniVisualPresence() = when {
+                minimalBase -> 1f - playerMotionReveal(playerPanel.progress, 0f, .12f)
+                stageExit.active -> miniExitPresence()
                 miniStageHandoff -> 1f
                 playerPanel.dragging -> pullMiniPresence
                 else -> miniPresence
             }
             val pageFooterTops=if(footerHiddenForIme)emptyList()else listOf("nav","mini").mapNotNull{id->
                 if(!NativeFooterLayout.bottomBar(id,width))return@mapNotNull null
-                val hasSurface=visible.any{it.id==id}||ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)
-                if(hasSurface&&NativeFooterLayout.visible(id,destination,collectionDetail,width,settingsRoot=settingsRoot))
-                    chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,collectionDetail).top*density.density
+                val footerRoute = if (stageRoute) browsingRoute else destination
+                val hasSurface = visible.any { it.id == id } ||
+                    (stageRoute && retainedFooter[id] != null) ||
+                    ChromeBootSeed.shouldSeed(id, footerRoute, firstHomeFrame, webOverlay, liveChrome)
+                if(hasSurface && NativeFooterLayout.visible(id,footerRoute,footerDetail,width,artist=isArtistRoute,settingsRoot=settingsRoot))
+                    chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,footerDetail).top*density.density
                 else null
             }
             val bootId=if(destination=="home"&&selectedTab==1)"library"else if(destination in setOf("home","collection","search","settings"))destination else "home"
@@ -1109,20 +1128,21 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // A live reader uses the tested C2 texture only for the reader's lifetime.
                 // 第 16 轮：Compose 接管极简入场时 WebView 退回 zIndex 0（首页底下），
                 // 升层+上滑都只属于 WebView 回退模式和经典舞台。
-                val stageDirectMorph = !nativeDetour && !webOverlay && minimalMorph != null &&
+                val stageDirectMorph = !nativeDetour && !webOverlay && webMorph != null &&
                     ((destination == "stage" && !composeOwnsMinimalEntry) || (stageExit.active && !nativeMinimalCollapse))
-                val webStagePixelsVisible = webOwnsRoutePixels(destination, webOverlay, stageExit.active) && !nativeMinimalCollapse
+                val webStagePixelsVisible = webOwnsRoutePixels(destination, webOverlay, stageExit.active) && !nativeMinimalCollapse &&
+                    (!composeOwnsMinimalEntry || !minimalBound)
                 Box(Modifier.fillMaxSize().zIndex(if(brandLaunch.active)100f else if((destination=="stage"&&!composeOwnsMinimalEntry)||webOverlay||stageExit.active&&!nativeMinimalCollapse){if(stageDirectMorph)2.2f else if(destination=="stage"&&!stageAboveMinimal).5f else 1.25f}else -1f)
                     .graphicsLayer { alpha = if(brandLaunch.active)brandAlpha.value else 1f }
                     .then(if(brandLaunch.active)Modifier.background(palette.launch)else Modifier)
-                    .then(if(stageDirectMorph)Modifier.minimalPlayerContainer(minimalMorph)else Modifier)
+                    .then(if(stageDirectMorph)Modifier.minimalPlayerContainer(webMorph)else Modifier)
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
                     .then(
                         when {
                             nativeDetour -> Modifier.graphicsLayer { alpha = if (webStagePixelsVisible) 1f else 0f }
-                            stageDirectMorph -> Modifier.minimalStageCanvas(minimalMorph, webStagePixelsVisible)
+                            stageDirectMorph -> Modifier.minimalStageCanvas(webMorph, webStagePixelsVisible)
                             else -> Modifier.liquidPlayer(playerOrigin, playerEntry, stageExit, exitProgress, webStagePixelsVisible)
                         }
                     )
@@ -1420,7 +1440,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val miniStageVisible by remember(miniStageOpacity) { derivedStateOf { miniStageOpacity.value > .001f } }
                 val retainFooter = when(id) {
                     "nav" -> navTarget || navPresence > 0.001f
-                    "mini" -> (miniTarget || miniPresence > 0.001f || playerPanel.dragging || stageExit.active && miniVisualPresence > 0.001f) && (destination != "stage" || miniStageVisible || stageExit.active || playerEntering)
+                    "mini" -> (miniTarget || miniPresence > 0.001f || playerPanel.dragging || stageExit.active && !stageExit.minimal && miniVisualPresence() > 0.001f) && (minimalBase || destination != "stage" || miniStageVisible || stageExit.active || playerEntering)
                     else -> false
                 }
                 // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
@@ -1456,12 +1476,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             NativeFooterLayout.imeHides(id,width,footerHiddenForIme) -> 0f
-                            id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,miniVisualPresence,settingsFromStage) * (if(stageExit.active)1f else miniStageOpacity.value)
-                            id=="nav" -> rect.alpha * if (navStageHandoff) 1f else navVisualPresence
+                            id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,miniVisualPresence(),settingsFromStage) * (if(minimalBase || stageExit.active)1f else miniStageOpacity.value)
+                            id=="nav" -> rect.alpha * if (navStageHandoff && !minimalBase) 1f else navVisualPresence()
                             else -> rect.alpha
                         }
                         if(id=="nav") {
-                            val presence = if (navStageHandoff) 1f else navVisualPresence
+                            val presence = if (navStageHandoff && !minimalBase) 1f else navVisualPresence()
                             translationY = with(density) { (NativeFooterLayout.NavSlideOffsetDp * (1f - presence)).dp.toPx() }
                             val navScale = 0.96f + 0.04f * presence
                             scaleX = navScale; scaleY = navScale
@@ -1474,7 +1494,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&surface.controlsHidden)return@actions
                         if(NativeFooterLayout.imeHides(id,width,footerHiddenForIme))return@actions
                         if(id=="nav"&&destination=="settings"&&!settingsRoot&&width<840f)return@actions
-                        if(id=="nav"&&(!navTarget||navVisualPresence<0.85f))return@actions
+                        if(id=="nav"&&(!navTarget||navVisualPresence()<0.85f))return@actions
                         if(id=="mini"&&(!miniTarget||miniPresence<0.85f||destination=="stage"||pendingStageEntry||stageExit.active))return@actions
                         val activeLive = live ?: surfaces[id]?.takeIf { it.enabled }
                         // seed 不是 live 控制条：只接受启动期导航，
@@ -1499,7 +1519,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 playerPanelOrigin=androidx.compose.ui.geometry.Rect(rect.left*density.density,animatedY*density.density,(rect.left+rect.width)*density.density,(animatedY+rect.height)*density.density)
                                 playerOrigin=miniCoverBounds ?: androidx.compose.ui.geometry.Rect((rect.left+16f)*density.density,(animatedY+9f)*density.density,(rect.left+50f)*density.density,(animatedY+43f)*density.density)
                                 pendingStageEntry=true
-                                playerCollapseSettled=false; playerPanel.open(motionReduced, classicMotion = !immersiveStyle)
+                                playerCollapseSettled = false
+                                playerArtwork.clear()
+                                playerPanel.prepareEntry()
                                 val request=++stageEntryRequest
                                 // Hide the footer immediately, but do not promote an old WebView
                                 // frame over the outgoing native page before React commits stage.
@@ -1521,7 +1543,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             listener.onAction(surface.id,surface.session,action,value)
                         }
                     }
-                    val interactivePlacement = placement.chromeInteraction(actions)
+                    val measuredPlacement = if (id == "mini" && !stageRoute) placement.onGloballyPositioned {
+                        val topLeft = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero)
+                        lastMiniPanelBounds = androidx.compose.ui.geometry.Rect(topLeft,
+                            androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat()))
+                    } else placement
+                    val interactivePlacement = measuredPlacement.chromeInteraction(actions)
                     when(id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
                         "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,minimal=minimal,
@@ -1532,8 +1559,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             },
                             onExpandDrag={if(playerPanel.dragging)playerPanel.dragBy(it,height*density.density*.86f)},
                             onExpandDragEnd={velocity,canceled->if(playerPanel.dragging)playerPanel.release(velocity,canceled,motionReduced)},
-                            onCoverBounds={miniCoverBounds=it},action=actions)
-                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2.6f).then(if(nativeDetour)Modifier else if(minimalMorph!=null)Modifier.minimalSection("controls") else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)).graphicsLayer { translationY=if(nativeDetour)height*density.density*detourOffset.value else 0f }){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
+                            onCoverBounds={ if (!stageRoute && it.width > 0f) miniCoverBounds = it },action=actions)
+                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2.6f).then(if(nativeDetour)Modifier else if(webMorph!=null)Modifier.minimalSection("controls", webMorph) else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)).graphicsLayer { translationY=if(nativeDetour)height*density.density*detourOffset.value else 0f }){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
             }
@@ -1549,6 +1576,23 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 真机上就是"按返回回到歌单 → 又弹回极简歌词页 → 再跳回歌单"。
             // 用不含退场判定的 minimalBase 继续举着它（此时 zIndex 在页面之下，被页面整块盖住），
             // 就没有第二次入场；桥没握上手时 minimalBase 也是 false，不会凭空冒出一个空播放页。
+            // In-flight collapse can be reversed in the area where the mini player lands.
+            val canReopen by remember(playerPanel) { derivedStateOf {
+                stageExit.active && stageExit.minimal && !stageExit.completed && playerPanel.progress < .30f
+            } }
+            val reopenBounds = nativePanelOrigin
+            if (canReopen && reopenBounds != null) {
+                Box(Modifier.zIndex(3.1f)
+                    .offset { IntOffset(reopenBounds.left.roundToInt(), reopenBounds.top.roundToInt()) }
+                    .size(with(density) { reopenBounds.width.toDp() }, with(density) { reopenBounds.height.toDp() })
+                    .clickable(indication = null, interactionSource = null, onClickLabel = "展开播放页") {
+                        if (stageExit.active && !stageExit.completed) {
+                            stageExit.cancel()
+                            playerCollapseSettled = false
+                            playerPanel.open(motionReduced)
+                        }
+                    })
+            }
             val playerShown = minimalBase || minimalCoverHold
             val playerZ = if (minimalBase&&!stageAboveMinimal&&!(returningFromSettings&&!stageVisible)) 3f else 0.5f
             AnimatedVisibility(

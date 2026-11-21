@@ -119,7 +119,6 @@ internal fun SharedArtworkDestination(
     //   每帧读值发生在**本函数自己的 scope**（它本来就因 `orientTransition` 每帧重组，
     //   范围仅限封面这一块）。
     onArtworkTap: () -> Unit,
-    expansionProgress: () -> Float,
     hidden: Boolean = false,
     gesturesEnabled: Boolean = false,
     orientTransition: Transition<Boolean>,
@@ -127,9 +126,9 @@ internal fun SharedArtworkDestination(
     // ⚠ 由外层 host **单一计算后透传**（见那里的长注释）；手机 / 竖屏恒 0，逐像素不变。
     // ⚠ 用 `() -> Float` 而不是值：这是每帧状态，值传参会把**调用方**（host）每帧重组。
     columnCenterProgress: () -> Float = { 0f },
-    // 由外层 host 透传：`MeloXApp` 在动画起跑前写下的方向 intent（详见那里注释）。
-    closingIntent: Boolean = false,
+    playerMotion: io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion? = null,
     movingArtwork: Modifier = Modifier,
+    onArtworkPositioned: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {},
 ) {
     val window = rememberMeloXWindowInfo()
     // ★★ Fix3（时钟同步）：封面本地 `isLandscape` 改走与场景层**完全相同**的
@@ -274,62 +273,9 @@ internal fun SharedArtworkDestination(
     )
 
     val pageFrameProgress = if (isLandscape) 0f else headerProgress
-    // ★★ 2026-11-03（第 32 轮）：**暂停缩放的「退出保持」**——修「退出时封面先放大回
-    //   播放中尺寸，再做退出动画」。
-    //
-    //   现象（用户报障）：「横屏暂停时封面是小的，可是退出时他会放大到播放中的大封面
-    //   再进行动画」。
-    //   根因：`fullScreenScaleBlend = smoothStep(expansionProgress(), .30f, .88f)` 本来只是
-    //   「展开途中别把封面二次缩小」的闸门（展开时封面从迷你尺寸飞出，若同时叠加暂停缩小
-    //   会变成 0.74×0.74）。但它在**收起方向也会从 1 掉到 0** ⇒ 代入
-    //   `effectiveScale = 1 + (playbackScale-1) * blend` 后，暂停缩小（0.74）被逐步还原成
-    //   1.0 ⇒ 封面在退出前半段先「长回全尺寸」，然后才跟着外壳缩。
-    //   正解：**收起方向把 blend 锁死在 1**，让 `effectiveScale` 全程等于 `playbackScale`。
-    //   终点天然对齐、不会在交接处弹跳：迷你栏封面自己也有**同一套**暂停缩小
-    //   （`MeloXIOSMiniPlayer.kt` 的同一个 0.74 判据），所以「保持小尺寸飞回去」= 到达即吻合。
-    //
-    //   ⚠ 判据**不能只靠 `closingIntent`**：手势拖拽收起时 `MeloXApp` 刻意把它写成 false
-    //     （内容层要跟手，见 `MeloXShellGeom` 处那段注释），松手 settle 那帧才翻 true。
-    //     所以这里用「展开进度**本帧在下降**」判方向，并对整段收起**锁存**——单帧 delta≈0
-    //     （动画暂停/掉帧）时不会误清锁存。
-    //   ⚠ 用普通数组而不是 snapshot state：它每帧在组合里更新，**绝不能触发重组**
-    //     （`ArtworkSwitchBounceSeen` 是同一种用法）。下标 0 = 上一帧进度，1 = 锁存标志。
-    val artworkScaleHold = remember { floatArrayOf(-1f, 0f) }
-    val expansionNow = expansionProgress()
-    val closingNow = expansionNow < artworkScaleHold[0] - 1e-4f || closingIntent
-    if (closingNow) {
-        artworkScaleHold[1] = 1f
-    } else if (expansionNow >= 0.999f) {
-        // 重新展开到落定 ⇒ 解除锁存，下次展开仍走原来的渐进闸门。
-        artworkScaleHold[1] = 0f
-    }
-    artworkScaleHold[0] = expansionNow
-    val fullScreenScaleBlend = if (artworkScaleHold[1] > 0.5f) {
-        1f
-    } else {
-        smoothStep(expansionNow, 0.30f, 0.88f)
-    }
-    val effectiveScale = 1f +
-        (playbackScale - 1f) * fullScreenScaleBlend * (1f - pageFrameProgress)
-    // ★★ 关闭方向把封面「测量尺寸」钉到视觉尺寸 —— 修「横屏暂停下拉关闭，小封面突然变大成大封面」。
-    //   根因：`sharedElement` 的 morph 源矩形 = 节点**测量**尺寸（= `targetSize`），内层
-    //   `graphicsLayer` 缩放（暂停态 0.74）不进入测量 ⇒ morph 起飞瞬间源矩形是满布局尺寸 ⇒
-    //   暂停态那枚 0.74 的小封面会瞬间弹回满尺寸再缩下去（用户报「小封面突然变大成大封面，再拿
-    //   这个大封面 morph 回去」）。正确行为：morph 源 = 视觉小封面（= 0.74×targetSize）。
-    //   修法：把 `effectiveScale` 从「内层 graphicsLayer 缩放」搬到「盒子测量尺寸」，内层只留
-    //   bounce ⇒ 测量尺寸 = 视觉尺寸；且 `盒子尺寸 × 内层 scale` 恒 ≡ 旧 `targetSize × effectiveScale`
-    //   （量不变，打开方向逐像素等价）。
-    //   ⚠ 仅 `closingNow` 锁存时（`artworkScaleHold[1] > 0.5f`）才搬：关闭途中 `effectiveScale`
-    //     恒 0.74 ⇒ 盒子尺寸恒定、不引入逐帧重测；打开方向盒子仍 = `targetSize`，旧行为不变。
-    //   ⚠ 内层 clip 半径同步按 `artworkBoxScale` 同比补偿（见下方 `plainArtworkClip`）⇒
-    //     可见圆角逐像素不变（否则盒子缩小会让圆角被稀释成更小半径）。
-    val artworkBoxScale = if (artworkScaleHold[1] > 0.5f) effectiveScale else 1f
-    // ★ 内层 transform 的缩放基准与盒子**互补**：关闭方向已把 `effectiveScale` 搬到盒子
-    //   测量尺寸（morph 源 = 视觉小封面），内层就只留 `bounce`；打开/原地方向盒子仍是
-    //   `targetSize`，`effectiveScale` 必须**留在内层**，否则暂停缩小丢失 ⇒ 封面停在满尺寸
-    //   （即「暂停态被放大」，本仓 2026-11-07 报障）。两种方向视觉缩放恒 = `effectiveScale ×
-    //   bounce`、与改动前逐像素等价；盒子 `×` 内层 `×` 乘积不变 ⇒ 不双重叠加、不开销。
-    val artworkInnerScale = if (artworkScaleHold[1] > 0.5f) 1f else effectiveScale
+    // Measure the visible cover, including its playback scale, in both directions.
+    // The shell transform can then map that same footprint onto the mini artwork.
+    val artworkBoxScale = 1f + (playbackScale - 1f) * (1f - pageFrameProgress)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -467,7 +413,7 @@ internal fun SharedArtworkDestination(
         val frozenY = (maxHeight * endCenterYFrac - frozenEdge / 2f).coerceAtLeast(0.dp)
 
         // 转屏进行中 且 不在开合 morph 中 ⇒ 冻结几何 + transform（morph 期 72dp↔全屏真在变，冻了错位）。
-        val morphFreeze = expansionProgress().let { it > 0.01f && it < 0.99f }
+        val morphFreeze by remember(playerMotion) { derivedStateOf { playerMotion?.active() == true } }
         val orientationAnimating = orientTransition.currentState != orientTransition.targetState
         val orientationFrozen = orientationAnimating && !morphFreeze
 
@@ -531,8 +477,7 @@ internal fun SharedArtworkDestination(
         //   （exp >= 0.99）仍走 live pageFrameProgress，切页滑动观感不变。
         //   ⚠ 横屏 / 平板双栏：歌词页仍是左列大封面（pageFrameProgress 恒 0，见本函数 997 行），
         //   destPageFrame 必须随之恒 0，否则会引入横屏「先 72dp 再跳全屏」新跳变。
-        val destPageFrame = if (page == MeloXNowPlayingPage.Artwork || isLandscape) 0f else 1f
-        val effectivePageFrame = if (morphFreeze) destPageFrame else pageFrameProgress
+        val effectivePageFrame = pageFrameProgress
         // ★ live 布局（morph / 静止态）：仅当 orientationFrozen==false 才在组合期读
         //   `orientProgressState.value`；纯转屏期间不读 ⇒ 不触发每帧重组。
         val orientProgressVal = if (orientationFrozen) 0f else orientProgressState.value
@@ -545,45 +490,14 @@ internal fun SharedArtworkDestination(
         val targetSize = if (orientationFrozen) frozenEdge else lerpDp(fullArtworkSize, 72.dp, effectivePageFrame)
         val targetX = if (orientationFrozen) frozenX else lerpDp(fullX, 0.dp, effectivePageFrame)
         val targetY = if (orientationFrozen) frozenY else lerpDp(fullY, compactFrameTop, effectivePageFrame)
-        // ★ 圆角从迷你侧 6dp 连续长到 12dp。封面 sharedElement 带
-        //   `renderInOverlayDuringTransition = true` ⇒ 过渡期间由本函数这份副本渲染，
-        //   源侧 clip 不参与。
-        //
-        //   ⚠⚠ 这里**必须直接用 `expansionProgress`，不做任何重映射/系数**
-        //     （用户连续报障：23:19「值对了但还是突变」、23:25「手拖下滑圆角是直接变的」）。
-        //     踩过的两条弯路，都源于试图"补偿"几何与 master 的时长差：
-        //       ① 叠 `smoothStep` 二次缓动 → p 本身已是 S 曲线，中段被压得更急
-        //          （每 30ms 增量 1.324 → 1.768dp），适得其反；
-        //       ② 乘 `360/300 = 1.2` 对齐几何 → 只对**点击**（经 transitionSpec 缓动）
-        //          有效；**手拖**是 `seekTo` 线性跟手、不过缓动，×1.2 立刻被 clamp
-        //          ⇒ 拖前 17~40% 行程圆角冻在 12dp 不动、之后突降 = 「直接变」。
-        //
-        //   ⇒ 根治：已把 `MeloXArtworkBoundsTransform` 的时长从 300ms 改成与 master
-        //     相同的 `meloXPlayerTransitionDurationMillis`（见该文件注释），
-        //     **几何与圆角同源同速** ⇒ 这里直接用 `p` 即严格同步。
-        //     同时点击路径与手拖路径**共用同一个表达式**，切换时零跳变。
-        val targetRadius = lerpDp(6.dp, 12.dp, expansionProgress().coerceIn(0f, 1f))
-        // ★ 转屏期圆角处理：冻结几何期间外层 `orientTransform` 统一缩放盒子，clip 用固定
-        //   `targetRadius × artworkBoxScale`，视觉圆角 = `targetRadius × s`（角随盒子同源缩放、零跳变）。
-        //   非转屏期同样走 `plainArtworkClip` ⇒ 与旧行为逐像素等价。
-        //   ⚠ 本体与阴影层**共用这一个 Shape**：两者在冻结态的 layout 边长都是 `frozenEdge`
-        //     （阴影的 `base` == `baseEdge` == `fullArtworkSizeTarget`），同一 Shape 给出的半径一致
-        //     ⇒ 不会再出现「本体圆了、方形阴影还露直角黑边」。
-        // ★ 关闭方向盒子缩到 `targetSize * artworkBoxScale`、内层不再缩放，可见圆角会被
-        //   稀释（旧 = `targetRadius × effectiveScale`）。按 `artworkBoxScale` 同比补偿 clip 半径
-        //   ⇒ 屏幕上圆角逐像素不变（打开方向 `artworkBoxScale=1` ⇒ 等同旧）。
-        val plainArtworkClip = remember(targetRadius, artworkBoxScale) {
-            RoundedCornerShape(targetRadius * artworkBoxScale)
+        val targetRadius = lerpDp(io.github.huleixin.tingyu.chrome.FullPlayerCoverRadiusDp.dp, 12.dp, effectivePageFrame)
+        val artworkClipModifier = Modifier.graphicsLayer {
+            val radius = io.github.huleixin.tingyu.chrome.playerCoverLocalRadius(
+                playerMotion?.fraction() ?: 1f, playerMotion?.cover?.width?.div(density),
+                size.minDimension / density, targetRadius.value)
+            shape = RoundedCornerShape(radius.dp)
+            clip = true
         }
-        // ★ 转屏冻结期**不再做 1/s 圆角补偿**（旧 `meloXCompensatedCornerShape`）：
-        //   补偿依赖普通字段 `orientationScaleHolder.scale` 与外层 `orientTransform` 的
-        //   `scaleX/Y = s` 帧间同步，但嵌套 `graphicsLayer` 的合成时序差导致二者失步 ⇒
-        //   视觉圆角在转屏中途跳变（k20p 实证：中段圆角近乎直角、稳定后恢复）。
-        //   固定角 + 外层统一缩放后，视觉圆角 = `targetRadius × s`，角与盒子缩放**同源**
-        //   （同一个 `s`），严格同步、零跳变；角随封面等比缩放，观感自然（同迷你栏）。
-        val artworkClipModifier = Modifier.clip(plainArtworkClip)
-        // ⚠ 必须与外壳 / 迷你栏侧用**同一个** `sinkPeakPx`（同一个下沉量），
-        //   否则封面那个独立 overlay 会与外壳沉不同的量 ⇒ 封面在栏内错位。
         val sharedArtworkModifier = movingArtwork
         // ★ alpha 必须挂在共享元素节点的**祖先**上（2026-10-06）：overlay 飞行副本只重放
         //   节点自身的绘制——节点自有 `graphicsLayer{alpha=0}` 会把「飞行中的共享元素」
@@ -608,7 +522,7 @@ internal fun SharedArtworkDestination(
                 // ★ `effectiveScale` 在关闭方向已搬到盒子「测量尺寸」（见 `artworkBoxScale` 注释），
             //   此处内层只乘 `artworkInnerScale`（关闭=1、打开=effectiveScale）⇒ 视觉缩放恒 =
             //   `effectiveScale × bounce`、与改动前逐像素等价；且不与盒子缩放双重叠加。
-            val s = artworkInnerScale * bounceScale
+            val s = bounceScale
             scaleX = s
             scaleY = s
             // alpha 只在前 40% 行程回到 1：把硬切磨柔，不是淡入淡出。
@@ -647,7 +561,9 @@ internal fun SharedArtworkDestination(
             modifier = Modifier
                 .offset(x = targetX + artworkBoxOffset, y = targetY + artworkBoxOffset)
                 .size(artworkBoxSize)
-
+                .onGloballyPositioned(onArtworkPositioned),
+        ) {
+            Box(Modifier.matchParentSize()
                 .then(sharedArtworkModifier)
                 // ★ Fix1：转屏冻结几何时挂 `orientTransform`（在 sharedArtworkModifier **之后**、
                 //   内层），由它做逐帧缩放/位移；sharedElement 边界保持冻结尺寸，morph 期
@@ -715,10 +631,10 @@ internal fun SharedArtworkDestination(
                     //   `fullScreenScaleBlend` 由本体共用 ⇒ 模糊层与封面**严格同步**缩放/淡入，
                     //   全程跟随 sharedElement 飞行（不冻结、不额外淡出），即上游打开动画
                     //   「同色模糊副本跟手放大」的观感。
-                    strength = fullScreenScaleBlend *
-                        (1f - pageFrameProgress * 0.8f) *
+                    strength = (1f - pageFrameProgress * 0.8f) *
                         artworkShadowStrength,
                     // ★ 开合 morph 期间提前组合 ⇒ 图像 / 亮度在窗口打开前就绪，消除「进入动画时模糊闪烁」。
+                    strengthScale = { io.github.huleixin.tingyu.chrome.playerMotionReveal(playerMotion?.fraction() ?: 1f, .30f, .88f) },
                     preload = morphFreeze,
                     transform = artworkTransform,
                     // ★ Fix1：转屏冻结时阴影几何也钉死在 `frozenEdge`（== fullArtworkSizeTarget），
@@ -770,6 +686,7 @@ internal fun SharedArtworkDestination(
                 )
             }
         }
+        }
 
 
     }
@@ -779,6 +696,7 @@ internal val MeloXPortraitArtworkRaise = 30.dp
 private fun BoxScope.meloXArtworkShadowLayer(
     bitmap: android.graphics.Bitmap?,
     strength: Float,
+    strengthScale: () -> Float,
     // ★★ 2026-10-25（修「进入动画时封面旁模糊闪烁」）：开合 morph 期间**提前组合**这份
     //   装饰副本 —— 即使此刻 `strength`（alpha）还是 0。否则它要等 alpha 越过 0.004
     //   （开页 ~p 0.32）才首次组合，其 AsyncImage 与「平均亮度」采样都要到那时才开始，
@@ -947,7 +865,7 @@ private fun BoxScope.meloXArtworkShadowLayer(
                         .graphicsLayer {
                             // ⚠ 这里**只放副本自身的 alpha**（强度），位移/缩放一律走外层
                             //   `transform` —— 与本体同一份 ⇒ 永远同步。
-                            this.alpha = alpha
+                            this.alpha = alpha * strengthScale()
                             // ★★ 2026-10-25：压暗系数 = 背景亮度 / 封面亮度（锚背景，不锚封面）。
                             //   背景是封面派生色时 ≈1 ⇒ 白封面出白环（AM 同色副本观感）；
                             //   背景远暗于封面时锚不动，退到下限 [MeloXArtworkShadowWhiteDim]
