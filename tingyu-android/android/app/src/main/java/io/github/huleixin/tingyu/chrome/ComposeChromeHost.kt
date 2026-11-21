@@ -805,6 +805,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val immersiveStyle = playerStyle == PlayerStyle.IMMERSIVE
         val playerPanelScope = rememberCoroutineScope()
         val playerPanel = remember { io.github.huleixin.tingyu.minimal.PlayerPanelState(playerPanelScope) }
+        SideEffect { playerPanel.useClassicMotion(!immersiveStyle) }
         LaunchedEffect(destination, pendingStageEntry) {
             if (destination != "stage" && !pendingStageEntry) {
                 playerPanel.reset(); playerCollapseSettled = false
@@ -1081,7 +1082,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if (miniStageHandoff && !stageExit.active && !playerPanel.initialized && miniPresence >= .999f) miniStageHandoff = false
             }
             fun miniVisualPresence() = when {
-                minimalBase -> 1f - playerMotionReveal(playerPanel.progress, 0f, .12f)
+                minimalBase -> minimalMorph?.miniAlpha() ?: immersiveMorph.miniAlpha()
                 stageExit.active -> miniExitPresence()
                 miniStageHandoff -> 1f
                 playerPanel.dragging -> pullMiniPresence
@@ -1440,7 +1441,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val miniStageVisible by remember(miniStageOpacity) { derivedStateOf { miniStageOpacity.value > .001f } }
                 val retainFooter = when(id) {
                     "nav" -> navTarget || navPresence > 0.001f
-                    "mini" -> (miniTarget || miniPresence > 0.001f || playerPanel.dragging || stageExit.active && !stageExit.minimal && miniVisualPresence() > 0.001f) && (minimalBase || destination != "stage" || miniStageVisible || stageExit.active || playerEntering)
+                    "mini" -> playerPanel.dragging ||
+                        (miniTarget || miniPresence > 0.001f || stageExit.active && !stageExit.minimal && miniVisualPresence() > 0.001f) &&
+                        (minimalBase || destination != "stage" || miniStageVisible || stageExit.active || playerEntering)
                     else -> false
                 }
                 // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
@@ -1557,7 +1560,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 if(fromMini)actions("openStage",0.0)
                                 if(playerPanel.initialized)playerPanel.beginDrag(if(fromMini)0f else null)
                             },
-                            onExpandDrag={if(playerPanel.dragging)playerPanel.dragBy(it,height*density.density*.86f)},
+                            onExpandDrag = { delta ->
+                                if (playerPanel.dragging) {
+                                    val travel = playerPanelOrigin?.top?.takeIf { it > 0f } ?: height * density.density * .86f
+                                    playerPanel.dragBy(delta, travel)
+                                }
+                            },
                             onExpandDragEnd={velocity,canceled->if(playerPanel.dragging)playerPanel.release(velocity,canceled,motionReduced)},
                             onCoverBounds={ if (!stageRoute && it.width > 0f) miniCoverBounds = it },action=actions)
                         "stage" -> Box(Modifier.fillMaxSize().zIndex(2.6f).then(if(nativeDetour)Modifier else if(webMorph!=null)Modifier.minimalSection("controls", webMorph) else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)).graphicsLayer { translationY=if(nativeDetour)height*density.density*detourOffset.value else 0f }){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}

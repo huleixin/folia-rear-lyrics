@@ -134,7 +134,7 @@ internal fun ImmersivePlayerHost(
             }
             // Mini and full-screen gestures catch the same timeline at its current position.
             // Lyrics/queue offer only unconsumed downward motion until the shell owns the drag.
-            val dragRange = pane.height * .86f
+            val dragRange = outer?.panel?.top?.takeIf { it > 0f } ?: pane.height * .86f
             val scope = rememberCoroutineScope()
             val localPanel = remember { PlayerPanelState(scope) }
             val panel = outer?.interactive ?: localPanel

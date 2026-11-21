@@ -1,28 +1,40 @@
 package io.github.huleixin.tingyu.minimal
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import io.github.huleixin.tingyu.chrome.TingYuMotion
+import io.github.huleixin.tingyu.chrome.ClassicPlayerFrame
+import io.github.huleixin.tingyu.chrome.SaltPlayerTimeline
+import io.github.huleixin.tingyu.minimal.immersive.immersiveSettleSpec
+import androidx.compose.runtime.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
-/** One spatial progress for the native shell, artwork and gesture in either direction. */
+// android/app/src/main/java/io/github/huleixin/tingyu/minimal/PlayerPanelState.kt
+/** One owner for style-specific motion; routing commits only at the mini-player endpoint. */
 internal class PlayerPanelState(private val scope: CoroutineScope) {
     var progress by mutableFloatStateOf(1f); private set
     var dragging by mutableStateOf(false); private set
     var collapsePending by mutableStateOf(false); private set
     var initialized by mutableStateOf(false); private set
     var awaitingEntry by mutableStateOf(false); private set
+    var classicFrame by mutableStateOf<ClassicPlayerFrame?>(null); private set
+    private var classic = false
+    private var dragFrame: ClassicPlayerFrame? = null
+    private var dragStart = 1f
     private var animation: Job? = null
     private var target = 1f
     private var cancelTarget = 1f
+    private var dragRange = 1f
+
+    fun useClassicMotion(value: Boolean) {
+        if (classic == value) return
+        classic = value
+        dragFrame = if (dragging && value) ClassicPlayerFrame.Collapsed.blend(ClassicPlayerFrame.Expanded, progress) else null
+        dragStart = progress
+        classicFrame = if (value && initialized) ClassicPlayerFrame.Collapsed.blend(ClassicPlayerFrame.Expanded, progress) else null
+    }
 
     fun prepareEntry() {
         if (initialized) return
@@ -32,68 +44,103 @@ internal class PlayerPanelState(private val scope: CoroutineScope) {
 
     fun open(reduced: Boolean) {
         if (!initialized) adopt(0f)
-        settle(1f, reduced)
+        if (classic && progress == 0f) animateClassic(opening = true, reduced = reduced)
+        else animate(1f, 0f, reduced)
     }
 
     fun adopt(value: Float) {
         if (initialized) return
         initialized = true
         progress = value
+        target = 1f
+        classicFrame = if (classic) ClassicPlayerFrame.Collapsed.blend(ClassicPlayerFrame.Expanded, value) else null
     }
 
     fun beginDrag(cancelTo: Float? = null) {
         cancelTarget = cancelTo ?: target
-        animation?.cancel()
-        awaitingEntry = false
-        collapsePending = false
-        dragging = true
+        animation?.cancel(); awaitingEntry = false; collapsePending = false; dragging = true
+        classicFrame?.let {
+            // Catch the visual shell position, not the elapsed entry clock.
+            progress = it.channels[0]; dragStart = progress; dragFrame = it
+        }
     }
-
     fun dragBy(deltaY: Float, range: Float) {
         if (!dragging) beginDrag()
-        progress = (progress - deltaY / range.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        dragRange = range.coerceAtLeast(1f)
+        progress = (progress - deltaY / dragRange).coerceIn(0f, 1f)
+        classicFrame = dragFrame?.dragged(dragStart, progress)
     }
-
     fun release(velocityY: Float, canceled: Boolean = false, reduced: Boolean = false) {
-        settle(if (canceled) cancelTarget else releaseTarget(progress, velocityY), reduced)
+        val end = if (canceled) cancelTarget else releaseTarget(progress, velocityY)
+        animate(end, if (canceled) 0f else -velocityY / dragRange, reduced)
     }
-
     fun close(reduced: Boolean) {
         adopt(1f)
-        settle(0f, reduced)
+        if (classic && progress > 0f) animateClassic(false, reduced) else animate(0f, 0f, reduced)
     }
-
     fun reset() {
-        animation?.cancel()
-        initialized = false
-        dragging = false
-        awaitingEntry = false
-        collapsePending = false
-        progress = 1f
-        target = 1f
+        animation?.cancel(); dragging = false; collapsePending = false
+        initialized = false; awaitingEntry = false; progress = 1f; target = 1f
+        classicFrame = null; dragFrame = null
     }
-
     fun consumeCollapse() { collapsePending = false }
 
-    private fun settle(end: Float, reduced: Boolean) {
+    /** Clicks keep the recorded independent classic curves; gestures use the captured frame. */
+    private fun animateClassic(opening: Boolean, reduced: Boolean) {
+        beginSettle(if (opening) 1f else 0f)
+        val start = classicFrame ?: ClassicPlayerFrame.Expanded
+        animation = scope.launch {
+            if (!reduced) {
+                Animatable(0f).animateTo(1f, tween(
+                    if (opening) SaltPlayerTimeline.EnterMs else SaltPlayerTimeline.ExitMs,
+                    easing = LinearEasing)) {
+                    val frame = if (opening) ClassicPlayerFrame.opening(value) else start.closing(value)
+                    classicFrame = if (classic) frame else null
+                    progress = frame.channels[0]
+                }
+            }
+            finishSettle(if (opening) 1f else 0f)
+        }
+    }
+
+    private fun animate(end: Float, velocity: Float, reduced: Boolean) {
+        beginSettle(end)
+        val startProgress = progress
+        val startFrame = classicFrame
+        animation = scope.launch {
+            if (!reduced) {
+                // A late entry interruption may already have full bounds while fades are unfinished.
+                if (startFrame != null && kotlin.math.abs(end - startProgress) < .0001f) {
+                    val endFrame = if (end == 1f) ClassicPlayerFrame.Expanded else ClassicPlayerFrame.Collapsed
+                    Animatable(0f).animateTo(1f, tween(180)) {
+                        if (classic) classicFrame = startFrame.blend(endFrame, value)
+                    }
+                } else {
+                    val clock = Animatable(progress)
+                    clock.animateTo(end, immersiveSettleSpec(), initialVelocity = velocity) {
+                        progress = value.coerceIn(0f, 1f)
+                        if (classic) classicFrame = startFrame?.dragged(startProgress, progress)
+                            ?: ClassicPlayerFrame.Collapsed.blend(ClassicPlayerFrame.Expanded, progress)
+                    }
+                }
+            }
+            finishSettle(end)
+        }
+    }
+
+    private fun beginSettle(end: Float) {
         animation?.cancel()
         target = end
-        dragging = false
         awaitingEntry = false
+        dragging = false
         collapsePending = false
-        val duration = (320 * abs(end - progress)).roundToInt().coerceAtLeast(90)
-        if (reduced || end == progress) {
-            progress = end
-            collapsePending = end == 0f
-            return
-        }
-        animation = scope.launch {
-            Animatable(progress).animateTo(end, tween(duration, easing = TingYuMotion.Emphasized)) {
-                progress = value
-            }
-            progress = end
-            collapsePending = end == 0f
-        }
+        dragFrame = null
+    }
+
+    private fun finishSettle(end: Float) {
+        progress = end
+        classicFrame = if (!classic) null else if (end == 1f) ClassicPlayerFrame.Expanded else ClassicPlayerFrame.Collapsed
+        collapsePending = end == 0f
     }
 
     companion object {

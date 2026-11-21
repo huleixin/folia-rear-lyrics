@@ -10,6 +10,7 @@ import io.github.huleixin.tingyu.minimal.PlayerPanelState
 internal fun Modifier.playerFrameUnderlay(panel: PlayerPanelState, leaving: State<Float>) = drawWithContent {
     // Read animation state here: invalidate the full root drawing without recomposing the scene.
     panel.progress
+    panel.classicFrame
     leaving.value
     // The player shell is clipped during its morph, so the retained page / WebView
     // underneath must remain visible through the newly exposed area. Filling this

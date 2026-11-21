@@ -22,7 +22,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import io.github.huleixin.tingyu.chrome.LocalMinimalMorph
 import io.github.huleixin.tingyu.chrome.FullPlayerCoverRadiusDp
-import io.github.huleixin.tingyu.chrome.playerCoverLocalRadius
+import io.github.huleixin.tingyu.chrome.LocalPlayerArtworkAnchor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -87,6 +87,7 @@ fun MinimalArtworkView(
     modifier: Modifier = Modifier,
 ) {
     val morph = LocalMinimalMorph.current
+    val artworkAnchor = LocalPlayerArtworkAnchor.current
     fun decoration() = if(morph!=null && morph.active())morph.decorations()else 1f
     var breath by remember { mutableFloatStateOf(0f) }
     // 手势 / 切歌动画期间冻结呼吸：不更新相位，姿态停在当前值
@@ -121,8 +122,7 @@ fun MinimalArtworkView(
         val density = LocalDensity.current
         val corner = FullPlayerCoverRadiusDp.dp
         val localCorner = {
-            playerCoverLocalRadius(morph?.interactiveFraction() ?: 1f,
-                morph?.cover?.width?.div(density.density), side.value, corner.value).dp
+            morph?.coverLocalRadius(artworkAnchor, side.value * density.density, corner.value)?.dp ?: corner
         }
         val sidePx = with(density) { side.toPx() }
         stack.setSize(sidePx, density.density)

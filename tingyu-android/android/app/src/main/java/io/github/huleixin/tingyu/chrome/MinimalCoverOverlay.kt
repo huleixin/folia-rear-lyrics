@@ -30,5 +30,6 @@ internal val LocalMinimalCoverOverlay = staticCompositionLocalOf<SharedTransitio
             renderInOverlay = { isMorphing() || (active && moving()) })
     }
     // The pager overlay remains below the player panel's outer clip.
-    return if (motion == null) elevated else elevated.playerCoverTransform(anchor, isMorphing, motion::coverBounds, motion::coverAlpha)
+    return if (motion == null) elevated else elevated.playerCoverTransform(anchor, isMorphing,
+        bounds = { motion.coverBounds(it, anchor.canvasSize) }, opacity = motion::coverAlpha)
 }

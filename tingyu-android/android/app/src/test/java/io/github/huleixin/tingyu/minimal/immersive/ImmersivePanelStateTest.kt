@@ -63,4 +63,23 @@ class PlayerPanelStateTest {
         assertEquals(1f,panel.progress,0f)
         panel.close(true); assertEquals(0f,panel.progress,0f); assertTrue(panel.collapsePending)
     }
+
+    @Test fun releaseCarriesFingerVelocityIntoTheFirstSpringFrames() {
+        panel.adopt(.6f)
+        panel.beginDrag()
+        panel.dragBy(0f, 1000f)
+        panel.release(0f)
+        frames(4)
+        val stationary = panel.progress
+        panel.reset()
+
+        panel.adopt(.6f)
+        panel.beginDrag()
+        panel.dragBy(0f, 1000f)
+        panel.release(-900f)
+        frames(4)
+        assertTrue(panel.progress > stationary)
+        frames(60)
+        assertEquals(1f, panel.progress, 0f)
+    }
 }

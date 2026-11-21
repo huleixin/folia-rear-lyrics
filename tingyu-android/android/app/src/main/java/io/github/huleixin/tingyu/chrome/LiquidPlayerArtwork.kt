@@ -17,7 +17,13 @@ internal class PlayerArtworkAnchor {
     var bounds by mutableStateOf<Rect?>(null)
         private set
     fun clear() { artwork = null; bounds = null }
-    fun canvas(value: LayoutCoordinates) { canvas = value; refresh() }
+    var canvasSize by mutableStateOf<Size?>(null)
+        private set
+    fun canvas(value: LayoutCoordinates) {
+        canvas = value
+        canvasSize = Size(value.size.width.toFloat(), value.size.height.toFloat())
+        refresh()
+    }
     fun artwork(value: LayoutCoordinates) { artwork = value; refresh() }
     private fun refresh() {
         val root = canvas ?: return; val cover = artwork ?: return

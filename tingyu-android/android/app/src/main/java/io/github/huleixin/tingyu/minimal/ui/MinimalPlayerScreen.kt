@@ -183,7 +183,7 @@ fun MinimalPlayerScreen(
     val windowTop = WindowInsets.statusBars.getTop(density) / density.density
     val topInset = maxOf(safeTop, windowTop)
     val screenHeight = LocalConfiguration.current.screenHeightDp.toFloat()
-    val interactiveRange = screenHeight * .86f
+    val interactiveRange = minimalMotion?.panel?.top?.takeIf { it > 0f } ?: screenHeight * density.density * .86f
     val latestReduced = rememberUpdatedState(still)
     val latestReveal = rememberUpdatedState(io.github.huleixin.tingyu.chrome.LocalPlayerReveal.current)
     fun beginPanelDrag() {
@@ -191,7 +191,7 @@ fun MinimalPlayerScreen(
         panel?.adopt(current); panel?.beginDrag()
     }
     fun dragPanel(dy: Float) {
-        panel?.dragBy(dy, interactiveRange * density.density)
+        panel?.dragBy(dy, interactiveRange)
     }
     fun settlePanel(velocity: Float, canceled: Boolean = false) {
         panel?.release(velocity, canceled, latestReduced.value)
@@ -213,33 +213,38 @@ fun MinimalPlayerScreen(
             var vertical = false
             tracker.resetTracking()
             tracker.addPosition(down.uptimeMillis, down.position)
-            while (true) {
-                if (vertical) {
-                    val early = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = early.changes.firstOrNull { it.id == down.id } ?: break
-                    if (!change.pressed) {
-                        settlePanel(tracker.calculateVelocity().y); break
+            try {
+                while (true) {
+                    if (vertical) {
+                        val early = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = early.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            vertical = false
+                            settlePanel(tracker.calculateVelocity().y); break
+                        }
+                        tracker.addPosition(change.uptimeMillis, change.position)
+                        val dy = change.position.y - lastY
+                        lastY = change.position.y
+                        dragPanel(dy); change.consume()
+                        continue
                     }
+                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) break
                     tracker.addPosition(change.uptimeMillis, change.position)
                     val dy = change.position.y - lastY
                     lastY = change.position.y
-                    dragPanel(dy); change.consume()
-                    continue
+                    total += dy
+                    if (change.isConsumed) break
+                    if (total > viewConfiguration.touchSlop &&
+                        abs(total) > abs(change.position.x - down.position.x) * 1.25f) {
+                        vertical = true
+                        beginPanelDrag()
+                        dragPanel(total); change.consume()
+                    }
                 }
-                val event = awaitPointerEvent(PointerEventPass.Main)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-                tracker.addPosition(change.uptimeMillis, change.position)
-                val dy = change.position.y - lastY
-                lastY = change.position.y
-                total += dy
-                if (change.isConsumed) break
-                if (total > viewConfiguration.touchSlop &&
-                    abs(total) > abs(change.position.x - down.position.x) * 1.25f) {
-                    vertical = true
-                    beginPanelDrag()
-                    dragPanel(total); change.consume()
-                }
+            } finally {
+                if (vertical && panel.dragging) settlePanel(0f, canceled = true)
             }
         }
     }
@@ -247,7 +252,7 @@ fun MinimalPlayerScreen(
         rememberPagerState(initialPage = initialPage.coerceIn(0, PAGE_COUNT - 1)) { PAGE_COUNT }
     }
     val pageForScroll by rememberUpdatedState(pagerState.currentPage)
-    val panelScroll = remember(panel, detour) {
+    val panelScroll = remember(panel, detour, interactiveRange) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (panel == null || detour || source != NestedScrollSource.UserInput || !panel.dragging) return Offset.Zero
