@@ -2,22 +2,22 @@
   "schemaVersion": 1,
   "appId": "io.github.huleixin.tingyu",
   "channel": "stable",
-  "policyRevision": 8,
+  "policyRevision": 13,
   "policyAction": "normal",
   "updateEnabled": true,
-  "latestVersionName": "1.5.109",
-  "latestVersionCode": 325,
-  "minSupportedVersionCode": 325,
-  "releaseId": "rel-stable-1.5.109-325",
-  "gitCommit": "33c4ec70",
-  "releaseNotes": "听屿 Android 1.5.109\n\n- 本地歌曲定位。全部歌曲和当前文件夹可定位正在播放或暂停的歌曲。本地歌单、我喜欢、专辑和独立文件夹详情也能在长列表中跨页定位。同名歌曲会按各自的本地 ID 匹配。\n- 播放器交互。改善点击展开、收起和手势拖动时的衔接。封面跟随面板移动并保持圆角，减少转场时封面或首页内容闪现。\n- 播放稳定性。合并短时间内重复的前台播放服务启动请求，降低启动超时闪退的概率。歌词舞台跳播会等待可用音源，背屏状态请求挂起后可重新同步。\n- 升级后的公告。新版首次启动会重新获取公告。已展示记录继续保留，公告也可在设置中的公告中心回看。\n\n本次为必更版本，可覆盖安装。",
-  "publishedAt": "2026-11-21T04:37:59.670Z",
-  "publishedAtEpochMs": 1795235879670,
-  "policyExpiresAt": "2026-12-21T04:37:59.670Z",
-  "policyExpiresAtEpochMs": 1797827879670,
+  "latestVersionName": "1.5.151",
+  "latestVersionCode": 367,
+  "minSupportedVersionCode": 367,
+  "releaseId": "rel-stable-1.5.151-367",
+  "gitCommit": "12b1ae41",
+  "releaseNotes": "听屿 1.5.151 正式版更新\n\n为喜欢的音乐找到合适的声音，享受更顺手的播放与平板体验。\n\n听屿音效 Pro\n\n新增官方声境，提供自然与鲜明两种风格，并支持强度调整与效果对比。打开播放页的音效入口，选择喜欢的声境，即可调整聆听感受。\n\nAI 智能调音\n\n根据音乐和聆听偏好生成个人音效方案，支持继续描述想要的声音并细调。满意的配方可以保存，方便随时使用。AI 调音需有效权益和可用次数。\n\n外接音频设备设置\n\n新增 USB 音频设备设置页，可查看连接状态，选择独占输出与原样输出等选项。使用兼容设备并取得 Hi-Fi Pro 权益后，可在音质设置中配置；实际支持情况以设备为准。\n\n平板与播放体验\n\n优化不同屏幕尺寸及横竖屏下的播放页、歌词、队列和设置布局。歌词舞台的控制入口与显示方式更清晰，查看歌词与切换歌曲更方便。",
+  "publishedAt": "2026-11-24T17:18:34.073Z",
+  "publishedAtEpochMs": 1795540714073,
+  "policyExpiresAt": "2026-12-24T17:18:34.073Z",
+  "policyExpiresAtEpochMs": 1798132714073,
   "offlineGraceHours": 168,
-  "apkSizeBytes": 58950527,
-  "sha256": "c6f0ec951fb844bad212ba7392a6a23ebffb673799b6a6c75bdb03eac0e47ef6",
+  "apkSizeBytes": 60889933,
+  "sha256": "a30cc23fc1dfb9c2a05a27272a0922d4bedde1d422c1153db6787228f2819571",
   "apkCertSha256": "a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d",
   "minSdk": 24,
   "supportedAbis": [
@@ -30,17 +30,17 @@
     {
       "id": "cnb-primary",
       "label": "CNB 国内高速主节点",
-      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.109/tingyu-1.5.109-release.apk",
+      "url": "https://cnb.cool/tingyu-2026/releases/-/releases/download/v1.5.151/tingyu-1.5.151-release.apk",
       "priority": 1
     },
     {
       "id": "github-backup",
       "label": "GitHub 备用节点",
-      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.109/tingyu-1.5.109-release.apk",
+      "url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.151/tingyu-1.5.151-release.apk",
       "priority": 2
     }
   ],
   "signatureAlgorithm": "ECDSA-P256-SHA256",
   "keyId": "tingyu-policy-2026-k1",
-  "signature": "MEYCIQDgbIXmGZdG+xRSZX5/WyXaYWP3GQsNbn5UxEWqpBHdjAIhAL3yLeSS15jlvTBOqDEazQB/InuRsgKXnlgeAoTUfpHq"
+  "signature": "MEYCIQDiP8hUyF+yfBujci1dtoux86NklpV/i6U/NC9eW3kq0QIhAK8Pnzldk00j9wy8vXqV/PdBD1yfP7aEwTDN0I8ALLE5"
 }
